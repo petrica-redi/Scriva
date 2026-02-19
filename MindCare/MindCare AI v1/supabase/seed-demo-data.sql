@@ -780,4 +780,174 @@ VALUES ('c0000000-0000-0000-0012-000000000001',
 -- PATIENT 13: Simona Radu — Bipolar II (Dr. Ana)
 -- =============================================
 
-INSERT INTO public.consultations (id, user_id
+INSERT INTO public.consultations (id, user_id, patient_id, visit_type, status, consent_given, consent_timestamp, recording_duration_seconds, metadata, created_at)
+VALUES ('c0000000-0000-0000-0013-000000000001', dr_ana, p13, 'Medication Review', 'finalized', true, now() - interval '9 days', 1800, jsonb_build_object(
+  'patient_name', 'Simona Radu', 'patient_code', 'MC-2025-013',
+  'diagnosis', 'Tulburare afectivă bipolară tip II', 'icd_code', 'F31.8',
+  'risk_flags', jsonb_build_array(
+    jsonb_build_object('type', 'medication_noncompliance', 'severity', 'low', 'description', 'Sare ocazional doza de Lamotrigină, aderență ~80%', 'detected_at', (now() - interval '9 days')::text)
+  )
+), now() - interval '9 days');
+
+INSERT INTO public.transcripts (consultation_id, full_text, segments, language, provider)
+VALUES ('c0000000-0000-0000-0013-000000000001',
+'[Doctor]: Simona, cum merge cu Lamotrigina? Ați ajuns la 200mg?
+[Pacient]: Da, am titrat cum ați spus. Sunt la 200mg de 3 săptămâni.
+[Doctor]: Și cum vă simțiți?
+[Pacient]: Mult mai stabilă. Nu mai am acele coborâșuri abisale. Și nici perioadele alea de energie excesivă în care fac prostii.
+[Doctor]: Asta e exact efectul pe care îl urmărim. Aveți efecte secundare?
+[Pacient]: Uneori am dureri de cap. Și am observat că uit cuvinte — caut un cuvânt și nu-l găsesc. E de la medicament?
+[Doctor]: Poate fi, la unii pacienți. De obicei se ameliorează. Important: dacă observați orice erupție cutanată, trebuie să mă sunați IMEDIAT. E un efect secundar rar dar serios.
+[Pacient]: Am înțeles. Doamnă doctor, sincer, uneori îmi lipsesc acele perioade de energie. Eram creativă, productivă...
+[Doctor]: Înțeleg. Hipomaniile pot părea plăcute, dar vin cu un preț — decizii impulsive, relații afectate, și inevitabil sunt urmate de depresie. Stabilitatea e mai valoroasă pe termen lung.
+[Pacient]: Aveți dreptate. Soțul zice că sunt „din nou eu" de când iau medicamentul.',
+'[{"speaker":"doctor","text":"Simona, cum merge cu Lamotrigina?","start_time":0,"end_time":3.0,"confidence":0.97}]'::jsonb,
+'ro', 'deepgram');
+
+INSERT INTO public.clinical_notes (consultation_id, template_id, sections, billing_codes, status, ai_model, generation_metadata, finalized_at, finalized_by)
+VALUES ('c0000000-0000-0000-0013-000000000001', '10000000-0000-0000-0000-000000000001',
+'[{"title":"Motivul Prezentării","content":"Control medicație — Lamotrigină 200mg/zi, titrare completă. Pacientă cu F31.8 — tulburare bipolară tip II.","order":0},
+{"title":"Evoluție","content":"Stabilizare timică semnificativă sub Lamotrigină 200mg. Fără episoade depresive sau hipomaniacale în ultimele 3 săptămâni. Efecte secundare: cefalee ocazională, dificultăți ușoare de evocare verbală. Aderență bună (~80%). Pacientă exprimă nostalgie pentru perioadele hipomaniacale — psihoeduc ție privind costul complet al hipomaniei.","order":1},
+{"title":"Examenul Stării Mintale","content":"Aspect: Îngrijit, adecvat.\nComportament: Cooperant, deschis, bun contact vizual.\nVorbire: Normală.\nDispoziție: \"Stabilă, bine\"\nAfect: Eutim, congruent, gamă completă.\nGândire: Coerentă, fără tangențialitate.\nPercepție: Fără halucinații.\nInsight: Bun.\nJudecată: Intactă.","order":2},
+{"title":"Plan Terapeutic","content":"1. Lamotrigină 200mg/zi — continuare\n2. Monitorizare hemograma, funcție hepatică la 3 luni\n3. Atenție la erupții cutanate (sindrom Stevens-Johnson)\n4. Control: 1 lună\n5. Psihoterapie: aderentă la ședințele cu Dr. Marinescu","order":3}]'::jsonb,
+'[{"code":"F31.8","system":"ICD-10","description":"Alte tulburări afective bipolare — tip II","confidence":0.94,"accepted":true},
+{"code":"99213","system":"CPT","description":"Consultație pacient cunoscut, complexitate scăzută-moderată","confidence":0.93,"accepted":true}]'::jsonb,
+'finalized', 'claude-sonnet-4-20250514', '{}'::jsonb, now() - interval '8 days', dr_ana);
+
+
+-- =============================================
+-- PATIENT 14: Vlad Alexandrescu — MDD Recurrent (Dr. Radu - CBT)
+-- =============================================
+
+INSERT INTO public.consultations (id, user_id, patient_id, visit_type, status, consent_given, consent_timestamp, recording_duration_seconds, metadata, created_at)
+VALUES ('c0000000-0000-0000-0014-000000000001', dr_radu, p14, 'Psychotherapy Session', 'scheduled', true, now() + interval '2 hours', null, jsonb_build_object(
+  'patient_name', 'Vlad Alexandrescu', 'patient_code', 'MC-2025-014',
+  'diagnosis', 'Episod depresiv recurent, moderat', 'icd_code', 'F33.1'
+), now() - interval '1 day');
+
+
+-- =============================================
+-- ADDITIONAL CONSULTATIONS for history depth
+-- =============================================
+
+-- Andrei (p01) - initial scheduled visit (today, upcoming)
+INSERT INTO public.consultations (id, user_id, patient_id, visit_type, status, consent_given, consent_timestamp, recording_duration_seconds, metadata, created_at)
+VALUES ('c0000000-0000-0000-0001-000000000004', dr_ana, p01, 'Psychiatric Follow-up', 'scheduled', false, null, null, jsonb_build_object(
+  'patient_name', 'Andrei Gheorghiu', 'patient_code', 'MC-2025-001',
+  'diagnosis', 'Episod depresiv major, sever', 'icd_code', 'F32.2'
+), now() + interval '3 hours');
+
+-- Bogdan (p03) - earlier consultation
+INSERT INTO public.consultations (id, user_id, patient_id, visit_type, status, consent_given, consent_timestamp, recording_duration_seconds, metadata, created_at)
+VALUES ('c0000000-0000-0000-0003-000000000002', dr_ana, p03, 'Initial Evaluation', 'finalized', true, now() - interval '60 days', 3600, jsonb_build_object(
+  'patient_name', 'Bogdan Nicolescu', 'patient_code', 'MC-2025-003',
+  'diagnosis', 'Tulburare afectivă bipolară tip I', 'icd_code', 'F31.1'
+), now() - interval '60 days');
+
+INSERT INTO public.transcripts (consultation_id, full_text, segments, language, provider)
+VALUES ('c0000000-0000-0000-0003-000000000002',
+'[Doctor]: Bună ziua, domnule Nicolescu. Sunt Dr. Petrescu. Am primit scrisoarea de la colegul dumneavoastră din Cluj. Povestiți-mi ce s-a întâmplat.
+[Pacient]: Bună ziua. Am avut un episod... soția zice că am fost „nebun" două săptămâni. Am dormit 2-3 ore pe noapte, am cheltuit 15.000 de lei pe lucruri inutile, am început 3 afaceri.
+[Doctor]: Și cum vă simțeați în acea perioadă?
+[Pacient]: Extraordinar! Ca și cum aș fi putut face orice. Ideile curgeau, vorbeam rapid, simțeam o energie infinită. Dar apoi... s-a prăbușit totul și am intrat într-o depresie groaznică.
+[Doctor]: Câte episoade de acest tip ați avut?
+[Pacient]: Soția zice că 3-4 în ultimii 5 ani. Dar le vedeam ca perioade „productive". Nu am realizat că e o problemă.
+[Doctor]: Ceea ce descrieți — episoade de energie extremă urmate de depresie — este consistent cu tulburarea bipolară tip I. Este o afecțiune neurologică, nu un defect de caracter. Și există tratament eficient.',
+'[{"speaker":"doctor","text":"Bună ziua, domnule Nicolescu.","start_time":0,"end_time":3.0,"confidence":0.97}]'::jsonb,
+'ro', 'deepgram');
+
+INSERT INTO public.clinical_notes (consultation_id, template_id, sections, billing_codes, status, ai_model, generation_metadata, finalized_at, finalized_by)
+VALUES ('c0000000-0000-0000-0003-000000000002', '10000000-0000-0000-0000-000000000001',
+'[{"title":"Motivul Prezentării","content":"Evaluare psihiatrică inițială. Pacient trimis de coleg din Cluj-Napoca după episod maniacal sever.","order":0},
+{"title":"Anamneza","content":"Bărbat 45 ani cu istoric de 3-4 episoade maniacale în ultimii 5 ani, nediagnosticat anterior. Ultimul episod: 2 săptămâni de somn redus (2-3h), cheltuieli impulsive (15.000 lei), hipersocialitate, proiecte grandiose. Urmat de episod depresiv sever. Antecedente heredocolaterale: unchiu patern cu \"perioade de nebunie\" (posibil bipolar, netratat).","order":1},
+{"title":"Plan Terapeutic","content":"1. Litiu carbonat 900mg/zi — inițiere cu titrare\n2. Litemie de bază + analize (funcție renală, tiroidiană)\n3. Psihoeduc ție bipolară\n4. Control: 1 săptămână","order":2}]'::jsonb,
+'[{"code":"F31.1","system":"ICD-10","description":"Tulburare afectivă bipolară, episod maniacal fără simptome psihotice","confidence":0.93,"accepted":true},
+{"code":"90792","system":"CPT","description":"Evaluare diagnostică psihiatrică","confidence":0.96,"accepted":true}]'::jsonb,
+'finalized', 'claude-sonnet-4-20250514', '{}'::jsonb, now() - interval '59 days', dr_ana);
+
+-- Marius (p10) - earlier consultation showing substance use disclosure
+INSERT INTO public.consultations (id, user_id, patient_id, visit_type, status, consent_given, consent_timestamp, recording_duration_seconds, metadata, created_at)
+VALUES ('c0000000-0000-0000-0010-000000000002', dr_ana, p10, 'Initial Evaluation', 'finalized', true, now() - interval '90 days', 3300, jsonb_build_object(
+  'patient_name', 'Marius Ciobanu', 'patient_code', 'MC-2025-010',
+  'diagnosis', 'Tulburare legată de consumul de alcool', 'icd_code', 'F10.2'
+), now() - interval '90 days');
+
+INSERT INTO public.transcripts (consultation_id, full_text, segments, language, provider)
+VALUES ('c0000000-0000-0000-0010-000000000002',
+'[Doctor]: Domnule Ciobanu, medicul de familie v-a trimis la mine. Ce se întâmplă?
+[Pacient]: Soția a insistat... zice că beau prea mult. Dar eu cred că exagerează.
+[Doctor]: Cât beți într-o zi obișnuită?
+[Pacient]: Păi... 2-3 beri seara. Uneori câte un vin. Dar nu sunt alcoolic!
+[Doctor]: 2-3 beri și vin... asta ar fi cam 5-6 unități de alcool pe zi. Limita recomandată e 2 unități. De cât timp consumați în acest ritm?
+[Pacient]: ...De vreo 10 ani, cred.
+[Doctor]: Ați încercat să opriți vreodată?
+[Pacient]: Da, de Paște am încercat. Am rezistat 3 zile. Tremuram, transpirăm, nu puteam dormi. Am reluat.
+[Doctor]: Ceea ce descrieți — tremurături, transpirație, insomnie la oprire — sunt simptome de sevraj alcoolic. Asta înseamnă că corpul dumneavoastră a dezvoltat dependență fizică.
+[Pacient]: ...Dependență? Doamnă doctor, eu nu sunt ca cei de pe stradă...
+[Doctor]: Dependența de alcool nu arată cum credem din filme. Mulți oameni funcționali au această problemă. Nu e o chestiune de voință, e o boală cronică. Și se poate trata.
+[Pacient]: ...Ce trebuie să fac?',
+'[{"speaker":"doctor","text":"Domnule Ciobanu, medicul de familie v-a trimis la mine.","start_time":0,"end_time":3.5,"confidence":0.96}]'::jsonb,
+'ro', 'deepgram');
+
+INSERT INTO public.clinical_notes (consultation_id, template_id, sections, billing_codes, status, ai_model, generation_metadata, finalized_at, finalized_by)
+VALUES ('c0000000-0000-0000-0010-000000000002', '10000000-0000-0000-0000-000000000001',
+'[{"title":"Motivul Prezentării","content":"Evaluare psihiatrică inițială. Trimis de medicul de familie la insistența soției. Consum cronic de alcool.","order":0},
+{"title":"Anamneza","content":"Bărbat 49 ani, consum de alcool: 5-6 unități/zi de ~10 ani. Tentativă de oprire eșuată — simptome de sevraj la 3 zile (tremurături, transpirații, insomnie). Funcționare profesională menținută dar cu dificultăți. GGT: 120 U/L. AUDIT: 28/40 (dependență probabilă). Motivație pre-contemplativă la început de ședință, trece în contemplativă pe parcurs.","order":1},
+{"title":"Plan Terapeutic","content":"1. Program de detoxifiere ambulatorie supravizată\n2. Disulfiram vs. Naltrexonă — discuție la control\n3. Analize complete de bază\n4. Control: 1 săptămână","order":2}]'::jsonb,
+'[{"code":"F10.2","system":"ICD-10","description":"Sindrom de dependență alcoolică","confidence":0.95,"accepted":true},
+{"code":"90792","system":"CPT","description":"Evaluare diagnostică psihiatrică","confidence":0.95,"accepted":true}]'::jsonb,
+'finalized', 'claude-sonnet-4-20250514', '{}'::jsonb, now() - interval '89 days', dr_ana);
+
+-- Florin (p07) - earlier evaluation for schizophrenia
+INSERT INTO public.consultations (id, user_id, patient_id, visit_type, status, consent_given, consent_timestamp, recording_duration_seconds, metadata, created_at)
+VALUES ('c0000000-0000-0000-0007-000000000002', dr_ana, p07, 'Medication Review', 'finalized', true, now() - interval '35 days', 1500, jsonb_build_object(
+  'patient_name', 'Florin Popescu', 'patient_code', 'MC-2025-007',
+  'diagnosis', 'Schizofrenie paranoidă', 'icd_code', 'F20.0',
+  'risk_flags', jsonb_build_array(
+    jsonb_build_object('type', 'psychotic_symptoms', 'severity', 'medium', 'description', 'Halucinații auditive reziduale sub Olanzapină', 'detected_at', (now() - interval '35 days')::text)
+  )
+), now() - interval '35 days');
+
+INSERT INTO public.transcripts (consultation_id, full_text, segments, language, provider)
+VALUES ('c0000000-0000-0000-0007-000000000002',
+'[Doctor]: Florin, la ultimul control am crescut Olanzapina la 15mg. Cum merge?
+[Pacient]: Vocile sunt mai slabe. Nu le mai aud ziua. Doar seara, uneori.
+[Doctor]: Asta e un progres. Și gândurile despre vecin?
+[Pacient]: Mai am impresia câteodată... dar reușesc să-mi spun: „asta e boala, nu realitatea." Cum m-ați învățat.
+[Doctor]: Excelent, Florin. Asta se numește testarea realității și e foarte important.',
+'[{"speaker":"doctor","text":"Florin, la ultimul control am crescut Olanzapina.","start_time":0,"end_time":3.5,"confidence":0.96}]'::jsonb,
+'ro', 'deepgram');
+
+INSERT INTO public.clinical_notes (consultation_id, template_id, sections, billing_codes, status, ai_model, generation_metadata, finalized_at, finalized_by)
+VALUES ('c0000000-0000-0000-0007-000000000002', '10000000-0000-0000-0000-000000000001',
+'[{"title":"Evoluție","content":"Ameliorare sub Olanzapină 15mg. Halucinații auditive: reziduale, doar seara, intensitate redusă. Ideație paranoidă: cu testarea realității funcțională — pacientul reușește să conteste gândurile paranoide. Complianță: parțială (ia ~5/7 zile).","order":0},
+{"title":"Plan Terapeutic","content":"1. Olanzapină 15mg/zi — continuare, reafirmare zilnică\n2. Monitorizare metabolică la 3 luni\n3. Control: 1 lună","order":1}]'::jsonb,
+'[{"code":"F20.0","system":"ICD-10","description":"Schizofrenie paranoidă","confidence":0.96,"accepted":true},
+{"code":"99214","system":"CPT","description":"Consultație complexitate moderată","confidence":0.91,"accepted":true}]'::jsonb,
+'finalized', 'claude-sonnet-4-20250514', '{}'::jsonb, now() - interval '34 days', dr_ana);
+
+
+-- =============================================
+-- 5. AUDIT LOG entries
+-- =============================================
+
+INSERT INTO public.audit_log (user_id, action, resource_type, resource_id, metadata, created_at) VALUES
+  (dr_ana, 'start_recording', 'consultation', 'c0000000-0000-0000-0001-000000000001', '{}'::jsonb, now() - interval '28 days'),
+  (dr_ana, 'stop_recording', 'consultation', 'c0000000-0000-0000-0001-000000000001', '{"duration_seconds":3420}'::jsonb, now() - interval '28 days' + interval '57 minutes'),
+  (dr_ana, 'generate_note', 'clinical_note', 'c0000000-0000-0000-0001-000000000001', '{"model":"claude-sonnet-4-20250514"}'::jsonb, now() - interval '28 days' + interval '60 minutes'),
+  (dr_ana, 'finalize_note', 'clinical_note', 'c0000000-0000-0000-0001-000000000001', '{}'::jsonb, now() - interval '27 days'),
+  (dr_radu, 'start_recording', 'consultation', 'c0000000-0000-0000-0002-000000000001', '{}'::jsonb, now() - interval '21 days'),
+  (dr_radu, 'stop_recording', 'consultation', 'c0000000-0000-0000-0002-000000000001', '{"duration_seconds":2940}'::jsonb, now() - interval '21 days' + interval '49 minutes'),
+  (dr_radu, 'generate_note', 'clinical_note', 'c0000000-0000-0000-0002-000000000001', '{"model":"claude-sonnet-4-20250514"}'::jsonb, now() - interval '21 days' + interval '52 minutes'),
+  (dr_radu, 'finalize_note', 'clinical_note', 'c0000000-0000-0000-0002-000000000001', '{}'::jsonb, now() - interval '20 days'),
+  (dr_ana, 'start_recording', 'consultation', 'c0000000-0000-0000-0001-000000000003', '{}'::jsonb, now() - interval '3 days'),
+  (dr_ana, 'stop_recording', 'consultation', 'c0000000-0000-0000-0001-000000000003', '{"duration_seconds":2640}'::jsonb, now() - interval '3 days' + interval '44 minutes'),
+  (dr_ana, 'generate_note', 'clinical_note', 'c0000000-0000-0000-0001-000000000003', '{"model":"claude-sonnet-4-20250514"}'::jsonb, now() - interval '3 days' + interval '46 minutes'),
+  (dr_irina, 'start_recording', 'consultation', 'c0000000-0000-0000-0004-000000000001', '{}'::jsonb, now() - interval '18 days'),
+  (dr_irina, 'finalize_note', 'clinical_note', 'c0000000-0000-0000-0004-000000000001', '{}'::jsonb, now() - interval '17 days'),
+  (dr_ana, 'finalize_note', 'clinical_note', 'c0000000-0000-0000-0010-000000000001', '{}'::jsonb, now() - interval '11 days'),
+  (dr_ana, 'finalize_note', 'clinical_note', 'c0000000-0000-0000-0003-000000000001', '{}'::jsonb, now() - interval '9 days');
+
+RAISE NOTICE 'MindCare AI seed complete! 3 clinicians, 14 patients, ~25 consultations with transcripts, notes, and risk flags.';
+
+END $$;

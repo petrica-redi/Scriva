@@ -73,7 +73,7 @@ export default async function DashboardPage() {
       .limit(5),
   ]);
 
-  const consultationsWithPatients = (recentConsultations || []).map((c) => ({
+  const consultationsWithPatients = (recentConsultations || []).map((c: any) => ({
     id: c.id,
     visit_type: c.visit_type,
     status: c.status,
@@ -81,7 +81,7 @@ export default async function DashboardPage() {
     patientName: (c.metadata as Record<string, unknown>)?.patient_name as string || "Unnamed Patient",
   }));
 
-  const todayItems = (todaySchedule || []).map((c) => ({
+  const todayItems = (todaySchedule || []).map((c: any) => ({
     id: c.id,
     visit_type: c.visit_type,
     status: c.status,
@@ -92,7 +92,7 @@ export default async function DashboardPage() {
     riskStatus: (c.metadata as Record<string, unknown>)?.risk_status as string || "normal",
   }));
 
-  const atRiskItems = (patientsAtRisk || []).map((c) => ({
+  const atRiskItems = (patientsAtRisk || []).map((c: any) => ({
     id: c.id,
     visit_type: c.visit_type,
     status: c.status,

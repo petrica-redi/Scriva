@@ -92,19 +92,19 @@ class BrowserQueryBuilder {
 
   single() { this.query.single = true; this.query.limit = 1; return this; }
 
-  async then(resolve: (val: unknown) => void, reject?: (err: unknown) => void) {
-    try {
-      const res = await fetch("/api/db", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(this.query),
-      });
-      const json = await res.json();
-      resolve(json);
-    } catch (err) {
-      if (reject) reject(err);
-      else resolve({ data: null, error: { message: String(err) }, count: null });
-    }
+  then<TResult1 = any, TResult2 = never>(
+    resolve?: ((value: any) => TResult1 | PromiseLike<TResult1>) | null,
+    reject?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null
+  ): Promise<TResult1 | TResult2> {
+    const promise = fetch("/api/db", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(this.query),
+    })
+      .then((res) => res.json())
+      .catch((err) => ({ data: null, error: { message: String(err) }, count: null }));
+
+    return promise.then(resolve, reject);
   }
 }
 
@@ -114,8 +114,8 @@ let _instance: ReturnType<typeof _createClient> | null = null;
 
 function _createClient() {
   return {
-    auth: authMock,
-    from: (table: string) => new BrowserQueryBuilder(table),
+    auth: authMock as any,
+    from: (table: string): any => new BrowserQueryBuilder(table),
   };
 }
 

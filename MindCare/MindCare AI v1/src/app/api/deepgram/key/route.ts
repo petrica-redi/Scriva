@@ -30,7 +30,7 @@ export async function GET() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          comment: `temp-key-${user?.id || "demo"}-${Date.now()}`,
+          comment: `temp-key-demo-${Date.now()}`,
           scopes: ["usage:write"],
           time_to_live_in_seconds: 60, // 1 minute TTL
         }),

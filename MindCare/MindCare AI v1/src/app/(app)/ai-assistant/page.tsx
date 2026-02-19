@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n/i18n-context";
 import type { Patient } from "@/types";
 
 interface AIResponse {
@@ -13,6 +14,7 @@ interface AIResponse {
 
 export default function AIAssistantPage() {
   const supabase = useMemo(() => createClient(), []);
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [scope, setScope] = useState<"general" | "patient" | "icd">("general");
   const [selectedPatientId, setSelectedPatientId] = useState("");
@@ -61,14 +63,14 @@ export default function AIAssistantPage() {
         const { data: notes } = await supabase
           .from("clinical_notes")
           .select("sections, billing_codes, status, created_at")
-          .in("consultation_id", (consultations || []).map((c) => c.id))
+          .in("consultation_id", (consultations || []).map((c: any) => c.id))
           .order("created_at", { ascending: false })
           .limit(5);
 
         contextInfo = `\n\nPatient Context - ${selectedPatientName}:\n` +
           `Consultations: ${consultations?.length || 0}\n` +
-          (notes || []).map((n) =>
-            `Note (${n.status}): ${((n.sections as { title: string; content: string }[]) || []).map((s) => `${s.title}: ${s.content.substring(0, 200)}`).join("; ")}`
+          (notes || []).map((n: any) =>
+            `Note (${n.status}): ${((n.sections as { title: string; content: string }[]) || []).map((s: any) => `${s.title}: ${s.content.substring(0, 200)}`).join("; ")}`
           ).join("\n");
       } else if (scope === "icd" && icdCode) {
         contextInfo = `\n\nFocus on ICD-10 code: ${icdCode}. Provide clinical information about this diagnosis code, including typical presentation, workup, management, and coding guidelines.`;
@@ -111,13 +113,13 @@ export default function AIAssistantPage() {
     <div className="flex flex-col gap-6 p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-medical-text">AI Clinical Assistant</h1>
-          <p className="text-sm text-medical-muted mt-1">Ask clinical questions, get insights on patients or disease codes</p>
+          <h1 className="text-2xl font-semibold text-medical-text">{t('ai.title')}</h1>
+          <p className="text-sm text-medical-muted mt-1">{t('ai.subtitle')}</p>
         </div>
         {conversation.length > 0 && (
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={handleExport}>Export Conversation</Button>
-            <Button variant="outline" size="sm" onClick={() => setConversation([])}>Clear</Button>
+            <Button variant="outline" size="sm" onClick={handleExport}>{t('ai.exportConversation')}</Button>
+            <Button variant="outline" size="sm" onClick={() => setConversation([])}>{t('ai.clear')}</Button>
           </div>
         )}
       </div>
@@ -127,9 +129,9 @@ export default function AIAssistantPage() {
         <CardContent className="pt-6 space-y-4">
           <div className="flex gap-2">
             {[
-              { key: "general" as const, label: "General Clinical Query", desc: "Ask any medical question" },
-              { key: "patient" as const, label: "Patient-Specific", desc: "Query about a specific patient" },
-              { key: "icd" as const, label: "ICD / Disease Code", desc: "Look up a diagnosis code" },
+              { key: "general" as const, label: t('ai.generalQuery'), desc: t('ai.generalDesc') },
+              { key: "patient" as const, label: t('ai.patientSpecific'), desc: t('ai.patientDesc') },
+              { key: "icd" as const, label: t('ai.icdLookup'), desc: t('ai.icdDesc') },
             ].map((s) => (
               <button
                 key={s.key}
@@ -203,11 +205,49 @@ export default function AIAssistantPage() {
                     </svg>
                   </div>
                 </div>
-                <p className="text-medical-text font-medium">How can I help you today?</p>
-                <p className="text-sm text-medical-muted mt-1">Ask clinical questions, review patient history, or look up diagnosis codes.</p>
-                <div className="flex flex-wrap justify-center gap-2 mt-4">
-                  {["What are the differential diagnoses for chest pain?", "Summarize latest guidelines for hypertension management", "What medications interact with warfarin?"].map((q) => (
+                <p className="text-medical-text font-medium">{t('ai.howCanIHelp')}</p>
+                <p className="text-sm text-medical-muted mt-1">{t('ai.askClinicalQuestions')}</p>
+                
+                {/* General Suggested Prompts */}
+                <p className="text-xs font-semibold text-medical-muted uppercase tracking-wide mt-4 mb-2">{t('ai.suggestedPrompts')}</p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {[
+                    t('ai.prompt.differentialChestPain'),
+                    t('ai.prompt.hypertension'),
+                    t('ai.prompt.warfarin'),
+                  ].map((q) => (
                     <button key={q} onClick={() => setQuery(q)} className="rounded-full border border-medical-border bg-white px-3 py-1.5 text-xs text-medical-muted hover:bg-blue-50 hover:text-blue-600 transition">
+                      {q}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Psychiatric Prompts */}
+                <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide mt-4 mb-2">🧠 {t('mental.psychiatricEval')}</p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {[
+                    t('ai.prompt.suicideRisk'),
+                    t('ai.prompt.ssriTaper'),
+                    t('ai.prompt.psychoticEpisode'),
+                    t('ai.prompt.anxietyTreatment'),
+                    t('ai.prompt.substanceScreening'),
+                    t('ai.prompt.moodStabilizers'),
+                  ].map((q) => (
+                    <button key={q} onClick={() => setQuery(q)} className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs text-indigo-600 hover:bg-indigo-100 transition">
+                      {q}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Risk Assessment Templates */}
+                <p className="text-xs font-semibold text-red-600 uppercase tracking-wide mt-4 mb-2">📋 {t('ai.riskAssessment')}</p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {[
+                    t('ai.prompt.phq9'),
+                    t('ai.prompt.gad7'),
+                    t('ai.prompt.cssrs'),
+                  ].map((q) => (
+                    <button key={q} onClick={() => setQuery(q)} className="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs text-red-600 hover:bg-red-100 transition">
                       {q}
                     </button>
                   ))}
@@ -250,12 +290,12 @@ export default function AIAssistantPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleAsk()}
-              placeholder="Ask a clinical question..."
+              placeholder={t('ai.askPlaceholder')}
               className="flex-1 rounded-lg border border-medical-border px-4 py-3 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
               disabled={loading}
             />
             <Button onClick={handleAsk} disabled={loading || !query.trim()}>
-              {loading ? "Thinking..." : "Ask"}
+              {loading ? t('ai.thinking') : t('ai.ask')}
             </Button>
           </div>
         </CardContent>

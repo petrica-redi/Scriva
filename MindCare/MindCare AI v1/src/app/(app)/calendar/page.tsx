@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
 import { formatDateTime } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/i18n-context";
 import Link from "next/link";
 
 interface CalendarConsultation {
@@ -19,6 +20,7 @@ interface CalendarConsultation {
 
 export default function CalendarPage() {
   const supabase = useMemo(() => createClient(), []);
+  const { t } = useI18n();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [consultations, setConsultations] = useState<CalendarConsultation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,7 +67,7 @@ export default function CalendarPage() {
         .order("created_at", { ascending: true });
 
       setConsultations(
-        (data || []).map((c) => ({
+        (data || []).map((c: any) => ({
           ...c,
           patientName: (c.metadata as Record<string, unknown>)?.patient_name as string || "Unnamed Patient",
         }))
@@ -110,7 +112,7 @@ export default function CalendarPage() {
 
   const getConsultationsForDay = (d: Date) => {
     const ds = d.toISOString().split("T")[0];
-    return consultations.filter((c) => c.created_at.startsWith(ds));
+    return consultations.filter((c: any) => c.created_at.startsWith(ds));
   };
 
   const isToday = (d: Date) => {
@@ -174,7 +176,7 @@ export default function CalendarPage() {
                     {day && (
                       <>
                         <p className={`text-xs font-medium mb-1 ${isToday(day) ? "text-blue-600" : "text-medical-text"}`}>{day.getDate()}</p>
-                        {dayConsultations.slice(0, 2).map((c) => (
+                        {dayConsultations.slice(0, 2).map((c: any) => (
                           <Link key={c.id} href={`/consultation/${c.id}/note`} className="block mb-0.5 rounded bg-blue-100 px-1.5 py-0.5 text-[10px] text-blue-800 truncate hover:bg-blue-200 transition">
                             {c.patientName}
                           </Link>
@@ -204,7 +206,7 @@ export default function CalendarPage() {
                 <CardContent className="px-3 pb-3 space-y-1.5">
                   {dayConsultations.length === 0 ? (
                     <p className="text-[10px] text-medical-muted italic">No consultations</p>
-                  ) : dayConsultations.map((c) => (
+                  ) : dayConsultations.map((c: any) => (
                     <Link key={c.id} href={`/consultation/${c.id}/note`} className="block rounded-lg border border-medical-border bg-white p-2 hover:bg-blue-50 transition">
                       <p className="text-xs font-medium text-medical-text truncate">{c.patientName}</p>
                       <p className="text-[10px] text-medical-muted">{c.visit_type}</p>
@@ -228,7 +230,7 @@ export default function CalendarPage() {
               </div>
             ) : (
               <div className="divide-y divide-medical-border">
-                {consultations.map((c) => (
+                {consultations.map((c: any) => (
                   <div key={c.id} className="flex items-center justify-between py-4">
                     <div className="flex-1">
                       <Link href={`/consultation/${c.id}/note`} className="font-medium text-medical-text hover:text-brand-600">{c.patientName}</Link>

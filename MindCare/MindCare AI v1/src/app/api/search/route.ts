@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
         .order("created_at", { ascending: false })
         .limit(10);
 
-      results.consultations = (consultations || []).map((c) => ({
+      results.consultations = (consultations || []).map((c: any) => ({
         ...c,
         patient_name: (c.metadata as Record<string, unknown>)?.patient_name || "Unnamed Patient",
       }));
@@ -47,14 +47,14 @@ export async function GET(request: NextRequest) {
         .limit(10);
 
       if (transcripts && transcripts.length > 0) {
-        const consultationIds = transcripts.map((t) => t.consultation_id);
+        const consultationIds = transcripts.map((t: any) => t.consultation_id);
         const { data: noteConsultations } = await supabase
           .from("consultations")
           .select("id, visit_type, status, created_at, metadata")
           .eq("user_id", user.id)
           .in("id", consultationIds);
 
-        results.notes = (noteConsultations || []).map((c) => ({
+        results.notes = (noteConsultations || []).map((c: any) => ({
           ...c,
           patient_name: (c.metadata as Record<string, unknown>)?.patient_name || "Unnamed Patient",
           match_source: "transcript",

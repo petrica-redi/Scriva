@@ -54,3 +54,9 @@ Thumbs.db
 
 # Supabase
 supabase/.temp/
+
+# Certificates
+certs/
+
+# macOS archive artifacts
+__MACOSX/

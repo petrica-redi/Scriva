@@ -202,14 +202,13 @@ class QueryBuilder {
     return { sql: conditions.join(" OR "), idx };
   }
 
-  async then(resolve: (val: unknown) => void, reject?: (err: unknown) => void) {
-    try {
-      const result = await this.execute();
-      resolve(result);
-    } catch (err) {
-      if (reject) reject(err);
-      else resolve({ data: null, error: err, count: null });
-    }
+  then<TResult1 = any, TResult2 = never>(
+    resolve?: ((value: any) => TResult1 | PromiseLike<TResult1>) | null,
+    reject?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null
+  ): Promise<TResult1 | TResult2> {
+    return this.execute()
+      .catch((err) => ({ data: null, error: err, count: null }))
+      .then(resolve ?? ((v: any) => v as any), reject ?? undefined);
   }
 
   async execute(): Promise<{ data: unknown; error: unknown; count?: number | null }> {
@@ -311,8 +310,8 @@ let _instance: ReturnType<typeof _createLocalClient> | null = null;
 
 function _createLocalClient() {
   return {
-    auth: authMock,
-    from: (table: string) => new QueryBuilder(table),
+    auth: authMock as any,
+    from: (table: string): any => new QueryBuilder(table),
   };
 }
 

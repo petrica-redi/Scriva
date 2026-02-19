@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
+import { useI18n } from "@/lib/i18n/i18n-context";
 
-const TABS = ["Profile", "Audio", "Templates", "Security", "Integrations", "Notifications"];
+const TAB_KEYS = ["Profile", "Audio", "Templates", "Security", "Integrations", "Notifications"];
 
 interface UserProfile {
   id: string;
@@ -33,7 +34,17 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
+  const { t } = useI18n();
   const supabase = useMemo(() => createClient(), []);
+
+  const TAB_LABELS: Record<string, string> = {
+    Profile: t('settings.profile'),
+    Audio: t('settings.audio'),
+    Templates: t('settings.templates'),
+    Security: t('settings.security'),
+    Integrations: t('settings.integrations'),
+    Notifications: t('settings.notifications'),
+  };
 
   // Profile tab state
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -260,18 +271,18 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center p-6">
-        <div className="text-medical-muted">Loading settings...</div>
+        <div className="text-medical-muted">{t('settings.loadingSettings')}</div>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <h1 className="text-2xl font-semibold text-medical-text">Settings</h1>
+      <h1 className="text-2xl font-semibold text-medical-text">{t('settings.title')}</h1>
 
       {/* Tab navigation */}
       <div className="flex gap-1 border-b border-medical-border">
-        {TABS.map((tab) => (
+        {TAB_KEYS.map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -281,7 +292,7 @@ export default function SettingsPage() {
                 : "text-medical-muted hover:text-medical-text"
             }`}
           >
-            {tab}
+            {TAB_LABELS[tab] || tab}
           </button>
         ))}
       </div>

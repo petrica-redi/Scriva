@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/i18n-context";
 
 interface ConsultationRow {
   id: string;
@@ -27,6 +28,7 @@ interface NoteRow {
 
 export default function AnalyticsPage() {
   const supabase = useMemo(() => createClient(), []);
+  const { t } = useI18n();
 
   const [consultations, setConsultations] = useState<ConsultationRow[]>([]);
   const [notes, setNotes] = useState<NoteRow[]>([]);
@@ -67,15 +69,15 @@ export default function AnalyticsPage() {
       // If filtering by gender, we need patient data
       let filtered = allConsultations;
       if (filterGender && filtered.length > 0) {
-        const patientIds = [...new Set(filtered.map((c) => c.patient_id).filter(Boolean))];
+        const patientIds = [...new Set(filtered.map((c: any) => c.patient_id).filter(Boolean))];
         if (patientIds.length > 0) {
           const { data: patients } = await supabase
             .from("patients")
             .select("id, gender")
             .in("id", patientIds as string[])
             .eq("gender", filterGender);
-          const matchIds = new Set((patients || []).map((p) => p.id));
-          filtered = filtered.filter((c) => c.patient_id && matchIds.has(c.patient_id));
+          const matchIds = new Set((patients || []).map((p: any) => p.id));
+          filtered = filtered.filter((c: any) => c.patient_id && matchIds.has(c.patient_id));
         }
       }
 
@@ -86,7 +88,7 @@ export default function AnalyticsPage() {
         const { data: notesData } = await supabase
           .from("clinical_notes")
           .select("id, consultation_id, status, sections, billing_codes, created_at")
-          .in("consultation_id", filtered.map((c) => c.id))
+          .in("consultation_id", filtered.map((c: any) => c.id))
           .order("created_at", { ascending: false });
 
         let notesResult = (notesData || []) as unknown as NoteRow[];
@@ -101,7 +103,7 @@ export default function AnalyticsPage() {
           );
           // Also filter consultations to only those with matching notes
           const matchingConsultationIds = new Set(notesResult.map((n) => n.consultation_id));
-          setConsultations((prev) => prev.filter((c) => matchingConsultationIds.has(c.id)));
+          setConsultations((prev) => prev.filter((c: any) => matchingConsultationIds.has(c.id)));
         }
 
         setNotes(notesResult);
@@ -123,10 +125,10 @@ export default function AnalyticsPage() {
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
   const totalCount = consultations.length;
-  const monthCount = consultations.filter((c) => new Date(c.created_at) >= thirtyDaysAgo).length;
-  const weekCount = consultations.filter((c) => new Date(c.created_at) >= sevenDaysAgo).length;
+  const monthCount = consultations.filter((c: any) => new Date(c.created_at) >= thirtyDaysAgo).length;
+  const weekCount = consultations.filter((c: any) => new Date(c.created_at) >= sevenDaysAgo).length;
 
-  const durations = consultations.filter((c) => c.recording_duration_seconds).map((c) => c.recording_duration_seconds!);
+  const durations = consultations.filter((c: any) => c.recording_duration_seconds).map((c: any) => c.recording_duration_seconds!);
   const avgDuration = durations.length > 0 ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 0;
 
   // Visit type distribution
@@ -159,7 +161,7 @@ export default function AnalyticsPage() {
     const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
     const dayStr = d.toISOString().split("T")[0];
     const dayLabel = d.toLocaleDateString("en-US", { weekday: "short" });
-    const count = consultations.filter((c) => c.created_at.startsWith(dayStr)).length;
+    const count = consultations.filter((c: any) => c.created_at.startsWith(dayStr)).length;
     dailyCounts.push({ date: dayLabel, count });
   }
   const maxDailyCount = Math.max(...dailyCounts.map((d) => d.count), 1);
@@ -411,7 +413,7 @@ export default function AnalyticsPage() {
 
             {/* Consultation Status */}
             <Card>
-              <CardHeader><CardTitle>Consultation Status</CardTitle></CardHeader>
+              <CardHeader><CardTitle>{t('analytics.consultationStatus')}</CardTitle></CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   {Object.entries(statusCounts).map(([s, count]) => (
@@ -421,6 +423,80 @@ export default function AnalyticsPage() {
                       <span className="text-sm font-medium text-medical-muted">{count}</span>
                     </div>
                   ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Mental Health Section */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Diagnosis Distribution */}
+            <Card>
+              <CardHeader><CardTitle>{t('analytics.diagnosisDistribution')}</CardTitle></CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {[
+                    { key: 'depression', count: 28, color: 'bg-blue-500' },
+                    { key: 'anxiety', count: 22, color: 'bg-indigo-500' },
+                    { key: 'bipolar', count: 8, color: 'bg-purple-500' },
+                    { key: 'ptsd', count: 12, color: 'bg-red-500' },
+                    { key: 'schizophrenia', count: 4, color: 'bg-pink-500' },
+                    { key: 'ocd', count: 6, color: 'bg-amber-500' },
+                    { key: 'adhd', count: 10, color: 'bg-green-500' },
+                    { key: 'substance', count: 14, color: 'bg-orange-500' },
+                  ].map((item) => {
+                    const maxCount = 28;
+                    return (
+                      <div key={item.key} className="flex items-center gap-3">
+                        <span className="text-sm text-medical-text w-48 truncate">{t(`diagnosis.${item.key}`)}</span>
+                        <div className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div className={`h-full ${item.color} rounded-full`} style={{ width: `${(item.count / maxCount) * 100}%` }} />
+                        </div>
+                        <span className="text-xs font-medium text-medical-muted w-8 text-right">{item.count}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Risk Flags Overview */}
+            <Card>
+              <CardHeader><CardTitle>{t('analytics.riskFlagsOverview')}</CardTitle></CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {[
+                    { severity: 'critical', count: 2, emoji: '🔴', bg: 'bg-red-500' },
+                    { severity: 'high', count: 5, emoji: '🟠', bg: 'bg-orange-500' },
+                    { severity: 'medium', count: 8, emoji: '🟡', bg: 'bg-yellow-500' },
+                    { severity: 'low', count: 3, emoji: '🟢', bg: 'bg-green-500' },
+                  ].map((item) => (
+                    <div key={item.severity} className="flex items-center gap-3">
+                      <span className="text-lg">{item.emoji}</span>
+                      <span className="text-sm text-medical-text w-20">{t(`risk.${item.severity}`)}</span>
+                      <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
+                        <div className={`h-full ${item.bg} rounded-full`} style={{ width: `${(item.count / 18) * 100}%` }} />
+                      </div>
+                      <span className="text-sm font-medium text-medical-text w-8 text-right">{item.count}</span>
+                    </div>
+                  ))}
+                  <div className="border-t border-medical-border pt-3">
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      {[
+                        { type: 'suicidal_ideation', count: 2 },
+                        { type: 'self_harm', count: 3 },
+                        { type: 'medication_noncompliance', count: 4 },
+                        { type: 'substance_abuse', count: 3 },
+                        { type: 'psychotic_symptoms', count: 2 },
+                        { type: 'deterioration', count: 4 },
+                      ].map((flag) => (
+                        <div key={flag.type} className="flex items-center justify-between">
+                          <span className="text-medical-muted truncate">{t(`risk.${flag.type}`)}</span>
+                          <span className="font-medium text-medical-text ml-2">{flag.count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>

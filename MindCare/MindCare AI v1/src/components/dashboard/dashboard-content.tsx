@@ -33,6 +33,30 @@ interface AtRiskItem {
   patientName: string;
 }
 
+interface RiskFlagItem {
+  patientName: string;
+  flagType: string;
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  description: string;
+}
+
+const DEMO_RISK_FLAGS: RiskFlagItem[] = [
+  { patientName: 'Maria Popescu', flagType: 'suicidal_ideation', severity: 'critical', description: 'Expressed passive suicidal thoughts during last session' },
+  { patientName: 'Elena Vasile', flagType: 'self_harm', severity: 'high', description: 'History of self-harm, recent stressor identified' },
+  { patientName: 'Ion Ionescu', flagType: 'medication_noncompliance', severity: 'high', description: 'Missed last 3 medication refills' },
+  { patientName: 'Ion Ionescu', flagType: 'substance_abuse', severity: 'medium', description: 'Reported increased alcohol consumption' },
+  { patientName: 'Ana Dumitrescu', flagType: 'deterioration', severity: 'medium', description: 'PHQ-9 score increased from 12 to 18' },
+  { patientName: 'Andrei Popa', flagType: 'drug_interaction', severity: 'low', description: 'Potential interaction between fluoxetine and tramadol' },
+  { patientName: 'Cristina Marin', flagType: 'psychotic_symptoms', severity: 'high', description: 'New onset auditory hallucinations reported' },
+];
+
+const SEVERITY_CONFIG = {
+  critical: { emoji: '🔴', bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-200', ring: 'ring-red-500' },
+  high: { emoji: '🟠', bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-200', ring: 'ring-orange-500' },
+  medium: { emoji: '🟡', bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-200', ring: 'ring-yellow-500' },
+  low: { emoji: '🟢', bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-200', ring: 'ring-green-500' },
+};
+
 interface DashboardContentProps {
   displayName: string;
   todayCount: number;
@@ -135,6 +159,46 @@ export function DashboardContent({
           </CardContent>
         </Card>
       </div>
+
+      {/* Risk Flags */}
+      <Card className="border-amber-200">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <svg className="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 0 1 6.208.682l.108.054a9 9 0 0 0 6.086.71l3.114-.732a48.524 48.524 0 0 1-.005-10.499l-3.11.732a9 9 0 0 1-6.085-.711l-.108-.054a9 9 0 0 0-6.208-.682L3 4.5M3 15V4.5" /></svg>
+              <CardTitle>{t('dashboard.riskFlags')}</CardTitle>
+            </div>
+            <span className="text-xs text-medical-muted">{DEMO_RISK_FLAGS.length} {t('risk.activeFlags').toLowerCase()}</span>
+          </div>
+          <p className="text-sm text-medical-muted mt-1">{t('dashboard.riskFlagsDesc')}</p>
+        </CardHeader>
+        <CardContent>
+          {DEMO_RISK_FLAGS.length === 0 ? (
+            <p className="text-sm text-medical-muted text-center py-4">{t('dashboard.noRiskFlags')}</p>
+          ) : (
+            <div className="space-y-2">
+              {DEMO_RISK_FLAGS.map((flag, idx) => {
+                const config = SEVERITY_CONFIG[flag.severity];
+                return (
+                  <div key={idx} className={`flex items-start gap-3 rounded-lg border ${config.border} ${config.bg} px-4 py-3`}>
+                    <span className="text-lg mt-0.5">{config.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium text-medical-text text-sm">{flag.patientName}</span>
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${config.bg} ${config.text}`}>
+                          {t(`risk.${flag.severity}`)}
+                        </span>
+                        <span className="text-xs text-medical-muted">{t(`risk.${flag.flagType}`)}</span>
+                      </div>
+                      <p className="text-xs text-medical-muted mt-0.5">{flag.description}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Patients at Risk */}
       {atRiskItems.length > 0 && (
