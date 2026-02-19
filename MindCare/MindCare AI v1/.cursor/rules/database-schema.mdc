@@ -1,0 +1,121 @@
+---
+description: Database schema and Supabase patterns
+globs: ["supabase/**", "src/lib/supabase/**", "src/types/**"]
+---
+
+# Database Schema
+
+## Tables
+
+### users (extends Supabase auth.users)
+```sql
+- id: uuid (FK → auth.users.id)
+- full_name: text NOT NULL
+- specialty: text
+- license_number: text
+- organization_id: uuid (nullable, for teams)
+- role: text DEFAULT 'clinician' CHECK (role IN ('clinician', 'admin', 'reviewer'))
+- settings: jsonb DEFAULT '{}'
+- created_at: timestamptz DEFAULT now()
+- updated_at: timestamptz DEFAULT now()
+```
+
+### patients
+```sql
+- id: uuid PK DEFAULT gen_random_uuid()
+- user_id: uuid FK → users.id NOT NULL
+- mrn: text (medical record number, unique per user)
+- full_name: text NOT NULL
+- date_of_birth: date
+- gender: text
+- contact_info: jsonb DEFAULT '{}'
+- ehr_patient_id: text (external EHR reference)
+- created_at: timestamptz DEFAULT now()
+- updated_at: timestamptz DEFAULT now()
+```
+
+### consultations
+```sql
+- id: uuid PK DEFAULT gen_random_uuid()
+- user_id: uuid FK → users.id NOT NULL
+- patient_id: uuid FK → patients.id (nullable)
+- visit_type: text DEFAULT 'general'
+- status: text DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'recording', 'transcribed', 'note_generated', 'reviewed', 'finalized'))
+- consent_given: boolean DEFAULT false
+- consent_timestamp: timestamptz
+- recording_duration_seconds: integer
+- metadata: jsonb DEFAULT '{}'
+- created_at: timestamptz DEFAULT now()
+- updated_at: timestamptz DEFAULT now()
+```
+
+### transcripts
+```sql
+- id: uuid PK DEFAULT gen_random_uuid()
+- consultation_id: uuid FK → consultations.id NOT NULL (UNIQUE)
+- segments: jsonb NOT NULL DEFAULT '[]'
+  -- Array of: {speaker: "doctor"|"patient", text: string, start_time: float, end_time: float, confidence: float}
+- full_text: text (concatenated plain text for search)
+- language: text DEFAULT 'en'
+- provider: text DEFAULT 'deepgram' (transcription service used)
+- created_at: timestamptz DEFAULT now()
+- updated_at: timestamptz DEFAULT now()
+```
+
+### clinical_notes
+```sql
+- id: uuid PK DEFAULT gen_random_uuid()
+- consultation_id: uuid FK → consultations.id NOT NULL
+- template_id: uuid FK → note_templates.id
+- sections: jsonb NOT NULL DEFAULT '[]'
+  -- Array of: {title: string, content: string, order: number}
+- billing_codes: jsonb DEFAULT '[]'
+  -- Array of: {code: string, system: "ICD-10"|"CPT", description: string, confidence: float, accepted: boolean}
+- status: text DEFAULT 'draft' CHECK (status IN ('draft', 'reviewed', 'finalized'))
+- ai_model: text (model used for generation)
+- generation_metadata: jsonb DEFAULT '{}'
+- finalized_at: timestamptz
+- finalized_by: uuid FK → users.id
+- created_at: timestamptz DEFAULT now()
+- updated_at: timestamptz DEFAULT now()
+```
+
+### note_templates
+```sql
+- id: uuid PK DEFAULT gen_random_uuid()
+- user_id: uuid FK → users.id (NULL for system templates)
+- name: text NOT NULL
+- description: text
+- specialty: text
+- sections: jsonb NOT NULL
+  -- Array of: {id: string, title: string, prompt: string, example: string, order: number}
+- is_system: boolean DEFAULT false
+- is_published: boolean DEFAULT false
+- created_at: timestamptz DEFAULT now()
+- updated_at: timestamptz DEFAULT now()
+```
+
+### audit_log
+```sql
+- id: uuid PK DEFAULT gen_random_uuid()
+- user_id: uuid FK → users.id NOT NULL
+- action: text NOT NULL (e.g., 'view_transcript', 'generate_note', 'export_note', 'finalize_note')
+- resource_type: text NOT NULL (e.g., 'consultation', 'transcript', 'clinical_note')
+- resource_id: uuid NOT NULL
+- metadata: jsonb DEFAULT '{}'
+- ip_address: inet
+- created_at: timestamptz DEFAULT now()
+```
+
+## Row Level Security Patterns
+- Every table with user_id uses: `auth.uid() = user_id`
+- Audit log: insert-only for authenticated users, read by admins only
+- Templates: users see system templates + their own
+- Organization-level sharing via organization_id when teams are enabled
+
+## Indexes
+- consultations: (user_id, created_at DESC), (status), (patient_id)
+- clinical_notes: (consultation_id), (status)
+- transcripts: (consultation_id) UNIQUE
+- audit_log: (user_id, created_at DESC), (resource_type, resource_id)
+- patients: (user_id, mrn) UNIQUE

@@ -1,0 +1,116 @@
+---
+description: Frontend patterns, component architecture, and UI guidelines
+globs: ["src/**/*.tsx", "src/**/*.ts"]
+---
+
+# Frontend Patterns
+
+## Component Architecture
+
+### Server vs Client Components
+- **Server Components** (default): pages, layouts, data fetching wrappers
+- **Client Components** ("use client"): forms, interactive UI, audio recorder, anything with hooks/state
+- Never pass functions as props from Server → Client components
+- Use Server Actions for form submissions and mutations
+
+### Component Organization
+```
+src/components/
+  ui/           # shadcn/ui primitives (Button, Input, Card, etc.)
+  audio/        # AudioRecorder, Waveform, TranscriptDisplay
+  notes/        # NoteEditor, NoteSection, BillingCodes, TemplateSelector
+  layout/       # Sidebar, Header, MobileNav, PageWrapper
+  common/       # LoadingSpinner, ErrorBoundary, EmptyState, StatusBadge
+```
+
+### Component Patterns
+```tsx
+// Always type props explicitly
+interface ConsultationCardProps {
+  consultation: Consultation;
+  onSelect?: (id: string) => void;
+}
+
+// Prefer composition over configuration
+<Card>
+  <CardHeader>
+    <CardTitle>{title}</CardTitle>
+  </CardHeader>
+  <CardContent>{children}</CardContent>
+</Card>
+```
+
+## State Management
+
+### Zustand Stores (client state)
+```
+src/stores/
+  useAuthStore.ts        # Current user, session
+  useRecordingStore.ts   # Recording state, audio levels, connection status
+  useConsultationStore.ts # Active consultation, transcript, note
+  useUIStore.ts          # Sidebar open, modals, toasts
+```
+
+### TanStack Query (server state)
+- All API data fetching via useQuery/useMutation
+- Query keys follow convention: ['resource', id?, filters?]
+- Stale time: 30s for dashboards, 5s for active consultation data
+- Mutations optimistically update where safe (e.g., note edits)
+
+## Form Patterns
+```tsx
+// Every form uses React Hook Form + Zod
+const schema = z.object({
+  name: z.string().min(1, "Required"),
+  specialty: z.string().min(1, "Select a specialty"),
+});
+
+type FormData = z.infer<typeof schema>;
+
+const form = useForm<FormData>({
+  resolver: zodResolver(schema),
+  defaultValues: { name: "", specialty: "" },
+});
+```
+
+## Styling Rules
+- Tailwind utility classes only (no custom CSS unless absolutely necessary)
+- Medical professional aesthetic: clean whites (#f8fafc), subtle blues, generous whitespace
+- Minimum 44px touch targets for tablet use
+- Font scale: text-sm (labels), text-base (body), text-lg (headings), text-2xl (page titles)
+- Consistent spacing: p-4 (cards), gap-4 (grids), space-y-3 (form fields)
+- Status colors: green=finalized, blue=in-progress, amber=needs-review, red=recording
+
+## Page Layout Pattern
+```tsx
+// Every page follows this structure
+export default function PageName() {
+  return (
+    <div className="flex flex-col gap-6 p-6">
+      {/* Page header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold text-medical-text">Page Title</h1>
+        <Button>Primary Action</Button>
+      </div>
+
+      {/* Page content */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {/* Content */}
+      </div>
+    </div>
+  );
+}
+```
+
+## Loading & Error States
+- Every data-fetching component handles: loading, error, empty states
+- Use Suspense boundaries at the page level
+- Skeleton loaders for cards and lists (not spinners)
+- Toast notifications for mutations (success/error)
+
+## Accessibility
+- All form inputs have labels (not just placeholders)
+- ARIA labels on icon-only buttons
+- Focus management after modal open/close
+- Color contrast ratio ≥ 4.5:1 for text
+- Screen reader announcements for recording status changes

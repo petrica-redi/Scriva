@@ -1,0 +1,110 @@
+"use client";
+
+/**
+ * Note Editor Page — Split view: transcript (left) + generated note (right)
+ *
+ * TODO: Implement with Tiptap rich text editor
+ * This is a scaffold — use Cursor prompt 8 to build the full implementation.
+ */
+
+import { useState } from "react";
+import { useParams } from "next/navigation";
+import type { NoteStatus } from "@/types";
+
+export default function NoteEditorPage() {
+  const { id } = useParams<{ id: string }>();
+  const [status, setStatus] = useState<NoteStatus>("draft");
+
+  return (
+    <div className="flex h-[calc(100vh-4rem)] flex-col">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between border-b border-medical-border bg-white px-6 py-3">
+        <div className="flex items-center gap-4">
+          <h1 className="font-semibold text-medical-text">Clinical Note</h1>
+          <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium capitalize text-medical-muted">
+            {status}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button className="rounded-lg border border-medical-border px-4 py-2 text-sm text-medical-muted hover:bg-gray-50">
+            Regenerate
+          </button>
+          <button className="rounded-lg border border-medical-border px-4 py-2 text-sm text-medical-muted hover:bg-gray-50">
+            Export PDF
+          </button>
+          {status === "draft" && (
+            <button
+              onClick={() => setStatus("reviewed")}
+              className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+            >
+              Mark as Reviewed
+            </button>
+          )}
+          {status === "reviewed" && (
+            <button
+              onClick={() => setStatus("finalized")}
+              className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+            >
+              Finalize
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Split View */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left: Transcript */}
+        <div className="w-1/2 overflow-y-auto border-r border-medical-border bg-gray-50 p-6">
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-medical-muted">
+            Transcript
+          </h2>
+          <div className="space-y-3 text-sm">
+            {/* TODO: Load transcript segments from database */}
+            <div className="rounded-lg bg-white p-3">
+              <span className="text-xs font-medium text-brand-600">Doctor</span>
+              <p className="mt-1 text-medical-text">
+                Transcript segments will be loaded here from the consultation record.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Note Editor */}
+        <div className="flex w-1/2 flex-col overflow-y-auto p-6">
+          <div className="space-y-6">
+            {/* TODO: Implement with Tiptap editor — each section editable */}
+            {["Subjective", "Objective", "Assessment", "Plan"].map((section) => (
+              <div key={section} className="rounded-xl border border-medical-border bg-white p-6">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="font-semibold text-medical-text">{section}</h3>
+                  <button className="text-xs text-medical-muted hover:text-brand-600">
+                    Regenerate section
+                  </button>
+                </div>
+                <div className="min-h-[80px] text-sm text-medical-text">
+                  <p className="italic text-medical-muted">
+                    Generated content for {section} section will appear here.
+                    Click to edit.
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Billing Codes Sidebar */}
+          <div className="mt-6 rounded-xl border border-medical-border bg-white p-6">
+            <h3 className="mb-3 font-semibold text-medical-text">
+              Suggested Billing Codes
+            </h3>
+            <div className="space-y-2 text-sm">
+              {/* TODO: Load from AI billing suggestion */}
+              <p className="italic text-medical-muted">
+                Billing codes will be suggested after note generation.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

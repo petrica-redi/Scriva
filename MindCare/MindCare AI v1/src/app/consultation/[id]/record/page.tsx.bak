@@ -1,0 +1,527 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { useAudioRecorder } from "@/hooks/useAudioRecorder";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { formatDuration } from "@/lib/utils";
+import type { LiveTranscriptItem, ConnectionStatus } from "@/types";
+
+type RecordingPhase = "pre" | "recording" | "post";
+
+const TEMPLATES = [
+  { value: "SOAP Note", label: "SOAP Note" },
+  { value: "Referral Letter", label: "Referral Letter" },
+  { value: "Discharge Summary", label: "Discharge Summary" },
+  { value: "Progress Note", label: "Progress Note" },
+  { value: "Patient Handout", label: "Patient Handout" },
+  { value: "Specialist Consultation", label: "Specialist Consultation" },
+];
+
+export default function ConsultationRecordPage() {
+  const params = useParams<{ id: string }>();
+  const router = useRouter();
+  const supabase = createClient();
+  const consultationId = params?.id;
+
+  // Phase management
+  const [phase, setPhase] = useState<RecordingPhase>("pre");
+  const [consentGiven, setConsentGiven] = useState(false);
+  const [isLoadingConsultation, setIsLoadingConsultation] = useState(true);
+  const [consultationData, setConsultationData] = useState<any>(null);
+  const [error, setError] = useState("");
+
+  // Recording state
+  const [authToken, setAuthToken] = useState("");
+  const [selectedTemplate, setSelectedTemplate] = useState(TEMPLATES[0].value);
+  const [isGeneratingNote, setIsGeneratingNote] = useState(false);
+
+  // Audio recorder hook
+  const {
+    isRecording,
+    isPaused,
+    duration,
+    audioLevel,
+    connectionStatus,
+    transcript,
+    startRecording,
+    stopRecording,
+    pauseRecording,
+    resumeRecording,
+    error: recordingError,
+  } = useAudioRecorder({
+    wsUrl: `${process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000"}/ws/transcribe`,
+    authToken,
+    onError: (err) => setError(err),
+  });
+
+  // Load consultation and auth token on mount
+  useEffect(() => {
+    const loadConsultationAndAuth = async () => {
+      if (!consultationId) {
+        setError("Invalid consultation ID");
+        setIsLoadingConsultation(false);
+        return;
+      }
+
+      try {
+        // Get auth token
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!session?.access_token) {
+          setError("Authentication required. Please log in again.");
+          setIsLoadingConsultation(false);
+          return;
+        }
+
+        setAuthToken(session.access_token);
+
+        // Fetch consultation data
+        const { data, error: fetchError } = await supabase
+          .from("consultations")
+          .select("*")
+          .eq("id", consultationId)
+          .single();
+
+        if (fetchError) {
+          throw new Error(fetchError.message || "Failed to load consultation");
+        }
+
+        if (!data) {
+          throw new Error("Consultation not found");
+        }
+
+        setConsultationData(data);
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "An unexpected error occurred";
+        setError(message);
+      } finally {
+        setIsLoadingConsultation(false);
+      }
+    };
+
+    loadConsultationAndAuth();
+  }, [consultationId, supabase]);
+
+  const handleStartRecording = async () => {
+    setError("");
+    try {
+      // Update consultation consent status
+      await supabase
+        .from("consultations")
+        .update({
+          consent_given: true,
+          consent_timestamp: new Date().toISOString(),
+          status: "recording",
+        })
+        .eq("id", consultationId);
+
+      await startRecording();
+      setPhase("recording");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to start recording";
+      setError(message);
+    }
+  };
+
+  const handleEndRecording = async () => {
+    try {
+      stopRecording();
+
+      // Update consultation with recording duration
+      await supabase
+        .from("consultations")
+        .update({
+          recording_duration_seconds: duration,
+          status: "transcribed",
+        })
+        .eq("id", consultationId);
+
+      setPhase("post");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to end recording";
+      setError(message);
+    }
+  };
+
+  const handleGenerateNote = async () => {
+    setError("");
+    setIsGeneratingNote(true);
+
+    try {
+      // Compile full transcript text
+      const transcriptText = transcript
+        .map((item) => {
+          const speaker = item.speaker === 0 ? "Doctor" : "Patient";
+          return `[${speaker}]: ${item.text}`;
+        })
+        .join("\n");
+
+      if (!transcriptText.trim()) {
+        setError("No transcript available to generate note");
+        setIsGeneratingNote(false);
+        return;
+      }
+
+      // Call generate-note API
+      const response = await fetch("/api/generate-note", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          consultation_id: consultationId,
+          template: selectedTemplate,
+          transcript: transcriptText,
+          metadata: {
+            visit_type: consultationData?.visit_type,
+            patient_name: consultationData?.metadata?.patient_name,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to generate note");
+      }
+
+      // Redirect to note view page
+      router.push(`/consultation/${consultationId}/note`);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "An unexpected error occurred";
+      setError(message);
+      setIsGeneratingNote(false);
+    }
+  };
+
+  // Loading state
+  if (isLoadingConsultation) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-brand-600" />
+          <p className="text-medical-text">Loading consultation...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error loading consultation
+  if (error && phase === "pre" && !isRecording) {
+    return (
+      <div className="mx-auto max-w-4xl p-6">
+        <div className="rounded-lg border border-red-200 bg-red-50 p-6">
+          <h2 className="text-lg font-semibold text-red-900">Error</h2>
+          <p className="mt-2 text-red-800">{error}</p>
+          <Button
+            onClick={() => router.back()}
+            variant="outline"
+            className="mt-4"
+          >
+            Go Back
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-4xl space-y-6 p-6">
+      {/* PHASE 1: PRE-RECORDING */}
+      {phase === "pre" && (
+        <div className="flex flex-col items-center gap-8 py-16">
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-medical-text">
+              Start Consultation
+            </h1>
+            <p className="mt-2 text-medical-muted">
+              Ensure patient consent before recording.
+            </p>
+          </div>
+
+          {/* Patient Info Summary */}
+          {consultationData?.metadata?.patient_name && (
+            <Card className="w-full max-w-md">
+              <CardContent className="space-y-2 pt-6">
+                <p className="text-sm font-medium text-medical-muted">Patient</p>
+                <p className="text-lg font-semibold text-medical-text">
+                  {consultationData.metadata.patient_name}
+                </p>
+                <p className="text-sm text-medical-muted">
+                  Visit Type: {consultationData.visit_type}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Consent Checkbox */}
+          <label className="flex max-w-2xl items-start gap-4 rounded-xl border border-medical-border bg-white p-6">
+            <input
+              type="checkbox"
+              checked={consentGiven}
+              onChange={(e) => setConsentGiven(e.target.checked)}
+              className="mt-1 h-5 w-5 rounded border-gray-300 text-brand-600"
+            />
+            <span className="text-sm leading-relaxed text-medical-text">
+              I confirm that the patient has been fully informed about this audio recording,
+              understands it will be used for clinical documentation purposes, and has explicitly
+              consented to being recorded. The patient has been provided an opportunity to ask
+              questions and understands they can request the recording to be stopped at any time.
+            </span>
+          </label>
+
+          {/* Connection Status */}
+          <div className="flex items-center gap-2 rounded-lg bg-gray-50 px-4 py-2">
+            <div
+              className={`h-2 w-2 rounded-full ${
+                connectionStatus === "connected"
+                  ? "bg-green-500"
+                  : connectionStatus === "connecting"
+                    ? "bg-yellow-500"
+                    : "bg-gray-400"
+              }`}
+            />
+            <span className="text-sm text-medical-muted">
+              {connectionStatus === "connected"
+                ? "Ready to record"
+                : connectionStatus === "connecting"
+                  ? "Connecting..."
+                  : "Not connected"}
+            </span>
+          </div>
+
+          {/* Start Recording Button */}
+          <Button
+            onClick={handleStartRecording}
+            disabled={!consentGiven || connectionStatus === "connecting"}
+            variant="danger"
+            size="lg"
+            className="h-16 w-16 rounded-full !p-0"
+          >
+            <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
+              <circle cx="10" cy="10" r="8" />
+            </svg>
+          </Button>
+        </div>
+      )}
+
+      {/* PHASE 2: RECORDING */}
+      {phase === "recording" && (
+        <div className="space-y-6 py-8">
+          {/* Recording Indicator */}
+          <div className="flex items-center justify-between rounded-lg bg-gray-50 p-4">
+            <div className="flex items-center gap-3">
+              <span className="inline-flex h-3 w-3 animate-pulse rounded-full bg-medical-recording" />
+              <span className="text-lg font-semibold text-medical-recording">
+                Recording
+              </span>
+              <span className="text-lg font-mono text-medical-text">
+                {formatDuration(duration)}
+              </span>
+            </div>
+
+            {/* Connection Status Badge */}
+            <div
+              className={`flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${
+                connectionStatus === "connected"
+                  ? "bg-green-100 text-green-700"
+                  : connectionStatus === "connecting"
+                    ? "bg-yellow-100 text-yellow-700"
+                    : "bg-red-100 text-red-700"
+              }`}
+            >
+              <div
+                className={`h-2 w-2 rounded-full ${
+                  connectionStatus === "connected"
+                    ? "bg-green-500"
+                    : connectionStatus === "connecting"
+                      ? "bg-yellow-500"
+                      : "bg-red-500"
+                }`}
+              />
+              {connectionStatus === "connected"
+                ? "Connected"
+                : connectionStatus === "connecting"
+                  ? "Connecting"
+                  : "Error"}
+            </div>
+          </div>
+
+          {/* Audio Level Bar */}
+          <div className="space-y-2">
+            <p className="text-xs font-medium uppercase text-medical-muted">Audio Level</p>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
+              <div
+                className="h-full bg-medical-recording transition-all duration-75"
+                style={{ width: `${audioLevel * 100}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Live Transcript */}
+          <Card>
+            <CardContent className="pt-6">
+              <h3 className="mb-4 text-sm font-semibold uppercase text-medical-muted">
+                Live Transcript
+              </h3>
+              <div className="max-h-80 space-y-3 overflow-y-auto rounded-lg bg-gray-50 p-4">
+                {transcript.length === 0 ? (
+                  <p className="text-sm italic text-medical-muted">
+                    Transcript will appear here as you speak...
+                  </p>
+                ) : (
+                  transcript.map((item, idx) => {
+                    const isDoctor = item.speaker === 0;
+                    const isInterim = !item.isFinal;
+
+                    return (
+                      <div
+                        key={idx}
+                        className={`${
+                          isDoctor ? "flex justify-start" : "flex justify-end"
+                        }`}
+                      >
+                        <div
+                          className={`max-w-sm rounded-lg px-4 py-2 text-sm ${
+                            isDoctor
+                              ? "bg-blue-100 text-blue-900"
+                              : "bg-green-100 text-green-900"
+                          } ${isInterim ? "italic opacity-75" : ""}`}
+                        >
+                          <p className="font-medium text-xs mb-1">
+                            {isDoctor ? "Doctor" : "Patient"}
+                          </p>
+                          <p>{item.text}</p>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Controls */}
+          <div className="flex gap-3">
+            <Button
+              onClick={isPaused ? resumeRecording : pauseRecording}
+              variant="outline"
+              size="md"
+              className="flex-1"
+            >
+              {isPaused ? "Resume" : "Pause"}
+            </Button>
+            <Button
+              onClick={handleEndRecording}
+              variant="danger"
+              size="md"
+              className="flex-1"
+            >
+              End Consultation
+            </Button>
+          </div>
+
+          {/* Error Alert */}
+          {(error || recordingError) && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+              <p className="text-sm text-red-800">{error || recordingError}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* PHASE 3: POST-RECORDING */}
+      {phase === "post" && (
+        <div className="space-y-6 py-8">
+          <div>
+            <h2 className="text-2xl font-bold text-medical-text">
+              Consultation Complete
+            </h2>
+            <p className="mt-2 text-medical-muted">
+              Duration: {formatDuration(duration)}
+            </p>
+          </div>
+
+          {/* Transcript Review */}
+          <Card>
+            <CardContent className="space-y-4 pt-6">
+              <h3 className="font-semibold text-medical-text">Transcript Review</h3>
+              <div className="max-h-96 space-y-2 overflow-y-auto rounded-lg bg-gray-50 p-4 text-sm">
+                {transcript.length === 0 ? (
+                  <p className="italic text-medical-muted">No transcript available</p>
+                ) : (
+                  transcript
+                    .filter((item) => item.isFinal)
+                    .map((item, idx) => {
+                      const isDoctor = item.speaker === 0;
+                      return (
+                        <div
+                          key={idx}
+                          className={`${
+                            isDoctor
+                              ? "text-blue-900"
+                              : "text-green-900"
+                          }`}
+                        >
+                          <span className="font-medium">
+                            {isDoctor ? "Doctor" : "Patient"}:
+                          </span>{" "}
+                          {item.text}
+                        </div>
+                      );
+                    })
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Template Selection and Generate */}
+          <Card>
+            <CardContent className="space-y-4 pt-6">
+              <div>
+                <label htmlFor="template" className="block text-sm font-medium text-medical-text">
+                  Select Note Template
+                </label>
+                <select
+                  id="template"
+                  value={selectedTemplate}
+                  onChange={(e) => setSelectedTemplate(e.target.value)}
+                  className="mt-2 block w-full rounded-lg border border-medical-border px-4 py-2.5 text-medical-text focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                >
+                  {TEMPLATES.map((tmpl) => (
+                    <option key={tmpl.value} value={tmpl.value}>
+                      {tmpl.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <Button
+                onClick={handleGenerateNote}
+                disabled={isGeneratingNote || transcript.length === 0}
+                variant="primary"
+                size="lg"
+                className="w-full"
+              >
+                {isGeneratingNote ? "Generating Note..." : "Generate Note"}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Error Alert */}
+          {error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+              <p className="text-sm text-red-800">{error}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,102 @@
+---
+description: HIPAA compliance requirements and security patterns
+globs: ["**/*"]
+---
+
+# HIPAA Compliance & Security
+
+## Core Principles
+1. **Minimum Necessary**: Only access/display the minimum PHI needed for the task
+2. **Encryption Everywhere**: AES-256 at rest, TLS 1.3 in transit
+3. **Audit Everything**: Every PHI access logged with who/what/when
+4. **Session Security**: Auto-timeout, secure token handling, memory cleanup
+
+## Authentication & Sessions
+- Supabase Auth with JWT tokens (short-lived: 1 hour)
+- Refresh tokens stored in httpOnly cookies (not localStorage)
+- Session timeout after 15 minutes of inactivity
+- On timeout: clear all in-memory PHI, redirect to login
+- MFA required for admin accounts, recommended for all users
+- Password requirements: minimum 12 characters, complexity rules via Supabase
+
+## Data Handling Rules
+
+### Audio
+- Audio NEVER persists to disk, localStorage, or sessionStorage
+- Audio buffers exist only in memory during active recording
+- On recording stop: buffers are immediately released
+- On page unload: cleanup handler releases all audio resources
+- WebSocket audio transmission uses WSS (TLS)
+
+### Transcripts
+- Stored encrypted in Supabase (database-level encryption)
+- Displayed only to authenticated, authorized users (RLS)
+- Never logged to console, error tracking, or analytics
+- Search queries on transcripts go through server-side full-text search
+
+### Clinical Notes
+- Same encryption and access rules as transcripts
+- Finalized notes are immutable (no edits after finalization)
+- Version history for audit trail (store previous versions)
+
+## Frontend Security
+```typescript
+// Session timeout implementation
+const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutes
+
+// Events that reset the timer
+const ACTIVITY_EVENTS = ['mousedown', 'keydown', 'touchstart', 'scroll'];
+
+// On timeout:
+// 1. Clear all Zustand stores
+// 2. Clear TanStack Query cache
+// 3. Revoke Supabase session
+// 4. Redirect to /auth/signin
+```
+
+## API Security
+- All API routes validate JWT token
+- Rate limiting: 100 req/min per user
+- CORS: only allow our frontend origin
+- Content-Security-Policy headers on all responses
+- No PHI in URL parameters (use POST body or path params)
+- Request IDs for tracing (no PHI in request IDs)
+
+## Logging Rules
+- NEVER log: patient names, DOB, MRN, transcript text, note content, audio data
+- OK to log: user IDs, consultation IDs, action types, timestamps, error codes
+- Structured JSON logging format
+- Log retention: 7 years (HIPAA requirement)
+
+## Database Security
+- Row Level Security (RLS) on every table containing PHI
+- Users can only access their own data (via auth.uid())
+- Admin queries require separate admin role check
+- Database connections use SSL
+- Supabase handles encryption at rest
+
+## Third-Party Services
+- All services must have BAA (Business Associate Agreement):
+  - Supabase: BAA available on Pro plan
+  - Deepgram: BAA available for healthcare customers
+  - Anthropic: Check current BAA availability
+  - Vercel: BAA available on Enterprise plan
+- Minimize data sent to third parties
+- No PHI in error tracking (Sentry, etc.) — use sanitized error messages
+
+## Audit Log Requirements
+Log these events:
+- User login/logout
+- Patient record viewed
+- Consultation started/ended
+- Transcript viewed
+- Note generated/edited/finalized
+- Note exported or sent to EHR
+- Settings changed
+- User invited/removed (admin)
+
+## Incident Response
+- Implement breach notification hooks
+- Data export capability (patient right of access)
+- Data deletion capability (right to be forgotten)
+- Regular access reviews (admin dashboard)

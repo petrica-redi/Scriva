@@ -1,0 +1,92 @@
+---
+description: AI pipeline architecture, prompts, and service patterns
+globs: ["services/ai-pipeline/**", "src/services/**"]
+---
+
+# AI Pipeline Architecture
+
+## Service Structure
+```
+services/ai-pipeline/
+  main.py              # FastAPI app entry point
+  routers/
+    audio.py           # WebSocket audio streaming
+    notes.py           # Note generation endpoints
+    billing.py         # Billing code suggestion
+    ehr.py             # EHR integration endpoints
+  services/
+    transcription.py   # Deepgram client wrapper
+    note_generator.py  # Claude API note generation
+    billing_engine.py  # Billing code extraction
+    ehr_client.py      # FHIR R4 client
+  prompts/
+    base.py            # Prompt building utilities
+    soap_note.py       # SOAP note template prompt
+    referral.py        # Referral letter prompt
+    discharge.py       # Discharge summary prompt
+  models/
+    schemas.py         # Pydantic models for all request/response
+  utils/
+    auth.py            # JWT validation
+    logging.py         # Structured logging (no PHI)
+    encryption.py      # PHI encryption utilities
+  tests/
+    test_note_generator.py
+    test_billing_engine.py
+    test_transcription.py
+```
+
+## Transcription Pipeline
+1. Browser sends audio chunks (WebM/Opus, 250ms) via WebSocket
+2. Audio Service receives and streams to Deepgram Nova-3 Medical
+3. Deepgram config: model="nova-3-medical", diarize=true, smart_format=true
+4. Interim results sent to browser immediately (low latency feedback)
+5. Final results accumulated into transcript segments
+6. On disconnect: compile full transcript, store in database
+
+## Note Generation Pipeline
+1. Receive: transcript + template_id + specialty + patient_context
+2. Load template structure from database
+3. Build system prompt: role + specialty + template structure + rules
+4. Build user prompt: transcript + context
+5. Call Claude API with structured output (tool_use for JSON)
+6. Post-process: validate medical terms, extract billing codes
+7. Return structured note with sections
+
+## Claude API Patterns
+```python
+# Always use structured output for consistent parsing
+response = client.messages.create(
+    model="claude-sonnet-4-5-20250514",
+    max_tokens=4096,
+    temperature=0.1,  # Low temp for medical accuracy
+    system=system_prompt,
+    messages=[{"role": "user", "content": user_prompt}],
+    tools=[{
+        "name": "generate_clinical_note",
+        "description": "Generate a structured clinical note",
+        "input_schema": note_schema
+    }],
+    tool_choice={"type": "tool", "name": "generate_clinical_note"}
+)
+```
+
+## Prompt Engineering Rules
+- NEVER let the model fabricate information not in the transcript
+- Always include: "Only include information explicitly stated or clearly implied in the transcript"
+- Flag uncertain items with [?] marker
+- Include specialty-specific terminology guidance
+- Few-shot examples in system prompt for consistent formatting
+- Separate "extraction" (facts from transcript) from "formatting" (template structure)
+
+## Error Handling
+- Retry Claude API calls 3x with exponential backoff (1s, 2s, 4s)
+- Deepgram reconnection on WebSocket drop (auto-retry 3x)
+- All errors logged with request ID (no PHI in logs)
+- Client receives structured error: {error: string, code: string, retryable: boolean}
+
+## Performance
+- Note generation target: < 10 seconds for standard consultation
+- Transcription latency: < 500ms from speech to display
+- Cache template prompts (they don't change often)
+- Stream note generation to UI via SSE when possible

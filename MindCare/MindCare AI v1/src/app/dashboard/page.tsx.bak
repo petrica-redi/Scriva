@@ -1,0 +1,4 @@
+// This file intentionally left as a re-export to avoid route conflicts
+// The actual dashboard lives in (app)/dashboard/page.tsx
+export { default } from "../(app)/dashboard/page";
+export { metadata } from "../(app)/dashboard/page";

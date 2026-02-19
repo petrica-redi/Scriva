@@ -1,0 +1,60 @@
+---
+description: Project overview and architecture for the AI Medical Scribe application
+globs: ["**/*"]
+---
+
+# AI Medical Scribe — Project Overview
+
+## What This Is
+A HIPAA-compliant AI medical scribe that records doctor-patient consultations, transcribes them in real-time, and generates structured clinical notes using AI.
+
+## Tech Stack
+- **Frontend**: Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS, shadcn/ui
+- **State**: Zustand (client), TanStack Query (server)
+- **Auth & DB**: Supabase (PostgreSQL + Auth + RLS + Realtime)
+- **AI Pipeline**: Python FastAPI microservices
+- **Transcription**: Deepgram Nova-3 Medical (streaming WebSocket)
+- **Note Generation**: Claude API (Anthropic)
+- **EHR Integration**: FHIR R4 (Epic, Cerner adapters)
+
+## Architecture
+```
+Browser → Next.js (BFF) → Python AI Services → External APIs
+                        → Supabase (data layer)
+```
+
+Three Python microservices:
+1. **Audio Service** — WebSocket audio streaming → Deepgram transcription
+2. **AI Service** — Prompt management + Claude API note generation
+3. **EHR Service** — FHIR R4 client for EHR push/pull
+
+## Directory Structure
+```
+src/
+  app/              # Next.js App Router pages
+  components/       # React components (ui/, audio/, notes/, layout/)
+  hooks/            # Custom React hooks
+  lib/              # Utilities, Supabase client, validators
+  services/         # Client-side service layer (API calls)
+  stores/           # Zustand stores
+  types/            # TypeScript type definitions
+services/
+  ai-pipeline/      # Python FastAPI services
+supabase/
+  migrations/       # SQL migration files
+```
+
+## Key Design Decisions
+- Server Components by default, Client Components only when needed (interactivity, hooks)
+- All forms validated with Zod schemas (shared between client and server)
+- Audio never persists to disk or browser storage — memory only during recording
+- All PHI access logged to audit_log table
+- WebSocket for real-time audio streaming and transcript updates
+
+## Naming Conventions
+- Components: PascalCase (ConsultationRecorder.tsx)
+- Hooks: camelCase with "use" prefix (useAudioRecorder.ts)
+- Utilities: camelCase (formatDuration.ts)
+- API routes: kebab-case (/api/generate-note)
+- Database: snake_case (clinical_notes)
+- Types: PascalCase with descriptive names (ConsultationWithTranscript)
