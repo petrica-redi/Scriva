@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useI18n } from "@/lib/i18n/i18n-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,6 +33,7 @@ const SPECIALTIES = [
 export default function TemplateEditorPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const { t } = useI18n();
   const supabase = useMemo(() => createClient(), []);
   const { toast } = useToast();
   const isNew = params?.id === "new";
@@ -56,7 +58,7 @@ export default function TemplateEditorPage() {
         .single();
 
       if (error || !data) {
-        toast("Template not found", "error");
+        toast(t("templates.notFound"), "error");
         router.push("/templates");
         return;
       }
@@ -110,11 +112,11 @@ export default function TemplateEditorPage() {
 
   const handleSave = async () => {
     if (!name.trim()) {
-      toast("Template name is required", "error");
+      toast(t("templates.nameRequired"), "error");
       return;
     }
     if (sections.length === 0) {
-      toast("Add at least one section", "error");
+      toast(t("templates.addOneSection"), "error");
       return;
     }
 
@@ -141,7 +143,7 @@ export default function TemplateEditorPage() {
         });
 
         if (error) throw error;
-        toast("Template created", "success");
+        toast(t("templates.created"), "success");
       } else {
         const { error } = await supabase
           .from("note_templates")
@@ -149,12 +151,12 @@ export default function TemplateEditorPage() {
           .eq("id", params?.id);
 
         if (error) throw error;
-        toast("Template saved", "success");
+        toast(t("templates.saved"), "success");
       }
 
       router.push("/templates");
     } catch (err) {
-      toast("Failed to save template", "error");
+      toast(t("templates.saveFailed"), "error");
     } finally {
       setSaving(false);
     }
@@ -173,33 +175,33 @@ export default function TemplateEditorPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-medical-text">
-          {isNew ? "Create Template" : "Edit Template"}
+          {isNew ? t("templates.createTemplate") : t("templates.editTemplate")}
         </h1>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => router.push("/templates")}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button onClick={handleSave} disabled={saving || isSystem}>
-            {saving ? "Saving..." : "Save Template"}
+            {saving ? t("templates.saving") : t("templates.saveTemplate")}
           </Button>
         </div>
       </div>
 
       {isSystem && (
         <div className="rounded-lg bg-amber-50 p-4 text-sm text-amber-700">
-          System templates cannot be edited. Duplicate this template to create your own version.
+          {t("templates.systemReadOnly")}
         </div>
       )}
 
       {/* Template Info */}
       <Card>
         <CardHeader>
-          <CardTitle>Template Details</CardTitle>
+          <CardTitle>{t("templates.templateDetails")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <Input
             id="name"
-            label="Template Name"
+            label={t("templates.templateName")}
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g., SOAP Note"
@@ -207,7 +209,7 @@ export default function TemplateEditorPage() {
           />
           <div className="space-y-1">
             <label htmlFor="description" className="block text-sm font-medium text-medical-text">
-              Description
+              {t("templates.description")}
             </label>
             <textarea
               id="description"
@@ -253,7 +255,7 @@ export default function TemplateEditorPage() {
         <CardContent className="space-y-4">
           {sections.length === 0 ? (
             <p className="py-8 text-center text-sm text-medical-muted">
-              No sections yet. Click &ldquo;Add Section&rdquo; to get started.
+              {t("templates.noSections")}
             </p>
           ) : (
             sections.map((section, index) => (
@@ -303,7 +305,7 @@ export default function TemplateEditorPage() {
 
                 <div className="space-y-1">
                   <label className="block text-xs font-medium text-medical-muted">
-                    AI Prompt Instruction
+                    {t("templates.aiPrompt")}
                   </label>
                   <textarea
                     value={section.prompt}
@@ -317,7 +319,7 @@ export default function TemplateEditorPage() {
 
                 <div className="space-y-1">
                   <label className="block text-xs font-medium text-medical-muted">
-                    Example Content
+                    {t("templates.exampleContent")}
                   </label>
                   <textarea
                     value={section.example}

@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useI18n } from "@/lib/i18n/i18n-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +32,7 @@ const SPECIALTIES = [
 
 export default function NewTemplatePage() {
   const router = useRouter();
+  const { t } = useI18n();
   const supabase = useMemo(() => createClient(), []);
   const { toast } = useToast();
 
@@ -77,11 +79,11 @@ export default function NewTemplatePage() {
 
   const handleSave = async () => {
     if (!name.trim()) {
-      toast("Template name is required", "error");
+      toast(t("templates.nameRequired"), "error");
       return;
     }
     if (sections.length === 0) {
-      toast("Add at least one section", "error");
+      toast(t("templates.addOneSection"), "error");
       return;
     }
 
@@ -103,10 +105,10 @@ export default function NewTemplatePage() {
       });
 
       if (error) throw error;
-      toast("Template created", "success");
+      toast(t("templates.created"), "success");
       router.push("/templates");
     } catch (err) {
-      toast("Failed to save template", "error");
+      toast(t("templates.saveFailed"), "error");
     } finally {
       setSaving(false);
     }
@@ -117,14 +119,14 @@ export default function NewTemplatePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-medical-text">
-          Create Template
+          {t("templates.createTemplate")}
         </h1>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => router.push("/templates")}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : "Save Template"}
+            {saving ? t("templates.saving") : t("templates.saveTemplate")}
           </Button>
         </div>
       </div>
@@ -132,19 +134,19 @@ export default function NewTemplatePage() {
       {/* Template Info */}
       <Card>
         <CardHeader>
-          <CardTitle>Template Details</CardTitle>
+          <CardTitle>{t("templates.templateDetails")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <Input
             id="name"
-            label="Template Name"
+            label={t("templates.templateName")}
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g., SOAP Note"
           />
           <div className="space-y-1">
             <label htmlFor="description" className="block text-sm font-medium text-medical-text">
-              Description
+              {t("templates.description")}
             </label>
             <textarea
               id="description"
@@ -180,13 +182,13 @@ export default function NewTemplatePage() {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Sections ({sections.length})</CardTitle>
           <Button size="sm" onClick={addSection}>
-            Add Section
+            {t("templates.addSection")}
           </Button>
         </CardHeader>
         <CardContent className="space-y-4">
           {sections.length === 0 ? (
             <p className="py-8 text-center text-sm text-medical-muted">
-              No sections yet. Click &ldquo;Add Section&rdquo; to get started.
+              {t("templates.noSections")}
             </p>
           ) : (
             sections.map((section, index) => (
@@ -233,7 +235,7 @@ export default function NewTemplatePage() {
 
                 <div className="space-y-1">
                   <label className="block text-xs font-medium text-medical-muted">
-                    AI Prompt Instruction
+                    {t("templates.aiPrompt")}
                   </label>
                   <textarea
                     value={section.prompt}
@@ -246,7 +248,7 @@ export default function NewTemplatePage() {
 
                 <div className="space-y-1">
                   <label className="block text-xs font-medium text-medical-muted">
-                    Example Content
+                    {t("templates.exampleContent")}
                   </label>
                   <textarea
                     value={section.example}

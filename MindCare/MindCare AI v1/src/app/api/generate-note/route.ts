@@ -154,11 +154,11 @@ export async function POST(request: NextRequest) {
       // In demo mode, skip ownership check
     }
 
-    // Check for Mistral API key
-    const mistralApiKey = process.env.MISTRAL_API_KEY;
-    if (!mistralApiKey) {
+    // Check for Anthropic API key
+    const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+    if (!anthropicApiKey) {
       return NextResponse.json(
-        { error: "Mistral API key not configured. Add MISTRAL_API_KEY to .env.local", code: "CONFIG_ERROR" },
+        { error: "Anthropic API key not configured. Add ANTHROPIC_API_KEY to .env.local", code: "CONFIG_ERROR" },
         { status: 500 }
       );
     }
@@ -180,8 +180,21 @@ export async function POST(request: NextRequest) {
     const isEnglish = !language || language === "en" || language.startsWith("en-");
     const outputLanguage = LANGUAGE_NAMES[language || "en"] || language || "English";
 
+    const isRomanian = language === 'ro';
     const languageRule = isEnglish
       ? ""
+      : isRomanian
+      ? `
+REGULI CRITICE PENTRU LIMBA ROMÂNĂ:
+- Consultația s-a desfășurat în limba română. TREBUIE să scrii TOATE secțiunile în limba română.
+- Titlurile secțiunilor TREBUIE să fie în română (ex. Notă SOAP: "Subiectiv", "Obiectiv", "Evaluare", "Plan").
+- Folosește terminologia medicală românească conformă cu nomenclatorul Colegiului Medicilor din România.
+- Folosește coduri ICD-10 și nomenclatura medicală românească standard.
+- Cunoști sistemul de sănătate românesc (CNAS, CAS, medic de familie, trimiteri, rețete compensate/gratuite).
+- Structura notei medicale românești: Motive internare/prezentare, Antecedente personale patologice, Antecedente heredo-colaterale, Condiții de viață și muncă, Examen obiectiv, Investigații paraclinice, Diagnostic pozitiv, Diagnostic diferențial, Tratament, Evoluție și prognostic, Recomandări la externare.
+- Medicamentele: menționează DCI (denumire comună internațională) + denumiri comerciale românești când e posibil.
+- Codurile de facturare și motivările trebuie să fie tot în română.
+- Cheile JSON ("title", "content", "code") rămân în engleză — doar VALORILE sunt în română.`
       : `
 CRITICAL LANGUAGE RULE:
 - The consultation was conducted in ${outputLanguage}. You MUST write ALL section content in ${outputLanguage}.
@@ -236,36 +249,47 @@ ${transcript}
 
 Respond with JSON only.`;
 
-    // Call Mistral AI API
-    console.log(`[GenerateNote] Calling Mistral API for ${template}...`);
+    // Call Anthropic Claude API
+    console.log(`[GenerateNote] Calling Claude Sonnet API for ${template}...`);
 
-    const { Mistral } = await import("@mistralai/mistralai");
-    const mistralClient = new Mistral({ apiKey: mistralApiKey });
-
-    let mistralResponse;
+    let responseText = "";
     try {
-      mistralResponse = await mistralClient.chat.complete({
-        model: "mistral-large-latest",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        maxTokens: 4096,
+      const anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": anthropicApiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 4096,
+          system: systemPrompt,
+          messages: [{ role: "user", content: userPrompt }],
+        }),
       });
+
+      if (!anthropicResponse.ok) {
+        const errText = await anthropicResponse.text();
+        console.error(`[GenerateNote] Anthropic API error:`, errText);
+        return NextResponse.json(
+          { error: `AI generation failed: ${errText}`, code: "AI_SERVICE_ERROR" },
+          { status: 500 }
+        );
+      }
+
+      const anthropicData = await anthropicResponse.json();
+      responseText = anthropicData.content?.[0]?.text || "";
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      console.error(`[GenerateNote] Mistral API error:`, errMsg);
+      console.error(`[GenerateNote] Anthropic API error:`, errMsg);
       return NextResponse.json(
         { error: `AI generation failed: ${errMsg}`, code: "AI_SERVICE_ERROR" },
         { status: 500 }
       );
     }
 
-    const responseText = typeof mistralResponse.choices?.[0]?.message?.content === 'string'
-      ? mistralResponse.choices[0].message.content
-      : "";
-
-    console.log(`[GenerateNote] Mistral response received, parsing JSON...`);
+    console.log(`[GenerateNote] Claude response received, parsing JSON...`);
 
     // Parse the JSON response from Claude
     let parsedResponse: { sections: NoteSection[]; billing_codes: BillingCode[] };
@@ -277,7 +301,7 @@ Respond with JSON only.`;
         .trim();
       parsedResponse = JSON.parse(cleanJson);
     } catch (parseErr) {
-      console.error("[GenerateNote] Failed to parse Mistral response:", responseText.substring(0, 500));
+      console.error("[GenerateNote] Failed to parse Claude response:", responseText.substring(0, 500));
       return NextResponse.json(
         { error: "Failed to parse AI response", code: "PARSE_ERROR" },
         { status: 500 }
@@ -307,7 +331,7 @@ Respond with JSON only.`;
       })
     );
 
-    const modelUsed = mistralResponse.model || "mistral-large-latest";
+    const modelUsed = "claude-sonnet-4-20250514";
 
     // Save clinical note to database
     const { data: clinicalNote, error: noteError } = await supabase

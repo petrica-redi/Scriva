@@ -82,7 +82,7 @@ export function Sidebar({ isOpen, onClose, userEmail, onSignOut }: SidebarProps)
       ),
     },
     {
-      label: 'Patient Portal',
+      label: t('nav.patientPortal'),
       href: '/portal',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

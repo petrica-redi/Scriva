@@ -1,0 +1,733 @@
+[
+  {
+    "id": "c8f3787f-b53f-4721-b878-3b99cafaca49",
+    "clinic_ids": [
+      "4c5b5260-b9cf-4b9d-9c64-4758a017dde0",
+      "74a72e06-858c-4b96-a4b3-c8ffe2a68169"
+    ],
+    "clinicNames": [
+      "Spitalul Clinic de Psihiatrie ",
+      "Clinica Hope - Clinica Psihiat"
+    ]
+  },
+  {
+    "id": "22e7661b-087f-467f-897d-134f15b986e5",
+    "clinic_ids": [
+      "2d33bab6-9adf-4dc3-a39d-9c0612064fdf",
+      "02d28906-33a9-4482-94f6-e7eaece3a368"
+    ],
+    "clinicNames": [
+      "MindCare - Psihiatrie și Psiho",
+      "Spitalul de Psihiatrie Socola"
+    ]
+  },
+  {
+    "id": "5021d988-ee6a-4945-b020-3a7ca774fb23",
+    "clinic_ids": [
+      "02d28906-33a9-4482-94f6-e7eaece3a368",
+      "74a72e06-858c-4b96-a4b3-c8ffe2a68169"
+    ],
+    "clinicNames": [
+      "Spitalul de Psihiatrie Socola",
+      "Clinica Hope - Clinica Psihiat"
+    ]
+  },
+  {
+    "id": "82c586bf-3d17-4e43-9009-4570ae8019cf",
+    "clinic_ids": [
+      "02d28906-33a9-4482-94f6-e7eaece3a368"
+    ],
+    "clinicNames": [
+      "Spitalul de Psihiatrie Socola"
+    ]
+  },
+  {
+    "id": "3990135b-6dd3-43c4-b8d8-fc2995f4e3de",
+    "clinic_ids": [
+      "7de8c263-b9be-4446-b634-66e1f8f0235f"
+    ],
+    "clinicNames": [
+      "MedLife Hyperclinica Medical P"
+    ]
+  },
+  {
+    "id": "91e5a112-e0c9-49b3-9d7c-56d5f9aa60a8",
+    "clinic_ids": [
+      "7de8c263-b9be-4446-b634-66e1f8f0235f",
+      "72f66b9a-ed2b-45b6-91c3-eba3501f26fb"
+    ],
+    "clinicNames": [
+      "MedLife Hyperclinica Medical P",
+      "MedLife Hyperclinica Genesys T"
+    ]
+  },
+  {
+    "id": "a00dc6ff-3e19-4f2a-b8dc-f65dad8e14db",
+    "clinic_ids": [
+      "72f66b9a-ed2b-45b6-91c3-eba3501f26fb"
+    ],
+    "clinicNames": [
+      "MedLife Hyperclinica Genesys T"
+    ]
+  },
+  {
+    "id": "a1a0764a-dbad-43c4-8c5a-79c89be21d1d",
+    "clinic_ids": [
+      "7de8c263-b9be-4446-b634-66e1f8f0235f",
+      "b7aa219f-7a96-4931-9031-b269a33d3d24"
+    ],
+    "clinicNames": [
+      "MedLife Hyperclinica Medical P",
+      "Spitalul Clinic de Urgență pen"
+    ]
+  },
+  {
+    "id": "cba313a3-e9c6-4901-9fa9-6c6b387ecef1",
+    "clinic_ids": [
+      "02d28906-33a9-4482-94f6-e7eaece3a368"
+    ],
+    "clinicNames": [
+      "Spitalul de Psihiatrie Socola"
+    ]
+  },
+  {
+    "id": "a9000123-a943-4559-bae6-1e59fe0e335d",
+    "clinic_ids": [
+      "8baf85f4-8df6-4d09-b71b-8a774726322d",
+      "7de8c263-b9be-4446-b634-66e1f8f0235f"
+    ],
+    "clinicNames": [
+      "Spitalul Clinic de Urgență Flo",
+      "MedLife Hyperclinica Medical P"
+    ]
+  },
+  {
+    "id": "97785fb6-d484-4c72-83c9-12fc6ad34208",
+    "clinic_ids": [
+      "7de8c263-b9be-4446-b634-66e1f8f0235f",
+      "8baf85f4-8df6-4d09-b71b-8a774726322d"
+    ],
+    "clinicNames": [
+      "MedLife Hyperclinica Medical P",
+      "Spitalul Clinic de Urgență Flo"
+    ]
+  },
+  {
+    "id": "4c424985-c629-44f9-bb1a-24698507d956",
+    "clinic_ids": [
+      "8748815a-3e23-4624-a3b9-20aa3de7a106",
+      "7de8c263-b9be-4446-b634-66e1f8f0235f"
+    ],
+    "clinicNames": [
+      "Centrul de Excelență DermaLife",
+      "MedLife Hyperclinica Medical P"
+    ]
+  },
+  {
+    "id": "445406a0-2fee-4941-987a-f26be442c4d7",
+    "clinic_ids": [
+      "72f66b9a-ed2b-45b6-91c3-eba3501f26fb"
+    ],
+    "clinicNames": [
+      "MedLife Hyperclinica Genesys T"
+    ]
+  },
+  {
+    "id": "c7f96469-47d2-462c-9938-d71d1f081c2f",
+    "clinic_ids": [
+      "7de8c263-b9be-4446-b634-66e1f8f0235f"
+    ],
+    "clinicNames": [
+      "MedLife Hyperclinica Medical P"
+    ]
+  },
+  {
+    "id": "833558b0-675b-4116-a5c1-efb271b7d9b7",
+    "clinic_ids": [
+      "d74dff2a-4b25-4d55-aca4-524a597bd2c7",
+      "fb4b60c2-1291-4bc9-9e1a-fc9d69b9f66f"
+    ],
+    "clinicNames": [
+      "Oberberg Kliniken",
+      "Charité Department of Psychiat"
+    ]
+  },
+  {
+    "id": "1b987819-f039-44e7-bf11-a770387280f3",
+    "clinic_ids": [
+      "6ee6fc16-8648-4df2-9b5d-c5359e6e9f95",
+      "b9ac2fdb-b1ce-4ba1-b540-09c854b10ee6"
+    ],
+    "clinicNames": [
+      "Max Planck Institute of Psychi",
+      "LMU Klinikum – Klinik für Psyc"
+    ]
+  },
+  {
+    "id": "b64343f3-10e2-4fb1-977c-d71827c5374d",
+    "clinic_ids": [
+      "b1f36cd5-6a77-4216-8c13-56625321154b",
+      "e182c265-2f47-4bfd-b47c-a10af519dcf8"
+    ],
+    "clinicNames": [
+      "Schön Klinik Hamburg Eilbek",
+      "Asklepios Klinik St. Georg"
+    ]
+  },
+  {
+    "id": "846516aa-7ecf-4241-82b4-273469d97f12",
+    "clinic_ids": [
+      "7925abb6-0220-4d2d-9f5e-66921e62adc8"
+    ],
+    "clinicNames": [
+      "Charité – Universitätsmedizin "
+    ]
+  },
+  {
+    "id": "154be549-4b2f-4ecc-b8a3-b527a1d0ec4b",
+    "clinic_ids": [
+      "47f83661-fef7-4db0-a0dd-39cbc59160e7",
+      "7925abb6-0220-4d2d-9f5e-66921e62adc8"
+    ],
+    "clinicNames": [
+      "Universitätsklinikum Freiburg",
+      "Charité – Universitätsmedizin "
+    ]
+  },
+  {
+    "id": "db04e983-8159-4722-8eac-12c82206cc2d",
+    "clinic_ids": [
+      "47f83661-fef7-4db0-a0dd-39cbc59160e7",
+      "7925abb6-0220-4d2d-9f5e-66921e62adc8"
+    ],
+    "clinicNames": [
+      "Universitätsklinikum Freiburg",
+      "Charité – Universitätsmedizin "
+    ]
+  },
+  {
+    "id": "a4cbe709-ccf8-43d7-ba90-b948d1fdfba9",
+    "clinic_ids": [
+      "5ab42c3c-450e-44da-8798-8694912aa645",
+      "fb4b60c2-1291-4bc9-9e1a-fc9d69b9f66f"
+    ],
+    "clinicNames": [
+      "Helios Klinikum Berlin-Buch",
+      "Charité Department of Psychiat"
+    ]
+  },
+  {
+    "id": "b38301c7-4057-4516-9393-098a3d0988a3",
+    "clinic_ids": [
+      "e182c265-2f47-4bfd-b47c-a10af519dcf8",
+      "b1f36cd5-6a77-4216-8c13-56625321154b"
+    ],
+    "clinicNames": [
+      "Asklepios Klinik St. Georg",
+      "Schön Klinik Hamburg Eilbek"
+    ]
+  },
+  {
+    "id": "ef14a9cd-b6dc-4b93-89b0-a3d5a6b12d7b",
+    "clinic_ids": [
+      "5ab42c3c-450e-44da-8798-8694912aa645",
+      "c7ac6571-071f-4837-ba1b-908856d7872b"
+    ],
+    "clinicNames": [
+      "Helios Klinikum Berlin-Buch",
+      "Universitätsklinikum Heidelber"
+    ]
+  },
+  {
+    "id": "85ffe751-97dc-4f85-bbd7-b839fb9c1d6f",
+    "clinic_ids": [
+      "47f83661-fef7-4db0-a0dd-39cbc59160e7",
+      "58835600-2fca-42ad-b47a-1e9e63bdf43e"
+    ],
+    "clinicNames": [
+      "Universitätsklinikum Freiburg",
+      "Universitäts-Kinderklinik Heid"
+    ]
+  },
+  {
+    "id": "79ff1a5d-b4c9-44e0-8541-b43fc0876017",
+    "clinic_ids": [
+      "6c8867b1-2726-489c-8670-33561733e3db"
+    ],
+    "clinicNames": [
+      "Orthopädische Gemeinschaftspra"
+    ]
+  },
+  {
+    "id": "8cac9ac7-70fb-4987-955c-5895f3ebdce2",
+    "clinic_ids": [
+      "f0b029cf-835e-4987-8829-4cfaeeee1250",
+      "bd3ca585-b499-4bdd-b8f4-3a9ffe422bc5"
+    ],
+    "clinicNames": [
+      "South London and Maudsley NHS ",
+      "The Tavistock and Portman NHS "
+    ]
+  },
+  {
+    "id": "5b067f0c-200a-4d4a-89e2-967a46324760",
+    "clinic_ids": [
+      "3c548352-4037-4f3c-a878-e7997242eb68",
+      "bd3ca585-b499-4bdd-b8f4-3a9ffe422bc5"
+    ],
+    "clinicNames": [
+      "Cygnet Health Care",
+      "The Tavistock and Portman NHS "
+    ]
+  },
+  {
+    "id": "3d956543-0642-4c5a-aeaa-0e3c78a8f67d",
+    "clinic_ids": [
+      "2490be5a-6c1c-4ca4-8181-d3d87cf165e2",
+      "f0b029cf-835e-4987-8829-4cfaeeee1250"
+    ],
+    "clinicNames": [
+      "Nightingale Hospital London",
+      "South London and Maudsley NHS "
+    ]
+  },
+  {
+    "id": "691ce416-777f-4c57-971c-a6d1471d528d",
+    "clinic_ids": [
+      "59de990b-8da1-4438-9bd9-0d27f13f9d51"
+    ],
+    "clinicNames": [
+      "Bupa Cromwell Hospital"
+    ]
+  },
+  {
+    "id": "4e7a05a4-6e68-477e-bbde-057204b147f6",
+    "clinic_ids": [
+      "59de990b-8da1-4438-9bd9-0d27f13f9d51"
+    ],
+    "clinicNames": [
+      "Bupa Cromwell Hospital"
+    ]
+  },
+  {
+    "id": "a2b62018-c03f-43c6-9f50-8e8628272e68",
+    "clinic_ids": [
+      "59de990b-8da1-4438-9bd9-0d27f13f9d51"
+    ],
+    "clinicNames": [
+      "Bupa Cromwell Hospital"
+    ]
+  },
+  {
+    "id": "da7b368f-8561-4e07-a6ef-b6966ac2548a",
+    "clinic_ids": [
+      "f0b029cf-835e-4987-8829-4cfaeeee1250",
+      "47390fb3-c5c4-4c1f-877c-12fd8048b7c1"
+    ],
+    "clinicNames": [
+      "South London and Maudsley NHS ",
+      "Great Ormond Street Hospital ("
+    ]
+  },
+  {
+    "id": "1367c690-ab72-45e6-8b5e-8b0dcbc677c9",
+    "clinic_ids": [
+      "47390fb3-c5c4-4c1f-877c-12fd8048b7c1",
+      "4c51fc02-9867-48b0-b0e4-c281706aba2b"
+    ],
+    "clinicNames": [
+      "Great Ormond Street Hospital (",
+      "Harley Street Clinic"
+    ]
+  },
+  {
+    "id": "cefc5e2c-885f-4c67-b46f-21d65f39b934",
+    "clinic_ids": [
+      "47390fb3-c5c4-4c1f-877c-12fd8048b7c1",
+      "4c51fc02-9867-48b0-b0e4-c281706aba2b"
+    ],
+    "clinicNames": [
+      "Great Ormond Street Hospital (",
+      "Harley Street Clinic"
+    ]
+  },
+  {
+    "id": "0b8549cd-c772-447b-afd1-5e5a812d2be0",
+    "clinic_ids": [
+      "47390fb3-c5c4-4c1f-877c-12fd8048b7c1",
+      "cbdb811e-d4ac-46b4-bf77-e330a0b7f0c1"
+    ],
+    "clinicNames": [
+      "Great Ormond Street Hospital (",
+      "The Portland Hospital for Wome"
+    ]
+  },
+  {
+    "id": "2e7873c2-4efe-4e5f-befa-ad5d825fd6b3",
+    "clinic_ids": [
+      "23fea8a9-2afb-46e0-8426-5d80bf6fd077",
+      "71675ace-5414-4c85-a0d0-5e823d77d13d"
+    ],
+    "clinicNames": [
+      "Johns Hopkins Hospital – Depar",
+      "NYU Langone Health – Departmen"
+    ]
+  },
+  {
+    "id": "ab118b7b-74f8-42fb-ad49-228bbd7d1720",
+    "clinic_ids": [
+      "91cf7858-3329-4cd1-b387-3d2cf3fd7d31",
+      "fe06f9a8-5c8e-44f2-aa7d-60b64e87427c"
+    ],
+    "clinicNames": [
+      "Massachusetts General Hospital",
+      "The Menninger Clinic"
+    ]
+  },
+  {
+    "id": "f6c46d59-88f8-43f8-8291-2945ba51bf53",
+    "clinic_ids": [
+      "a3326035-4832-4eb7-91f2-a34c3f9cf4b6",
+      "fe06f9a8-5c8e-44f2-aa7d-60b64e87427c"
+    ],
+    "clinicNames": [
+      "McLean Hospital",
+      "The Menninger Clinic"
+    ]
+  },
+  {
+    "id": "2d70b6e8-1559-41bd-8815-3b1f6c7ac7dd",
+    "clinic_ids": [
+      "29fc0a83-6a04-43a6-a5a8-47405ad3b525",
+      "91cf7858-3329-4cd1-b387-3d2cf3fd7d31"
+    ],
+    "clinicNames": [
+      "Mayo Clinic",
+      "Massachusetts General Hospital"
+    ]
+  },
+  {
+    "id": "fb361894-b080-42e9-acdf-40e0d3e3147e",
+    "clinic_ids": [
+      "91cf7858-3329-4cd1-b387-3d2cf3fd7d31",
+      "29fc0a83-6a04-43a6-a5a8-47405ad3b525"
+    ],
+    "clinicNames": [
+      "Massachusetts General Hospital",
+      "Mayo Clinic"
+    ]
+  },
+  {
+    "id": "a6139d2c-c163-41f0-be02-ff2bff7e5362",
+    "clinic_ids": [
+      "91cf7858-3329-4cd1-b387-3d2cf3fd7d31",
+      "29fc0a83-6a04-43a6-a5a8-47405ad3b525"
+    ],
+    "clinicNames": [
+      "Massachusetts General Hospital",
+      "Mayo Clinic"
+    ]
+  },
+  {
+    "id": "a8d05e46-6dff-43f6-9dfa-974efb4c602e",
+    "clinic_ids": [
+      "91cf7858-3329-4cd1-b387-3d2cf3fd7d31",
+      "50cd16f7-d491-442d-b261-118f2ef0836d"
+    ],
+    "clinicNames": [
+      "Massachusetts General Hospital",
+      "Cleveland Clinic"
+    ]
+  },
+  {
+    "id": "4b597727-a4dc-469c-9cc4-8e0b3e84917d",
+    "clinic_ids": [
+      "9ecc259d-ddf7-4964-a1de-fc9e611103b4",
+      "23fea8a9-2afb-46e0-8426-5d80bf6fd077"
+    ],
+    "clinicNames": [
+      "Cedars-Sinai Medical Center",
+      "Johns Hopkins Hospital – Depar"
+    ]
+  },
+  {
+    "id": "2f3d462d-0060-4f69-83b6-285fcfb9aed1",
+    "clinic_ids": [
+      "91cf7858-3329-4cd1-b387-3d2cf3fd7d31",
+      "2a742c54-2b87-4148-b461-a8574a346e3f"
+    ],
+    "clinicNames": [
+      "Massachusetts General Hospital",
+      "Texas Children's Hospital"
+    ]
+  },
+  {
+    "id": "c3f81295-253e-4c81-850a-2e04481f31cc",
+    "clinic_ids": [
+      "2a742c54-2b87-4148-b461-a8574a346e3f",
+      "91cf7858-3329-4cd1-b387-3d2cf3fd7d31"
+    ],
+    "clinicNames": [
+      "Texas Children's Hospital",
+      "Massachusetts General Hospital"
+    ]
+  },
+  {
+    "id": "b084d405-39bb-4457-b500-369a3053d071",
+    "clinic_ids": [
+      "981ab40f-eed7-4400-b4d4-edb8129f0d42",
+      "91cf7858-3329-4cd1-b387-3d2cf3fd7d31"
+    ],
+    "clinicNames": [
+      "UCSF Dermatology",
+      "Massachusetts General Hospital"
+    ]
+  },
+  {
+    "id": "65c3deb4-cb01-44e3-a3d6-d46ff4cd60b6",
+    "clinic_ids": [
+      "6b14524d-94ec-4ed1-a4b9-5459faa4ef8e",
+      "eae2afd8-c17c-4557-baf2-6b515da417c6"
+    ],
+    "clinicNames": [
+      "Hospital Universitario 12 de O",
+      "Clínica López Ibor"
+    ]
+  },
+  {
+    "id": "acad37a7-88da-49ab-aa3e-2d1ec4cddd93",
+    "clinic_ids": [
+      "85e9477a-7070-486d-9899-7421df54029d"
+    ],
+    "clinicNames": [
+      "Hospital Clínic de Barcelona"
+    ]
+  },
+  {
+    "id": "5b8d7547-5e0d-4079-8585-37bac110acbf",
+    "clinic_ids": [
+      "85e9477a-7070-486d-9899-7421df54029d",
+      "ccb1cbc7-9dc5-4314-89eb-96efc55e9d74"
+    ],
+    "clinicNames": [
+      "Hospital Clínic de Barcelona",
+      "Hospital Universitario La Paz"
+    ]
+  },
+  {
+    "id": "724dc3d0-7162-4de1-9bf1-4361593766cb",
+    "clinic_ids": [
+      "4ad2d8ce-aeba-43ee-a922-3bb08f8f73e7",
+      "ccb1cbc7-9dc5-4314-89eb-96efc55e9d74"
+    ],
+    "clinicNames": [
+      "Hospital Universitario Vall d'",
+      "Hospital Universitario La Paz"
+    ]
+  },
+  {
+    "id": "69e8322d-2e8c-4c73-b839-ee0f1ddae425",
+    "clinic_ids": [
+      "ccb1cbc7-9dc5-4314-89eb-96efc55e9d74",
+      "6b14524d-94ec-4ed1-a4b9-5459faa4ef8e"
+    ],
+    "clinicNames": [
+      "Hospital Universitario La Paz",
+      "Hospital Universitario 12 de O"
+    ]
+  },
+  {
+    "id": "053796ea-7312-4585-b465-5379631e1d53",
+    "clinic_ids": [
+      "85e9477a-7070-486d-9899-7421df54029d",
+      "4ad2d8ce-aeba-43ee-a922-3bb08f8f73e7"
+    ],
+    "clinicNames": [
+      "Hospital Clínic de Barcelona",
+      "Hospital Universitario Vall d'"
+    ]
+  },
+  {
+    "id": "6cf0e5d1-5361-420a-8668-0d2ac3f654b9",
+    "clinic_ids": [
+      "20af8695-10a0-4172-b905-a8f3ce550403",
+      "ccb1cbc7-9dc5-4314-89eb-96efc55e9d74"
+    ],
+    "clinicNames": [
+      "Hospital Infantil Universitari",
+      "Hospital Universitario La Paz"
+    ]
+  },
+  {
+    "id": "418983dd-6320-46e3-b24e-b0c14a80224f",
+    "clinic_ids": [
+      "cbdee577-737b-42a6-858f-b2c994b890cc",
+      "69fabeb5-5e4c-4241-bcc1-19b9de7b97c7"
+    ],
+    "clinicNames": [
+      "Centro Hospitalar Psiquiátrico",
+      "Hospital de Santa Maria – Cent"
+    ]
+  },
+  {
+    "id": "7eebf1f4-f5e2-4114-95d7-dea6707879ad",
+    "clinic_ids": [
+      "28a63412-cb58-4ce8-9a5e-1efe6f0a7e08",
+      "73b0b899-f75c-460b-99ca-cc2bb305d8ea"
+    ],
+    "clinicNames": [
+      "Hospital de Magalhães Lemos",
+      "Hospital de São João"
+    ]
+  },
+  {
+    "id": "9faccd85-1c0f-442a-b3fd-abbcff37e71a",
+    "clinic_ids": [
+      "69fabeb5-5e4c-4241-bcc1-19b9de7b97c7",
+      "d6468c31-5994-4719-b6c1-71bf97d9a3c1"
+    ],
+    "clinicNames": [
+      "Hospital de Santa Maria – Cent",
+      "Clínica de Santo António"
+    ]
+  },
+  {
+    "id": "c8cc87d6-70e6-40fd-acca-981170697e0e",
+    "clinic_ids": [
+      "0038a1b0-5a05-4195-b1f2-e961376218d6",
+      "d6468c31-5994-4719-b6c1-71bf97d9a3c1"
+    ],
+    "clinicNames": [
+      "Joaquim Chaves Saúde",
+      "Clínica de Santo António"
+    ]
+  },
+  {
+    "id": "efc503af-f6e1-476c-837c-51ae7e9d5f13",
+    "clinic_ids": [
+      "2f9e0ef5-1439-40b9-b695-d1ff7d97738f",
+      "69fabeb5-5e4c-4241-bcc1-19b9de7b97c7"
+    ],
+    "clinicNames": [
+      "Hospital dos Lusíadas Lisboa",
+      "Hospital de Santa Maria – Cent"
+    ]
+  },
+  {
+    "id": "74491257-e74c-4bfc-873f-689454fe8349",
+    "clinic_ids": [
+      "c25ae733-f290-4163-a3c1-d777f0f17e25",
+      "73b0b899-f75c-460b-99ca-cc2bb305d8ea"
+    ],
+    "clinicNames": [
+      "CUF Porto Hospital",
+      "Hospital de São João"
+    ]
+  },
+  {
+    "id": "3cc32739-f431-4238-a1d2-22b1d7ea9e78",
+    "clinic_ids": [
+      "ded2a7ac-5a4c-4b9a-810a-3e3a3169ed57",
+      "e6574526-19b1-43c4-99c3-709050d26d45"
+    ],
+    "clinicNames": [
+      "Hôpital Sainte-Anne – GHU Pari",
+      "Centre Hospitalier Sainte-Anne"
+    ]
+  },
+  {
+    "id": "f31f5632-a084-4cac-b57a-7d59a2fe23e6",
+    "clinic_ids": [
+      "c32dff5e-4a74-45c2-b555-58fd64ad7900"
+    ],
+    "clinicNames": [
+      "Centre Hospitalier Universitai"
+    ]
+  },
+  {
+    "id": "bea36f8e-a948-4a59-8895-0e70d919cdce",
+    "clinic_ids": [
+      "ded2a7ac-5a4c-4b9a-810a-3e3a3169ed57",
+      "d9eb9e1d-7a90-4c84-9e48-2277f0f1c296"
+    ],
+    "clinicNames": [
+      "Hôpital Sainte-Anne – GHU Pari",
+      "Hôpital de la Pitié-Salpêtrièr"
+    ]
+  },
+  {
+    "id": "74cdcee9-4170-47bb-98a5-a7361bd797d9",
+    "clinic_ids": [
+      "9f63084e-2cc0-4f0e-959a-b238c773bf55",
+      "c32dff5e-4a74-45c2-b555-58fd64ad7900"
+    ],
+    "clinicNames": [
+      "American Hospital of Paris",
+      "Centre Hospitalier Universitai"
+    ]
+  },
+  {
+    "id": "dda1f4f6-6690-43fd-b01f-e248e37bc8b6",
+    "clinic_ids": [
+      "9f63084e-2cc0-4f0e-959a-b238c773bf55",
+      "c32dff5e-4a74-45c2-b555-58fd64ad7900"
+    ],
+    "clinicNames": [
+      "American Hospital of Paris",
+      "Centre Hospitalier Universitai"
+    ]
+  },
+  {
+    "id": "3a1af833-f357-4c29-ac1a-cab9d3828ccf",
+    "clinic_ids": [
+      "c32dff5e-4a74-45c2-b555-58fd64ad7900"
+    ],
+    "clinicNames": [
+      "Centre Hospitalier Universitai"
+    ]
+  },
+  {
+    "id": "675424d1-5994-47b7-a975-2be30d84a232",
+    "clinic_ids": [
+      "ded2a7ac-5a4c-4b9a-810a-3e3a3169ed57",
+      "d9eb9e1d-7a90-4c84-9e48-2277f0f1c296"
+    ],
+    "clinicNames": [
+      "Hôpital Sainte-Anne – GHU Pari",
+      "Hôpital de la Pitié-Salpêtrièr"
+    ]
+  },
+  {
+    "id": "2a7dc24e-ed77-4706-9682-570f9032800d",
+    "clinic_ids": [
+      "ded2a7ac-5a4c-4b9a-810a-3e3a3169ed57",
+      "d9eb9e1d-7a90-4c84-9e48-2277f0f1c296"
+    ],
+    "clinicNames": [
+      "Hôpital Sainte-Anne – GHU Pari",
+      "Hôpital de la Pitié-Salpêtrièr"
+    ]
+  },
+  {
+    "id": "873de15d-3cf0-4cef-8913-400d70e35db5",
+    "clinic_ids": [
+      "4d4975f9-f540-4285-8729-43fa341cc8ba",
+      "d9eb9e1d-7a90-4c84-9e48-2277f0f1c296"
+    ],
+    "clinicNames": [
+      "Hôpital Européen Georges-Pompi",
+      "Hôpital de la Pitié-Salpêtrièr"
+    ]
+  },
+  {
+    "id": "b1871ef0-ac08-4a05-8515-ec76936f98ff",
+    "clinic_ids": [
+      "925c8e9a-2bea-44fb-893a-c7e387d801bd",
+      "9f63084e-2cc0-4f0e-959a-b238c773bf55"
+    ],
+    "clinicNames": [
+      "Hôpital Cochin (AP-HP)",
+      "American Hospital of Paris"
+    ]
+  }
+]

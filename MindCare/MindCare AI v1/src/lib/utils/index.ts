@@ -19,8 +19,9 @@ export function formatDate(dateString: string): string {
   });
 }
 
-export function formatDateTime(dateString: string): string {
-  return new Date(dateString).toLocaleString("en-US", {
+export function formatDateTime(dateString: string, locale?: string): string {
+  const loc = locale === 'ro' ? 'ro-RO' : 'en-US';
+  return new Date(dateString).toLocaleString(loc, {
     year: "numeric",
     month: "short",
     day: "numeric",

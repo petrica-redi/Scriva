@@ -34,7 +34,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const supabase = useMemo(() => createClient(), []);
 
   const TAB_LABELS: Record<string, string> = {
@@ -235,17 +235,17 @@ export default function SettingsPage() {
     setPasswordError("");
 
     if (!newPassword || !confirmPassword) {
-      setPasswordError("Please fill in both password fields");
+      setPasswordError(t('settings.fillBothPasswords'));
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setPasswordError("Passwords do not match");
+      setPasswordError(t('settings.passwordsMismatch'));
       return;
     }
 
     if (newPassword.length < 8) {
-      setPasswordError("Password must be at least 8 characters");
+      setPasswordError(t('settings.passwordMinLength'));
       return;
     }
 
@@ -301,12 +301,12 @@ export default function SettingsPage() {
       {activeTab === "Profile" && (
         <Card>
           <CardHeader>
-            <CardTitle>Profile Settings</CardTitle>
+            <CardTitle>{t('settings.profileSettings')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <Input
               id="full_name"
-              label="Full Name"
+              label={t('settings.fullName')}
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               placeholder="Dr. John Doe"
@@ -314,7 +314,7 @@ export default function SettingsPage() {
 
             <Input
               id="email"
-              label="Email Address"
+              label={t('settings.emailAddress')}
               value={email}
               readOnly
               className="bg-gray-50"
@@ -323,34 +323,34 @@ export default function SettingsPage() {
 
             <Select
               id="specialty"
-              label="Medical Specialty"
+              label={t('settings.medicalSpecialty')}
               value={specialty}
               onChange={(e) => setSpecialty(e.target.value)}
               options={[
-                { value: "", label: "Select a specialty" },
-                { value: "cardiology", label: "Cardiology" },
-                { value: "dermatology", label: "Dermatology" },
-                { value: "emergency_medicine", label: "Emergency Medicine" },
-                { value: "family_medicine", label: "Family Medicine" },
-                { value: "gastroenterology", label: "Gastroenterology" },
-                { value: "internal_medicine", label: "Internal Medicine" },
-                { value: "neurology", label: "Neurology" },
-                { value: "orthopedics", label: "Orthopedics" },
-                { value: "pediatrics", label: "Pediatrics" },
-                { value: "psychiatry", label: "Psychiatry" },
-                { value: "radiology", label: "Radiology" },
-                { value: "surgery", label: "Surgery" },
-                { value: "other", label: "Other" },
+                { value: "", label: t('settings.selectSpecialty') },
+                { value: "cardiology", label: t('specialty.cardiology') },
+                { value: "dermatology", label: t('specialty.dermatology') },
+                { value: "emergency_medicine", label: t('specialty.emergencyMedicine') },
+                { value: "family_medicine", label: t('specialty.familyMedicine') },
+                { value: "gastroenterology", label: t('specialty.gastroenterology') },
+                { value: "internal_medicine", label: t('specialty.internalMedicine') },
+                { value: "neurology", label: t('specialty.neurology') },
+                { value: "orthopedics", label: t('specialty.orthopedics') },
+                { value: "pediatrics", label: t('specialty.pediatrics') },
+                { value: "psychiatry", label: t('specialty.psychiatry') },
+                { value: "radiology", label: t('specialty.radiology') },
+                { value: "surgery", label: t('specialty.surgery') },
+                { value: "other", label: t('specialty.other') },
               ]}
-              placeholder="Select your specialty"
+              placeholder={t('settings.selectSpecialty')}
             />
 
             <Input
               id="license_number"
-              label="Medical License Number"
+              label={t('settings.licenseNumber')}
               value={licenseNumber}
               onChange={(e) => setLicenseNumber(e.target.value)}
-              placeholder="Enter your license number"
+              placeholder={t('settings.enterLicense')}
             />
 
             <div className="flex gap-3 pt-4">
@@ -358,7 +358,7 @@ export default function SettingsPage() {
                 onClick={handleSaveProfile}
                 disabled={isSaving}
               >
-                {isSaving ? "Saving..." : "Save Profile"}
+                {isSaving ? t('settings.saving') : t('settings.saveProfile')}
               </Button>
             </div>
           </CardContent>
@@ -369,25 +369,25 @@ export default function SettingsPage() {
       {activeTab === "Audio" && (
         <Card>
           <CardHeader>
-            <CardTitle>Audio Settings</CardTitle>
+            <CardTitle>{t('settings.audioSettings')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <Select
               id="audio_quality"
-              label="Audio Quality"
+              label={t('settings.audioQuality')}
               value={audioQuality}
               onChange={(e) =>
                 setAudioQuality(e.target.value as "standard" | "high")
               }
               options={[
-                { value: "standard", label: "Standard (48kbps)" },
-                { value: "high", label: "High (128kbps)" },
+                { value: "standard", label: t('settings.audioStandard') },
+                { value: "high", label: t('settings.audioHigh') },
               ]}
             />
 
             <div className="space-y-3">
               <label htmlFor="silence_threshold" className="block text-sm font-medium text-medical-text">
-                Silence Detection Threshold: {silenceThreshold}s
+                {t('settings.silenceThreshold')}: {silenceThreshold}s
               </label>
               <input
                 id="silence_threshold"
@@ -400,8 +400,7 @@ export default function SettingsPage() {
                 className="w-full"
               />
               <p className="text-xs text-medical-muted">
-                Pauses longer than {silenceThreshold} seconds will be marked as
-                silence
+                {t('settings.silenceDesc').replace('{threshold}', String(silenceThreshold))}
               </p>
             </div>
 
@@ -410,7 +409,7 @@ export default function SettingsPage() {
                 onClick={handleSaveAudio}
                 disabled={isSaving}
               >
-                {isSaving ? "Saving..." : "Save Audio Settings"}
+                {isSaving ? t('settings.saving') : t('settings.saveAudio')}
               </Button>
             </div>
           </CardContent>
@@ -421,27 +420,26 @@ export default function SettingsPage() {
       {activeTab === "Templates" && (
         <Card>
           <CardHeader>
-            <CardTitle>Default Note Template</CardTitle>
+            <CardTitle>{t('settings.defaultTemplate')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <Select
               id="default_template"
-              label="Default Template"
+              label={t('settings.defaultTemplate')}
               value={defaultTemplate}
               onChange={(e) => setDefaultTemplate(e.target.value)}
               options={[
-                { value: "", label: "Select a default template" },
-                ...templates.map((t) => ({
-                  value: t.id,
-                  label: t.name,
+                { value: "", label: t('settings.selectTemplate') },
+                ...templates.map((tmpl) => ({
+                  value: tmpl.id,
+                  label: tmpl.name,
                 })),
               ]}
-              placeholder="Select a template to use by default"
+              placeholder={t('settings.selectTemplate')}
             />
 
             <p className="text-sm text-medical-muted">
-              This template will be automatically selected when generating new
-              clinical notes.
+              {t('settings.templateDesc')}
             </p>
 
             <div className="flex gap-3 pt-4">
@@ -449,7 +447,7 @@ export default function SettingsPage() {
                 onClick={handleSaveTemplate}
                 disabled={isSaving}
               >
-                {isSaving ? "Saving..." : "Save Template Settings"}
+                {isSaving ? t('settings.saving') : t('settings.saveTemplate')}
               </Button>
             </div>
           </CardContent>
@@ -462,26 +460,26 @@ export default function SettingsPage() {
           {/* Last Sign-In */}
           <Card>
             <CardHeader>
-              <CardTitle>Account Security</CardTitle>
+              <CardTitle>{t('settings.accountSecurity')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
                 <p className="text-sm font-medium text-medical-text">
-                  Last Sign-In
+                  {t('settings.lastSignIn')}
                 </p>
                 <p className="mt-1 text-sm text-medical-muted">
                   {lastSignIn
                     ? new Date(lastSignIn).toLocaleString()
-                    : "No sign-in information available"}
+                    : t('settings.noSignIn')}
                 </p>
               </div>
 
               <div className="border-t border-medical-border pt-4">
                 <p className="text-sm font-medium text-medical-text">
-                  Active Sessions
+                  {t('settings.activeSessions')}
                 </p>
                 <p className="mt-1 text-sm text-medical-muted">
-                  1 active session
+                  {t('settings.oneSession')}
                 </p>
               </div>
             </CardContent>
@@ -490,7 +488,7 @@ export default function SettingsPage() {
           {/* Change Password */}
           <Card>
             <CardHeader>
-              <CardTitle>Change Password</CardTitle>
+              <CardTitle>{t('settings.changePassword')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               {passwordError && (
@@ -501,24 +499,24 @@ export default function SettingsPage() {
 
               <Input
                 id="new_password"
-                label="New Password"
+                label={t('settings.newPassword')}
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Enter new password"
+                placeholder={t('settings.enterNewPassword')}
               />
 
               <Input
                 id="confirm_password"
-                label="Confirm Password"
+                label={t('settings.confirmPassword')}
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm new password"
+                placeholder={t('settings.confirmNewPassword')}
               />
 
               <p className="text-xs text-medical-muted">
-                Password must be at least 8 characters long.
+                {t('settings.passwordMinLength')}
               </p>
 
               <div className="flex gap-3 pt-4">
@@ -526,7 +524,7 @@ export default function SettingsPage() {
                   onClick={handleChangePassword}
                   disabled={isSaving}
                 >
-                  {isSaving ? "Updating..." : "Change Password"}
+                  {isSaving ? t('settings.updating') : t('settings.changePassword')}
                 </Button>
               </div>
             </CardContent>
@@ -541,38 +539,38 @@ export default function SettingsPage() {
       {activeTab === "Integrations" && (
         <div className="space-y-6">
           <Card>
-            <CardHeader><CardTitle>EHR Integration</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{t('settings.ehrIntegration')}</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-medical-muted">
-                Connect to your Electronic Health Record system to import patient data and export finalized notes.
+                {t('settings.ehrDesc')}
               </p>
               <EHRStatusCard />
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="rounded-lg border border-medical-border p-4">
-                  <p className="text-sm font-medium text-medical-text">Patient Import</p>
-                  <p className="mt-1 text-xs text-medical-muted">Search and import patient records from your connected EHR system.</p>
-                  <button className="mt-3 text-sm text-brand-600 hover:underline">Configure &rarr;</button>
+                  <p className="text-sm font-medium text-medical-text">{t('settings.patientImport')}</p>
+                  <p className="mt-1 text-xs text-medical-muted">{t('settings.patientImportDesc')}</p>
+                  <button className="mt-3 text-sm text-brand-600 hover:underline">{t('settings.configure')} &rarr;</button>
                 </div>
                 <div className="rounded-lg border border-medical-border p-4">
-                  <p className="text-sm font-medium text-medical-text">Note Export</p>
-                  <p className="mt-1 text-xs text-medical-muted">Automatically push finalized clinical notes to your EHR.</p>
-                  <button className="mt-3 text-sm text-brand-600 hover:underline">Configure &rarr;</button>
+                  <p className="text-sm font-medium text-medical-text">{t('settings.noteExport')}</p>
+                  <p className="mt-1 text-xs text-medical-muted">{t('settings.noteExportDesc')}</p>
+                  <button className="mt-3 text-sm text-brand-600 hover:underline">{t('settings.configure')} &rarr;</button>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader><CardTitle>Collaboration</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{t('settings.collaboration')}</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-medical-muted">
-                Enable note sharing and multi-user review workflows within your organization.
+                {t('settings.collaborationDesc')}
               </p>
               <div className="space-y-3">
                 <div className="flex items-center justify-between rounded-lg border border-medical-border p-4">
                   <div>
-                    <p className="text-sm font-medium text-medical-text">Note Sharing</p>
-                    <p className="text-xs text-medical-muted">Allow sharing notes with other clinicians for review</p>
+                    <p className="text-sm font-medium text-medical-text">{t('settings.noteSharing')}</p>
+                    <p className="text-xs text-medical-muted">{t('settings.noteSharingDesc')}</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" defaultChecked />
@@ -581,8 +579,8 @@ export default function SettingsPage() {
                 </div>
                 <div className="flex items-center justify-between rounded-lg border border-medical-border p-4">
                   <div>
-                    <p className="text-sm font-medium text-medical-text">Review Workflow</p>
-                    <p className="text-xs text-medical-muted">Require reviewer approval before finalizing notes</p>
+                    <p className="text-sm font-medium text-medical-text">{t('settings.reviewWorkflow')}</p>
+                    <p className="text-xs text-medical-muted">{t('settings.reviewWorkflowDesc')}</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" />
@@ -591,8 +589,8 @@ export default function SettingsPage() {
                 </div>
                 <div className="flex items-center justify-between rounded-lg border border-medical-border p-4">
                   <div>
-                    <p className="text-sm font-medium text-medical-text">Auto-assign Reviewer</p>
-                    <p className="text-xs text-medical-muted">Automatically assign notes to a designated reviewer</p>
+                    <p className="text-sm font-medium text-medical-text">{t('settings.autoAssign')}</p>
+                    <p className="text-xs text-medical-muted">{t('settings.autoAssignDesc')}</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" />
@@ -609,15 +607,15 @@ export default function SettingsPage() {
       {activeTab === "Notifications" && (
         <div className="space-y-6">
           <Card>
-            <CardHeader><CardTitle>Notification Preferences</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{t('settings.notificationPrefs')}</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-sm text-medical-muted">Choose what notifications you receive and how.</p>
+              <p className="text-sm text-medical-muted">{t('settings.notificationDesc')}</p>
               {[
-                { id: "pending-review", label: "Pending Review Reminders", desc: "Get reminded about notes awaiting review", defaultOn: true },
-                { id: "note-finalized", label: "Note Finalized", desc: "When a shared note is finalized by a reviewer", defaultOn: true },
-                { id: "consultation-complete", label: "Transcription Complete", desc: "When audio transcription is finished processing", defaultOn: true },
-                { id: "daily-summary", label: "Daily Summary", desc: "Receive a daily email summary of your activity", defaultOn: false },
-                { id: "weekly-report", label: "Weekly Analytics Report", desc: "Receive a weekly analytics digest via email", defaultOn: false },
+                { id: "pending-review", label: t('settings.pendingReviewReminders'), desc: t('settings.pendingReviewDesc'), defaultOn: true },
+                { id: "note-finalized", label: t('settings.noteFinalized'), desc: t('settings.noteFinalizedDesc'), defaultOn: true },
+                { id: "consultation-complete", label: t('settings.transcriptionComplete'), desc: t('settings.transcriptionDesc'), defaultOn: true },
+                { id: "daily-summary", label: t('settings.dailySummary'), desc: t('settings.dailySummaryDesc'), defaultOn: false },
+                { id: "weekly-report", label: t('settings.weeklyReport'), desc: t('settings.weeklyReportDesc'), defaultOn: false },
               ].map((pref) => (
                 <div key={pref.id} className="flex items-center justify-between rounded-lg border border-medical-border p-4">
                   <div>
@@ -634,19 +632,19 @@ export default function SettingsPage() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle>Reminders</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{t('settings.reminders')}</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-sm text-medical-muted">Set automatic reminders for pending actions.</p>
+              <p className="text-sm text-medical-muted">{t('settings.remindersDesc')}</p>
               <div className="flex items-center gap-4 rounded-lg border border-medical-border p-4">
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-medical-text">Review Reminder Frequency</p>
-                  <p className="text-xs text-medical-muted">How often to remind about pending reviews</p>
+                  <p className="text-sm font-medium text-medical-text">{t('settings.reminderFrequency')}</p>
+                  <p className="text-xs text-medical-muted">{t('settings.reminderFreqDesc')}</p>
                 </div>
                 <select className="rounded-lg border border-medical-border px-3 py-2 text-sm text-medical-text focus:border-brand-500 focus:outline-none">
-                  <option value="daily">Daily</option>
-                  <option value="twice-daily">Twice Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="never">Never</option>
+                  <option value="daily">{t('settings.freqDaily')}</option>
+                  <option value="twice-daily">{t('settings.freqTwiceDaily')}</option>
+                  <option value="weekly">{t('settings.freqWeekly')}</option>
+                  <option value="never">{t('settings.freqNever')}</option>
                 </select>
               </div>
             </CardContent>
@@ -661,6 +659,7 @@ export default function SettingsPage() {
 // MFA Section Component
 // ============================================================================
 function MFASection({ supabase, toast }: { supabase: ReturnType<typeof createClient>; toast: (msg: string, type?: "info" | "success" | "error") => void }) {
+  const { t } = useI18n();
   const [mfaEnabled, setMfaEnabled] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
   const [qrCode, setQrCode] = useState<string | null>(null);
@@ -741,14 +740,14 @@ function MFASection({ supabase, toast }: { supabase: ReturnType<typeof createCli
     }
   };
 
-  if (loading) return <Card><CardContent className="py-8 text-center text-medical-muted">Loading 2FA status...</CardContent></Card>;
+  if (loading) return <Card><CardContent className="py-8 text-center text-medical-muted">{t('settings.loading2FA')}</CardContent></Card>;
 
   return (
     <Card>
-      <CardHeader><CardTitle>Two-Factor Authentication</CardTitle></CardHeader>
+      <CardHeader><CardTitle>{t('settings.twoFactor')}</CardTitle></CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-medical-muted">
-          Multi-factor authentication adds an extra layer of security to your account by requiring a code from your authenticator app.
+          {t('settings.twoFactorDesc')}
         </p>
 
         {mfaEnabled ? (
@@ -757,21 +756,21 @@ function MFASection({ supabase, toast }: { supabase: ReturnType<typeof createCli
               <svg className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
               </svg>
-              <p className="text-sm font-medium text-green-800">2FA is enabled</p>
+              <p className="text-sm font-medium text-green-800">{t('settings.twoFactorEnabled')}</p>
             </div>
             <Button variant="outline" size="sm" onClick={handleUnenroll}>
-              Disable 2FA
+              {t('settings.disable2FA')}
             </Button>
           </div>
         ) : enrolling && qrCode ? (
           <div className="space-y-4">
-            <p className="text-sm text-medical-text">Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.):</p>
+            <p className="text-sm text-medical-text">{t('settings.scanQR')}</p>
             <div className="flex justify-center">
               <img src={qrCode} alt="2FA QR Code" className="w-48 h-48 rounded-lg border border-medical-border" />
             </div>
             <div className="space-y-2">
               <label htmlFor="verify-code" className="block text-sm font-medium text-medical-text">
-                Enter the 6-digit code from your app
+                {t('settings.enterCode')}
               </label>
               <div className="flex gap-3">
                 <input
@@ -784,17 +783,17 @@ function MFASection({ supabase, toast }: { supabase: ReturnType<typeof createCli
                   className="w-32 rounded-lg border border-medical-border px-4 py-2.5 text-center text-lg font-mono tracking-widest text-medical-text focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                 />
                 <Button onClick={handleVerify} disabled={verifyCode.length !== 6}>
-                  Verify & Enable
+                  {t('settings.verifyEnable')}
                 </Button>
               </div>
             </div>
             <Button variant="ghost" size="sm" onClick={() => { setEnrolling(false); setQrCode(null); }}>
-              Cancel
+              {t('common.cancel')}
             </Button>
           </div>
         ) : (
           <Button onClick={handleEnroll}>
-            Enable Two-Factor Authentication
+            {t('settings.enable2FA')}
           </Button>
         )}
       </CardContent>
@@ -806,6 +805,7 @@ function MFASection({ supabase, toast }: { supabase: ReturnType<typeof createCli
 // EHR Status Card Component
 // ============================================================================
 function EHRStatusCard() {
+  const { t } = useI18n();
   const [status, setStatus] = useState<{ connected: boolean; provider: string | null } | null>(null);
 
   useEffect(() => {
@@ -821,10 +821,10 @@ function EHRStatusCard() {
       <div className={`h-3 w-3 rounded-full ${status?.connected ? "bg-green-500" : "bg-amber-500"}`} />
       <div>
         <p className="text-sm font-medium text-medical-text">
-          {status?.connected ? `Connected to ${status.provider}` : "No EHR Connected"}
+          {status?.connected ? `${t('settings.connectedTo')} ${status.provider}` : t('settings.noEHR')}
         </p>
         <p className="text-xs text-medical-muted">
-          {status?.connected ? "Patient data sync is active" : "Configure your EHR system to enable patient import and note export"}
+          {status?.connected ? t('settings.ehrActive') : t('settings.noEHRDesc')}
         </p>
       </div>
     </div>

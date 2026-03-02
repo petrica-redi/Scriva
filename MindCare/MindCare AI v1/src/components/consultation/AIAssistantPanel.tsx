@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n/i18n-context";
 import type { LiveTranscriptItem } from "@/types";
 
 interface Diagnosis {
@@ -103,6 +104,7 @@ export function AIAssistantPanel({
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { t, locale } = useI18n();
   const [activeTab, setActiveTab] = useState<"diagnoses" | "questions" | "findings" | "interactions">("diagnoses");
   const [usedQuestions, setUsedQuestions] = useState<Set<number>>(new Set());
   const [autoAnalyze, setAutoAnalyze] = useState(true);
@@ -133,6 +135,7 @@ export function AIAssistantPanel({
           transcript: transcriptText,
           visitType,
           patientName,
+          locale,
         }),
       });
 
@@ -196,8 +199,8 @@ export function AIAssistantPanel({
               </svg>
             </div>
             <div>
-              <CardTitle className="text-base">AI Clinical Assistant</CardTitle>
-              <p className="text-xs text-medical-muted">Live diagnostic predictions & suggestions</p>
+              <CardTitle className="text-base">{t("aiPanel.title")}</CardTitle>
+              <p className="text-xs text-medical-muted">{t("aiPanel.subtitle")}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -208,7 +211,7 @@ export function AIAssistantPanel({
                 onChange={(e) => setAutoAnalyze(e.target.checked)}
                 className="h-3 w-3 rounded border-gray-300 text-indigo-600"
               />
-              Auto
+              {t("aiPanel.auto")}
             </label>
             <Button
               size="sm"
@@ -223,9 +226,9 @@ export function AIAssistantPanel({
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
-                  Analyzing...
+                  {t("aiPanel.analyzing")}
                 </>
-              ) : "Analyze"}
+              ) : t("aiPanel.analyze")}
             </Button>
           </div>
         </div>
@@ -236,14 +239,14 @@ export function AIAssistantPanel({
           <div className="rounded-lg bg-gray-50 p-4 text-center">
             <p className="text-sm text-medical-muted">
               {isRecording
-                ? "AI analysis will begin once the transcript is available..."
-                : "No transcript data available for analysis."}
+                ? t("aiPanel.waitingTranscript")
+                : t("aiPanel.noTranscriptData")}
             </p>
           </div>
         ) : error ? (
           <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
             {error}
-            <button onClick={runAnalysis} className="ml-2 underline">Retry</button>
+            <button onClick={runAnalysis} className="ml-2 underline">{t("aiPanel.retry")}</button>
           </div>
         ) : analysis ? (
           <div className="space-y-3">
@@ -254,7 +257,7 @@ export function AIAssistantPanel({
                   <svg className="h-4 w-4 text-red-600 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
                   </svg>
-                  <span className="text-sm font-semibold text-red-800">Red Flags</span>
+                  <span className="text-sm font-semibold text-red-800">{t("aiPanel.redFlags")}</span>
                 </div>
                 {analysis.redFlags.map((rf, i) => (
                   <div key={i} className="text-sm">
@@ -272,7 +275,7 @@ export function AIAssistantPanel({
                   <svg className="h-4 w-4 text-orange-600 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.75c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.25-8.25-3.286ZM12 15.75h.007v.008H12v-.008Z" />
                   </svg>
-                  <span className="text-sm font-semibold text-orange-800">Major Drug Interaction(s) Detected</span>
+                  <span className="text-sm font-semibold text-orange-800">{t("aiPanel.majorDrugInteraction")}</span>
                 </div>
                 {analysis.drugInteractions.filter((d) => d.severity === "major").map((d, i) => (
                   <div key={i} className="text-sm">
@@ -284,7 +287,7 @@ export function AIAssistantPanel({
                   onClick={() => setActiveTab("interactions")}
                   className="text-xs font-medium text-orange-700 underline"
                 >
-                  View all interactions &rarr;
+                  {t("aiPanel.viewAllInteractions")} &rarr;
                 </button>
               </div>
             )}
@@ -292,10 +295,10 @@ export function AIAssistantPanel({
             {/* Tab Navigation */}
             <div className="flex gap-1 border-b border-medical-border overflow-x-auto">
               {[
-                { key: "diagnoses" as const, label: "Diagnoses", count: analysis.diagnoses?.length || 0 },
-                { key: "questions" as const, label: "Questions", count: analysis.followUpQuestions?.length || 0 },
-                { key: "findings" as const, label: "Findings", count: analysis.keyFindings?.length || 0 },
-                { key: "interactions" as const, label: "Meds & Interactions", count: (analysis.medications?.length || 0) + (analysis.drugInteractions?.length || 0), alert: analysis.drugInteractions?.some((d) => d.severity === "major") },
+                { key: "diagnoses" as const, label: t("aiPanel.diagnoses"), count: analysis.diagnoses?.length || 0 },
+                { key: "questions" as const, label: t("aiPanel.questions"), count: analysis.followUpQuestions?.length || 0 },
+                { key: "findings" as const, label: t("aiPanel.findings"), count: analysis.keyFindings?.length || 0 },
+                { key: "interactions" as const, label: t("aiPanel.medsInteractions"), count: (analysis.medications?.length || 0) + (analysis.drugInteractions?.length || 0), alert: analysis.drugInteractions?.some((d) => d.severity === "major") },
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -391,7 +394,7 @@ export function AIAssistantPanel({
                         <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                         </svg>
-                        Asked — click to unmark
+                        {t("aiPanel.askedClickUnmark")}
                       </div>
                     )}
                   </div>
@@ -425,7 +428,7 @@ export function AIAssistantPanel({
                 {analysis.medications && analysis.medications.length > 0 && (
                   <div>
                     <p className="text-xs font-semibold text-medical-muted uppercase tracking-wide mb-2">
-                      Medications Detected ({analysis.medications.length})
+                      {t("aiPanel.medicationsDetected")} ({analysis.medications.length})
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {analysis.medications.map((med, i) => (
@@ -474,7 +477,7 @@ export function AIAssistantPanel({
                 {analysis.drugInteractions && analysis.drugInteractions.length > 0 ? (
                   <div>
                     <p className="text-xs font-semibold text-medical-muted uppercase tracking-wide mb-2">
-                      Drug Interactions ({analysis.drugInteractions.length})
+                      {t("aiPanel.drugInteractions")} ({analysis.drugInteractions.length})
                     </p>
                     <div className="space-y-2">
                       {analysis.drugInteractions
@@ -511,7 +514,7 @@ export function AIAssistantPanel({
                                 </p>
                                 {interaction.mechanism && (
                                   <p className="mt-1 text-[10px] text-medical-muted italic">
-                                    Mechanism: {interaction.mechanism}
+                                    {t("aiPanel.mechanism")}: {interaction.mechanism}
                                   </p>
                                 )}
                               </div>
@@ -549,8 +552,8 @@ export function AIAssistantPanel({
                       </svg>
                       <span className="text-sm font-medium text-green-700">
                         {analysis.medications && analysis.medications.length > 0
-                          ? "No drug interactions detected"
-                          : "No medications mentioned in the conversation"}
+                          ? t("aiPanel.noInteractions")
+                          : t("aiPanel.noMedications")}
                       </span>
                     </div>
                   </div>
@@ -560,7 +563,7 @@ export function AIAssistantPanel({
 
             {/* Last analyzed timestamp */}
             <p className="text-[10px] text-medical-muted text-right">
-              Last analyzed: {new Date(analysis.analyzedAt).toLocaleTimeString()}
+              {t("aiPanel.lastAnalyzed")}: {new Date(analysis.analyzedAt).toLocaleTimeString()}
               {" · "}{analysis.model}
             </p>
           </div>
@@ -570,7 +573,7 @@ export function AIAssistantPanel({
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            <span className="text-sm text-indigo-600">Analyzing consultation...</span>
+            <span className="text-sm text-indigo-600">{t("aiPanel.analyzingConsultation")}</span>
           </div>
         ) : null}
       </CardContent>

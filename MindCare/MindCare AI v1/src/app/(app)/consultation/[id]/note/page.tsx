@@ -22,6 +22,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useI18n } from "@/lib/i18n/i18n-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
@@ -49,6 +50,7 @@ interface PageState {
 export default function NoteEditorPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { t } = useI18n();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const supabase = useMemo(() => createClient(), []);
 
@@ -520,7 +522,7 @@ export default function NoteEditorPage() {
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
           <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-brand-600"></div>
-          <p className="text-medical-muted">Loading clinical note...</p>
+          <p className="text-medical-muted">{t('note.loadingNote')}</p>
         </div>
       </div>
     );
@@ -534,11 +536,11 @@ export default function NoteEditorPage() {
       <div className="flex flex-col gap-3 border-b border-medical-border bg-white px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <h1 className="text-lg font-semibold text-medical-text">
-            Clinical Note
+            {t('note.clinicalNote')}
           </h1>
           <StatusBadge status={status} />
           {pageState.saving && (
-            <span className="text-xs text-medical-muted">Saving...</span>
+            <span className="text-xs text-medical-muted">{t('note.saving')}</span>
           )}
         </div>
 
@@ -548,9 +550,9 @@ export default function NoteEditorPage() {
             size="sm"
             onClick={handleRegenerateAll}
             disabled={isFinalized || pageState.saving}
-            title="Regenerate all sections from transcript"
+            title={t('note.regenerateAll')}
           >
-            Regenerate All
+            {t('note.regenerateAll')}
           </Button>
 
           <Button
@@ -558,45 +560,45 @@ export default function NoteEditorPage() {
             size="sm"
             onClick={handleCopyToClipboard}
             disabled={sections.length === 0}
-            title="Copy all sections as formatted text"
+            title={t('note.copyClipboard')}
           >
-            Copy to Clipboard
+            {t('note.copyClipboard')}
           </Button>
 
           <Button
             variant="outline"
             size="sm"
             onClick={handleExportPDF}
-            title="Export note as PDF"
+            title={t('note.exportPDF')}
           >
-            Export PDF
+            {t('note.exportPDF')}
           </Button>
 
           <Button
             variant="outline"
             size="sm"
             onClick={() => setShowMSE(!showMSE)}
-            title="Auto-generate Mental Status Exam"
+            title={t('note.mse')}
           >
-            🧠 MSE
+            🧠 {t('note.mse')}
           </Button>
 
           <Button
             variant="outline"
             size="sm"
             onClick={() => setShowReferral(true)}
-            title="Generate referral letter"
+            title={t('note.referral')}
           >
-            📄 Referral
+            📄 {t('note.referral')}
           </Button>
 
           <Button
             variant="outline"
             size="sm"
             onClick={() => setSymptomPanelOpen(!symptomPanelOpen)}
-            title="Detected symptoms panel"
+            title={t('note.symptoms')}
           >
-            🔍 Symptoms
+            🔍 {t('note.symptoms')}
           </Button>
 
           <Button
@@ -605,11 +607,11 @@ export default function NoteEditorPage() {
             onClick={() => {
               const url = window.location.href;
               navigator.clipboard.writeText(url);
-              alert("Link copied to clipboard. Share it with colleagues who have access to this consultation.");
+              alert(t('note.linkCopied'));
             }}
-            title="Share this note"
+            title={t('note.share')}
           >
-            Share
+            {t('note.share')}
           </Button>
 
           {status === "draft" && (
@@ -619,7 +621,7 @@ export default function NoteEditorPage() {
               onClick={() => handleStatusChange("reviewed")}
               disabled={pageState.saving}
             >
-              Mark as Reviewed
+              {t('note.markReviewed')}
             </Button>
           )}
 
@@ -630,13 +632,13 @@ export default function NoteEditorPage() {
               onClick={() => handleStatusChange("finalized")}
               disabled={pageState.saving}
             >
-              Finalize
+              {t('note.finalize')}
             </Button>
           )}
 
           {isFinalized && (
             <span className="inline-flex items-center rounded-lg bg-green-50 px-3 py-2 text-xs font-medium text-green-700">
-              Read-only
+              {t('note.readOnly')}
             </span>
           )}
         </div>
@@ -656,7 +658,7 @@ export default function NoteEditorPage() {
           {/* Transcript Header */}
           <div className="sticky top-0 border-b border-medical-border bg-white px-6 py-4">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-medical-muted">
-              Transcript
+              {t('note.transcript')}
             </h2>
             {pageState.transcript?.segments && (
               <p className="mt-2 text-xs text-medical-muted">
@@ -682,12 +684,12 @@ export default function NoteEditorPage() {
                     <span
                       className={cn(
                         "inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold",
-                        segment.speaker === "doctor"
+                        (segment.speaker === "doctor" || segment.speaker === 0)
                           ? "bg-blue-100 text-blue-700"
                           : "bg-green-100 text-green-700"
                       )}
                     >
-                      {segment.speaker === "doctor" ? "Doctor" : "Patient"}
+                      {(segment.speaker === "doctor" || segment.speaker === 0) ? "DOCTOR" : "PACIENT"}
                     </span>
                     {segment.confidence && (
                       <span className="text-xs text-medical-muted">
@@ -702,7 +704,7 @@ export default function NoteEditorPage() {
               ))
             ) : (
               <div className="rounded-lg bg-white p-4 text-center text-sm text-medical-muted">
-                No transcript available
+                {t('note.noTranscript')}
               </div>
             )}
           </div>
@@ -724,7 +726,7 @@ export default function NoteEditorPage() {
                       disabled={isFinalized || pageState.saving}
                       className="text-xs"
                     >
-                      Regenerate section
+                      {t('note.regenerateSection')}
                     </Button>
                   </CardHeader>
 
@@ -756,7 +758,7 @@ export default function NoteEditorPage() {
               <Card>
                 <CardContent className="py-8 text-center">
                   <p className="text-medical-muted">
-                    No sections available. Please generate a note first.
+                    {t('note.noSections')}
                   </p>
                 </CardContent>
               </Card>
@@ -779,7 +781,7 @@ export default function NoteEditorPage() {
             {/* Billing Codes Section */}
             <Card>
               <CardHeader>
-                <CardTitle>Suggested Billing Codes</CardTitle>
+                <CardTitle>{t('note.billingCodes')}</CardTitle>
               </CardHeader>
 
               <CardContent>
@@ -846,7 +848,7 @@ export default function NoteEditorPage() {
                                 }
                                 disabled={pageState.saving}
                               >
-                                Accept
+                                {t("note.accept")}
                               </Button>
                               <Button
                                 variant={!code.accepted ? "danger" : "outline"}
@@ -859,19 +861,19 @@ export default function NoteEditorPage() {
                                 }
                                 disabled={pageState.saving}
                               >
-                                Reject
+                                {t("note.reject")}
                               </Button>
                             </div>
                           )}
                         </div>
                       ))}
 
-                    {/* CPT Codes */}
+                    {/* {t("note.cptCodes")} */}
                     {billingCodes.filter((code) => code.system === "CPT")
                       .length > 0 && (
                       <div className="mt-4 border-t border-medical-border pt-4">
                         <h4 className="mb-3 text-sm font-semibold text-medical-text">
-                          CPT Codes
+                          {t("note.cptCodes")}
                         </h4>
                         <div className="space-y-3">
                           {billingCodes
@@ -936,7 +938,7 @@ export default function NoteEditorPage() {
                                       }
                                       disabled={pageState.saving}
                                     >
-                                      Accept
+                                      {t("note.accept")}
                                     </Button>
                                     <Button
                                       variant={
@@ -951,7 +953,7 @@ export default function NoteEditorPage() {
                                       }
                                       disabled={pageState.saving}
                                     >
-                                      Reject
+                                      {t("note.reject")}
                                     </Button>
                                   </div>
                                 )}
@@ -963,7 +965,7 @@ export default function NoteEditorPage() {
                   </div>
                 ) : (
                   <p className="text-sm text-medical-muted">
-                    No billing codes suggested yet.
+                    {t("note.noBillingCodes")}
                   </p>
                 )}
               </CardContent>

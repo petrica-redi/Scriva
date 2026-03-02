@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
-import { getStatusColor, getStatusLabel } from "@/lib/utils";
+import { getStatusColor } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/i18n-context";
 
 interface BadgeProps {
   status: string;
@@ -7,6 +8,7 @@ interface BadgeProps {
 }
 
 export function StatusBadge({ status, className }: BadgeProps) {
+  const { t } = useI18n();
   return (
     <span
       className={cn(
@@ -15,7 +17,7 @@ export function StatusBadge({ status, className }: BadgeProps) {
         className
       )}
     >
-      {getStatusLabel(status)}
+      {t(`status.${status}`)}
     </span>
   );
 }

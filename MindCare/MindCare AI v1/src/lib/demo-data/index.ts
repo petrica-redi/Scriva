@@ -10,7 +10,7 @@ export interface DemoPatient {
   diagnosis: string;
   icd10: string;
   riskLevel: 'high' | 'medium' | 'low';
-  riskFlags: { type: string; severity: 'critical' | 'high' | 'medium' | 'low'; description: string }[];
+  riskFlags: { type: string; severity: 'critical' | 'high' | 'medium' | 'low'; description: string; description_ro?: string }[];
 }
 
 export interface DemoConsultation {
@@ -54,7 +54,7 @@ export const DEMO_PATIENTS: DemoPatient[] = [
     diagnosis: 'Major Depressive Disorder, Recurrent', icd10: 'F33.1',
     riskLevel: 'high',
     riskFlags: [
-      { type: 'suicidal_ideation', severity: 'critical', description: 'Expressed passive suicidal thoughts during last session' },
+      { type: 'suicidal_ideation', severity: 'critical', description: 'Expressed passive suicidal thoughts during last session', description_ro: 'A exprimat gânduri suicidare pasive în ultima ședință' },
     ],
   },
   {
@@ -62,8 +62,8 @@ export const DEMO_PATIENTS: DemoPatient[] = [
     diagnosis: 'Generalized Anxiety Disorder + Alcohol Use Disorder', icd10: 'F41.1',
     riskLevel: 'high',
     riskFlags: [
-      { type: 'medication_noncompliance', severity: 'high', description: 'Missed last 3 medication refills' },
-      { type: 'substance_abuse', severity: 'medium', description: 'Reported increased alcohol consumption' },
+      { type: 'medication_noncompliance', severity: 'high', description: 'Missed last 3 medication refills', description_ro: 'A ratat ultimele 3 reumpleri de medicație' },
+      { type: 'substance_abuse', severity: 'medium', description: 'Reported increased alcohol consumption', description_ro: 'A raportat consum crescut de alcool' },
     ],
   },
   {
@@ -71,7 +71,7 @@ export const DEMO_PATIENTS: DemoPatient[] = [
     diagnosis: 'Bipolar Disorder Type II', icd10: 'F31.81',
     riskLevel: 'medium',
     riskFlags: [
-      { type: 'deterioration', severity: 'medium', description: 'PHQ-9 score increased from 12 to 18' },
+      { type: 'deterioration', severity: 'medium', description: 'PHQ-9 score increased from 12 to 18', description_ro: 'Scorul PHQ-9 a crescut de la 12 la 18' },
     ],
   },
   {
@@ -79,7 +79,7 @@ export const DEMO_PATIENTS: DemoPatient[] = [
     diagnosis: 'PTSD + Borderline Personality Disorder', icd10: 'F43.10',
     riskLevel: 'high',
     riskFlags: [
-      { type: 'self_harm', severity: 'high', description: 'History of self-harm, recent stressor identified' },
+      { type: 'self_harm', severity: 'high', description: 'History of self-harm, recent stressor identified', description_ro: 'Istoric de automutilare, factor de stres recent identificat' },
     ],
   },
   {
@@ -87,7 +87,7 @@ export const DEMO_PATIENTS: DemoPatient[] = [
     diagnosis: 'Schizophrenia, Paranoid Type', icd10: 'F20.0',
     riskLevel: 'medium',
     riskFlags: [
-      { type: 'psychotic_symptoms', severity: 'high', description: 'New onset auditory hallucinations reported' },
+      { type: 'psychotic_symptoms', severity: 'high', description: 'New onset auditory hallucinations reported', description_ro: 'Halucinații auditive nou apărute raportate' },
     ],
   },
   {
@@ -107,7 +107,7 @@ export const DEMO_PATIENTS: DemoPatient[] = [
     diagnosis: 'Panic Disorder with Agoraphobia', icd10: 'F40.01',
     riskLevel: 'medium',
     riskFlags: [
-      { type: 'deterioration', severity: 'medium', description: 'Panic attacks increased from 2/week to daily' },
+      { type: 'deterioration', severity: 'medium', description: 'Panic attacks increased from 2/week to daily', description_ro: 'Atacurile de panică au crescut de la 2/săptămână la zilnic' },
     ],
   },
 ];

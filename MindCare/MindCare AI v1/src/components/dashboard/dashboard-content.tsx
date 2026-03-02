@@ -6,7 +6,7 @@ import { StatusBadge } from '@/components/ui/badge';
 import { formatDateTime } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/lib/i18n/i18n-context';
-import { RiskOverviewPanel } from './RiskOverviewPanel';
+import { RiskPatientsTable } from './RiskPatientsTable';
 
 interface ConsultationItem {
   id: string;
@@ -39,16 +39,17 @@ interface RiskFlagItem {
   flagType: string;
   severity: 'critical' | 'high' | 'medium' | 'low';
   description: string;
+  description_ro?: string;
 }
 
 const DEMO_RISK_FLAGS: RiskFlagItem[] = [
-  { patientName: 'Maria Popescu', flagType: 'suicidal_ideation', severity: 'critical', description: 'Expressed passive suicidal thoughts during last session' },
-  { patientName: 'Elena Vasile', flagType: 'self_harm', severity: 'high', description: 'History of self-harm, recent stressor identified' },
-  { patientName: 'Ion Ionescu', flagType: 'medication_noncompliance', severity: 'high', description: 'Missed last 3 medication refills' },
-  { patientName: 'Ion Ionescu', flagType: 'substance_abuse', severity: 'medium', description: 'Reported increased alcohol consumption' },
-  { patientName: 'Ana Dumitrescu', flagType: 'deterioration', severity: 'medium', description: 'PHQ-9 score increased from 12 to 18' },
-  { patientName: 'Andrei Popa', flagType: 'drug_interaction', severity: 'low', description: 'Potential interaction between fluoxetine and tramadol' },
-  { patientName: 'Cristina Marin', flagType: 'psychotic_symptoms', severity: 'high', description: 'New onset auditory hallucinations reported' },
+  { patientName: 'Maria Popescu', flagType: 'suicidal_ideation', severity: 'critical', description: 'Expressed passive suicidal thoughts during last session', description_ro: 'A exprimat gânduri suicidare pasive în ultima ședință' },
+  { patientName: 'Elena Vasile', flagType: 'self_harm', severity: 'high', description: 'History of self-harm, recent stressor identified', description_ro: 'Istoric de automutilare, factor de stres recent identificat' },
+  { patientName: 'Ion Ionescu', flagType: 'medication_noncompliance', severity: 'high', description: 'Missed last 3 medication refills', description_ro: 'A ratat ultimele 3 reumpleri de medicație' },
+  { patientName: 'Ion Ionescu', flagType: 'substance_abuse', severity: 'medium', description: 'Reported increased alcohol consumption', description_ro: 'A raportat consum crescut de alcool' },
+  { patientName: 'Ana Dumitrescu', flagType: 'deterioration', severity: 'medium', description: 'PHQ-9 score increased from 12 to 18', description_ro: 'Scorul PHQ-9 a crescut de la 12 la 18' },
+  { patientName: 'Andrei Popa', flagType: 'drug_interaction', severity: 'low', description: 'Potential interaction between fluoxetine and tramadol', description_ro: 'Posibilă interacțiune între fluoxetină și tramadol' },
+  { patientName: 'Cristina Marin', flagType: 'psychotic_symptoms', severity: 'high', description: 'New onset auditory hallucinations reported', description_ro: 'Halucinații auditive nou apărute raportate' },
 ];
 
 const SEVERITY_CONFIG = {
@@ -56,6 +57,39 @@ const SEVERITY_CONFIG = {
   high: { emoji: '🟠', bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-200', ring: 'ring-orange-500' },
   medium: { emoji: '🟡', bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-200', ring: 'ring-yellow-500' },
   low: { emoji: '🟢', bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-200', ring: 'ring-green-500' },
+};
+
+const DIAGNOSIS_RO: Record<string, string> = {
+  'Recurrent depression': 'Depresie recurentă',
+  'Generalized anxiety disorder': 'Tulburare de anxietate generalizată',
+  'Post-traumatic stress disorder': 'Tulburare de stres post-traumatic',
+  'Bipolar disorder type I': 'Tulburare bipolară tip I',
+  'Adult ADHD': 'ADHD la adult',
+  'Panic disorder': 'Tulburare de panică',
+  'Paranoid schizophrenia': 'Schizofrenie paranoidă',
+  'Obsessive-compulsive disorder': 'Tulburare obsesiv-compulsivă',
+  'Alcohol dependence': 'Dependență de alcool',
+  'Anorexia nervosa': 'Anorexie nervoasă',
+  'Major depressive disorder': 'Tulburare depresivă majoră',
+  'Chronic insomnia': 'Insomnie cronică',
+  'Social phobia': 'Fobie socială',
+  'Borderline personality disorder': 'Tulburare de personalitate borderline',
+  'Depression with anxiety': 'Depresie cu anxietate',
+  'Bulimia nervosa': 'Bulimie nervoasă',
+  'Adjustment disorder': 'Tulburare de adaptare',
+  'Bipolar disorder type II': 'Tulburare bipolară tip II',
+  'Combined ADHD': 'ADHD combinat',
+  'Severe depression': 'Depresie severă',
+  'Schizoaffective disorder': 'Tulburare schizoafectivă',
+  'Body dysmorphic disorder': 'Tulburare dismorfică corporală',
+  'Conversion disorder': 'Tulburare de conversie',
+  'Dissociative identity disorder': 'Tulburare disociativă de identitate',
+  'Reactive attachment disorder': 'Tulburare reactivă de atașament',
+  'Selective mutism': 'Mutism selectiv',
+  'Persistent depressive disorder': 'Tulburare depresivă persistentă',
+  'Cyclothymic disorder': 'Tulburare ciclotimică',
+  'Illness anxiety disorder': 'Tulburare de anxietate legată de boală',
+  'Gambling disorder': 'Tulburare de joc patologic',
 };
 
 interface DashboardContentProps {
@@ -85,8 +119,9 @@ export function DashboardContent({
   todayItems,
   atRiskItems,
 }: DashboardContentProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const greeting = useGreeting();
+  const dxRo = (dx: string) => locale === 'ro' ? (DIAGNOSIS_RO[dx] || dx) : dx;
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -161,78 +196,6 @@ export function DashboardContent({
         </Card>
       </div>
 
-      {/* Risk Flags */}
-      <Card className="border-amber-200">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <svg className="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 0 1 6.208.682l.108.054a9 9 0 0 0 6.086.71l3.114-.732a48.524 48.524 0 0 1-.005-10.499l-3.11.732a9 9 0 0 1-6.085-.711l-.108-.054a9 9 0 0 0-6.208-.682L3 4.5M3 15V4.5" /></svg>
-              <CardTitle>{t('dashboard.riskFlags')}</CardTitle>
-            </div>
-            <span className="text-xs text-medical-muted">{DEMO_RISK_FLAGS.length} {t('risk.activeFlags').toLowerCase()}</span>
-          </div>
-          <p className="text-sm text-medical-muted mt-1">{t('dashboard.riskFlagsDesc')}</p>
-        </CardHeader>
-        <CardContent>
-          {DEMO_RISK_FLAGS.length === 0 ? (
-            <p className="text-sm text-medical-muted text-center py-4">{t('dashboard.noRiskFlags')}</p>
-          ) : (
-            <div className="space-y-2">
-              {DEMO_RISK_FLAGS.map((flag, idx) => {
-                const config = SEVERITY_CONFIG[flag.severity];
-                return (
-                  <div key={idx} className={`flex items-start gap-3 rounded-lg border ${config.border} ${config.bg} px-4 py-3`}>
-                    <span className="text-lg mt-0.5">{config.emoji}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-medical-text text-sm">{flag.patientName}</span>
-                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${config.bg} ${config.text}`}>
-                          {t(`risk.${flag.severity}`)}
-                        </span>
-                        <span className="text-xs text-medical-muted">{t(`risk.${flag.flagType}`)}</span>
-                      </div>
-                      <p className="text-xs text-medical-muted mt-0.5">{flag.description}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Risk Overview Panel (P0) */}
-      <RiskOverviewPanel />
-
-      {/* Patients at Risk */}
-      {atRiskItems.length > 0 && (
-        <Card className="border-red-200 bg-red-50/30">
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-2">
-              <svg className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" /></svg>
-              <CardTitle className="text-red-800">{t('dashboard.pendingActions')}</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {atRiskItems.map((item) => (
-                <div key={item.id} className="flex items-center justify-between rounded-lg bg-white border border-red-100 px-4 py-3">
-                  <div>
-                    <p className="font-medium text-medical-text">{item.patientName}</p>
-                    <p className="text-xs text-medical-muted">
-                      {item.visit_type} &middot; {item.status === 'transcribed' ? t('dashboard.reviewTranscript') : t('dashboard.reviewGeneratedNote')}
-                    </p>
-                  </div>
-                  <Link href={`/consultation/${item.id}/note`} className="text-sm text-red-600 hover:underline font-medium">
-                    {t('dashboard.reviewNow')}
-                  </Link>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Today's Schedule */}
       <Card>
         <CardHeader>
@@ -253,7 +216,7 @@ export function DashboardContent({
                     <th className="px-4 py-3 text-left font-semibold text-medical-muted">{t('table.diagnosis')}</th>
                     <th className="px-4 py-3 text-left font-semibold text-medical-muted">{t('table.risk')}</th>
                     <th className="px-4 py-3 text-left font-semibold text-medical-muted">{t('table.appointment')}</th>
-                    <th className="px-4 py-3 text-left font-semibold text-medical-muted">{t('table.status')}</th>
+                    <th className="px-4 py-3 text-left font-semibold text-medical-muted">{locale === 'ro' ? 'Semnale' : 'Signals'}</th>
                     <th className="px-4 py-3 text-left font-semibold text-medical-muted">{t('table.actions')}</th>
                   </tr>
                 </thead>
@@ -262,24 +225,37 @@ export function DashboardContent({
                     <tr key={item.id} className="hover:bg-gray-50 transition">
                       <td className="px-4 py-3 font-mono text-xs text-medical-muted">{item.patientCode}</td>
                       <td className="px-4 py-3 font-medium text-medical-text">{item.patientName}</td>
-                      <td className="px-4 py-3 text-medical-muted">{item.visit_type}</td>
-                      <td className="px-4 py-3 text-medical-muted">{item.diagnosis}</td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
-                          item.riskStatus === 'at_risk' ? 'bg-red-100 text-red-700' :
-                          item.riskStatus === 'watch' ? 'bg-amber-100 text-amber-700' :
-                          'bg-green-100 text-green-700'
-                        }`}>
-                          <span className={`h-1.5 w-1.5 rounded-full ${
-                            item.riskStatus === 'at_risk' ? 'bg-red-500' :
-                            item.riskStatus === 'watch' ? 'bg-amber-500' :
-                            'bg-green-500'
-                          }`} />
-                          {item.riskStatus === 'at_risk' ? t('risk.atRisk') : item.riskStatus === 'watch' ? t('risk.watch') : t('risk.normal')}
-                        </span>
+                      <td className="px-4 py-3 text-medical-muted">{t(`visitType.${item.visit_type}`)}</td>
+                      <td className="px-4 py-3 text-medical-muted">{dxRo(item.diagnosis)}</td>
+                      <td className="px-4 py-3 text-xs text-medical-muted">
+                        {item.riskStatus === 'at_risk' ? (
+                          <span className="text-red-600 font-medium">{locale === 'ro' ? 'Ridicat' : 'High'}</span>
+                        ) : item.riskStatus === 'watch' ? (
+                          <span className="text-amber-600 font-medium">{locale === 'ro' ? 'Mediu' : 'Medium'}</span>
+                        ) : null}
                       </td>
-                      <td className="px-4 py-3 text-medical-muted text-xs">{formatDateTime(item.created_at)}</td>
-                      <td className="px-4 py-3"><StatusBadge status={item.status} /></td>
+                      <td className="px-4 py-3 text-medical-muted text-xs">
+                        <span className="font-semibold text-sm text-medical-text">{new Date(item.created_at).toLocaleTimeString(locale === 'ro' ? 'ro-RO' : 'en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+                        <br />
+                        {new Date(item.created_at).toLocaleDateString(locale === 'ro' ? 'ro-RO' : 'en-US', { day: 'numeric', month: 'short' })}
+                      </td>
+                      <td className="px-4 py-3">
+                        {(() => {
+                          const flags = DEMO_RISK_FLAGS.filter(f => f.patientName === item.patientName);
+                          return flags.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {flags.map((f, i) => {
+                                const sevConfig = SEVERITY_CONFIG[f.severity];
+                                return (
+                                  <span key={i} className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] ${sevConfig?.bg} ${sevConfig?.text}`} title={locale === 'ro' && f.description_ro ? f.description_ro : f.description}>
+                                    {sevConfig?.emoji}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          ) : <span className="text-gray-300">—</span>;
+                        })()}
+                      </td>
                       <td className="px-4 py-3">
                         <Link href={`/consultation/${item.id}/note`} className="text-sm text-brand-600 hover:underline">
                           {t('dashboard.view')}
@@ -299,40 +275,9 @@ export function DashboardContent({
         </CardContent>
       </Card>
 
-      {/* Recent Consultations */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('dashboard.recentConsultations')}</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {consultationsWithPatients.length > 0 ? (
-            <div className="divide-y divide-medical-border">
-              {consultationsWithPatients.map((consultation) => (
-                <div key={consultation.id} className="flex items-center justify-between border-t border-medical-border px-6 py-4 transition hover:bg-gray-50">
-                  <div className="flex-1">
-                    <Link href={`/consultation/${consultation.id}/note`} className="font-medium text-medical-text hover:text-brand-600">
-                      {consultation.patientName}
-                    </Link>
-                    <p className="mt-1 text-sm text-medical-muted">
-                      {consultation.visit_type} &middot; {formatDateTime(consultation.created_at)}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <StatusBadge status={consultation.status} />
-                    <Link href={`/consultation/${consultation.id}/note`} className="text-sm text-brand-600 hover:underline">
-                      {t('dashboard.viewNote')}
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="px-6 py-12 text-center text-medical-muted">
-              <p>{t('dashboard.noConsultationsYet')}</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Patients at Risk Table */}
+      <RiskPatientsTable locale={locale} t={t} />
+
     </div>
   );
 }

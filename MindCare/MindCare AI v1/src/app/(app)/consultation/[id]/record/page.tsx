@@ -9,18 +9,21 @@ import { Card, CardContent } from "@/components/ui/card";
 import { formatDuration } from "@/lib/utils";
 import { AudioVisualizer } from "@/components/consultation/AudioVisualizer";
 import { AIAssistantPanel } from "@/components/consultation/AIAssistantPanel";
+import { useI18n } from "@/lib/i18n/i18n-context";
 import type { ConsultationMode } from "@/types";
 
 type RecordingPhase = "pre" | "recording" | "post";
 
-const TEMPLATES = [
-  { value: "SOAP Note", label: "SOAP Note" },
-  { value: "Referral Letter", label: "Referral Letter" },
-  { value: "Discharge Summary", label: "Discharge Summary" },
-  { value: "Progress Note", label: "Progress Note" },
-  { value: "Patient Handout", label: "Patient Handout" },
-  { value: "Specialist Consultation", label: "Specialist Consultation" },
-];
+function getTemplates(locale: string) {
+  return [
+    { value: "SOAP Note", label: locale === 'ro' ? 'Notă SOAP' : 'SOAP Note' },
+    { value: "Referral Letter", label: locale === 'ro' ? 'Scrisoare de Trimitere' : 'Referral Letter' },
+    { value: "Discharge Summary", label: locale === 'ro' ? 'Rezumat de Externare' : 'Discharge Summary' },
+    { value: "Progress Note", label: locale === 'ro' ? 'Notă de Evoluție' : 'Progress Note' },
+    { value: "Patient Handout", label: locale === 'ro' ? 'Fișă Informativă Pacient' : 'Patient Handout' },
+    { value: "Specialist Consultation", label: locale === 'ro' ? 'Consultație de Specialitate' : 'Specialist Consultation' },
+  ];
+}
 
 const LANGUAGES = [
   { value: "en", label: "English", model: "nova-3-medical" },
@@ -45,6 +48,7 @@ const LANGUAGES = [
 export default function ConsultationRecordPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const { t, locale } = useI18n();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const supabase = useMemo(() => createClient(), []);
   const consultationId = params?.id;
@@ -60,11 +64,12 @@ export default function ConsultationRecordPage() {
   const [consultationMode, setConsultationMode] =
     useState<ConsultationMode>("in-person");
 
-  // Language selection
-  const [selectedLanguage, setSelectedLanguage] = useState("en");
+  // Language selection — sync with app locale
+  const [selectedLanguage, setSelectedLanguage] = useState(locale || "en");
 
   // Recording state
-  const [selectedTemplate, setSelectedTemplate] = useState(TEMPLATES[0].value);
+  const TEMPLATES = getTemplates(locale);
+  const [selectedTemplate, setSelectedTemplate] = useState("SOAP Note");
   const [isGeneratingNote, setIsGeneratingNote] = useState(false);
 
   // Session notes (manual notes by the physician)
@@ -229,7 +234,7 @@ export default function ConsultationRecordPage() {
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
           <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-brand-600" />
-          <p className="text-medical-text">Loading consultation...</p>
+          <p className="text-medical-text">{t('consultation.loadingConsultation')}</p>
         </div>
       </div>
     );
@@ -240,14 +245,14 @@ export default function ConsultationRecordPage() {
     return (
       <div className="mx-auto max-w-4xl p-6">
         <div className="rounded-lg border border-red-200 bg-red-50 p-6">
-          <h2 className="text-lg font-semibold text-red-900">Error</h2>
+          <h2 className="text-lg font-semibold text-red-900">{t('record.error')}</h2>
           <p className="mt-2 text-red-800">{error}</p>
           <Button
             onClick={() => router.back()}
             variant="outline"
             className="mt-4"
           >
-            Go Back
+            {t('record.goBack')}
           </Button>
         </div>
       </div>
@@ -261,10 +266,10 @@ export default function ConsultationRecordPage() {
         <div className="flex flex-col items-center gap-8 py-16">
           <div className="text-center">
             <h1 className="text-3xl font-bold text-medical-text">
-              Start Consultation
+              {t('consultation.startConsultation')}
             </h1>
             <p className="mt-2 text-medical-muted">
-              Ensure patient consent before recording.
+              {t('consultation.ensureConsent')}
             </p>
           </div>
 
@@ -272,12 +277,12 @@ export default function ConsultationRecordPage() {
           {consultationData?.metadata?.patient_name && (
             <Card className="w-full max-w-md">
               <CardContent className="space-y-2 pt-6">
-                <p className="text-sm font-medium text-medical-muted">Patient</p>
+                <p className="text-sm font-medium text-medical-muted">{t('consultation.patient')}</p>
                 <p className="text-lg font-semibold text-medical-text">
                   {consultationData.metadata.patient_name}
                 </p>
                 <p className="text-sm text-medical-muted">
-                  Visit Type: {consultationData.visit_type}
+                  {t('consultation.visitType')}: {consultationData.visit_type}
                 </p>
               </CardContent>
             </Card>
@@ -287,10 +292,10 @@ export default function ConsultationRecordPage() {
           <Card className="w-full max-w-md">
             <CardContent className="space-y-3 pt-6">
               <p className="text-sm font-medium text-medical-text">
-                Consultation Mode
+                {t('consultation.consultationMode')}
               </p>
               <p className="text-xs text-medical-muted">
-                Select how the consultation is being conducted for optimal speaker separation.
+                {t('consultation.modeDesc')}
               </p>
               <div className="grid grid-cols-2 gap-3">
                 <button
@@ -305,9 +310,9 @@ export default function ConsultationRecordPage() {
                   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
                   </svg>
-                  <span className="font-medium">In-Person</span>
+                  <span className="font-medium">{t('consultation.inPerson')}</span>
                   <span className="text-xs text-center leading-tight">
-                    Single microphone
+                    {t('consultation.singleMic')}
                   </span>
                 </button>
                 <button
@@ -322,18 +327,16 @@ export default function ConsultationRecordPage() {
                   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
                   </svg>
-                  <span className="font-medium">Remote Video Call</span>
+                  <span className="font-medium">{t('consultation.remote')}</span>
                   <span className="text-xs text-center leading-tight">
-                    Mic + tab audio
+                    {t('consultation.micTab')}
                   </span>
                 </button>
               </div>
               {consultationMode === "remote" && (
                 <div className="rounded-lg bg-blue-50 border border-blue-200 p-3">
                   <p className="text-xs text-blue-800 leading-relaxed">
-                    <span className="font-semibold">How it works:</span> When you start recording,
-                    the browser will ask you to select the tab running your video call. This captures
-                    the patient&apos;s audio separately from your microphone for accurate speaker separation.
+                    <span className="font-semibold">{t('record.howItWorks')}</span> {t('consultation.remoteDesc')}
                   </p>
                 </div>
               )}
@@ -344,7 +347,7 @@ export default function ConsultationRecordPage() {
           <Card className="w-full max-w-md">
             <CardContent className="space-y-3 pt-6">
               <p className="text-sm font-medium text-medical-text">
-                Consultation Language
+                {t('consultation.language')}
               </p>
               <select
                 value={selectedLanguage}
@@ -359,8 +362,7 @@ export default function ConsultationRecordPage() {
               </select>
               {selectedLanguage !== "en" && (
                 <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  Non-English languages use the Nova-3 general model instead of Nova-3 Medical.
-                  Medical terminology recognition may be slightly less specialized.
+                  {t('consultation.nonEnglishNote')}
                 </p>
               )}
             </CardContent>
@@ -375,10 +377,7 @@ export default function ConsultationRecordPage() {
               className="mt-1 h-5 w-5 rounded border-gray-300 text-brand-600"
             />
             <span className="text-sm leading-relaxed text-medical-text">
-              I confirm that the patient has been fully informed about this audio recording,
-              understands it will be used for clinical documentation purposes, and has explicitly
-              consented to being recorded. The patient has been provided an opportunity to ask
-              questions and understands they can request the recording to be stopped at any time.
+              {t('consultation.consentText')}
             </span>
           </label>
 
@@ -395,10 +394,10 @@ export default function ConsultationRecordPage() {
             />
             <span className="text-sm text-medical-muted">
               {connectionStatus === "connecting"
-                ? "Connecting to Deepgram..."
+                ? t('record.connectingDeepgram')
                 : connectionStatus === "error"
-                  ? "Connection error"
-                  : `Ready to record (Deepgram ${selectedLanguage === "en" ? "Nova 3 Medical" : "Nova 3"} — ${LANGUAGES.find((l) => l.value === selectedLanguage)?.label ?? selectedLanguage})`}
+                  ? t('record.connectionError')
+                  : `${t('record.readyToRecord')} (Deepgram ${selectedLanguage === "en" ? "Nova 3 Medical" : "Nova 3"} — ${LANGUAGES.find((l) => l.value === selectedLanguage)?.label ?? selectedLanguage})`}
             </span>
           </div>
 
@@ -425,7 +424,7 @@ export default function ConsultationRecordPage() {
             <div className="flex items-center gap-3">
               <span className="inline-flex h-3 w-3 animate-pulse rounded-full bg-medical-recording" />
               <span className="text-lg font-semibold text-medical-recording">
-                Recording
+                {t('consultation.recording')}
               </span>
               <span className="text-lg font-mono text-medical-text">
                 {formatDuration(duration)}
@@ -446,14 +445,14 @@ export default function ConsultationRecordPage() {
                     <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
                     </svg>
-                    Stereo (Mic + Tab)
+                    {t('record.stereoMicTab')}
                   </>
                 ) : (
                   <>
                     <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
                     </svg>
-                    Single Mic
+                    {t('record.singleMic')}
                   </>
                 )}
               </div>
@@ -478,10 +477,10 @@ export default function ConsultationRecordPage() {
                   }`}
                 />
                 {connectionStatus === "connected"
-                  ? "Connected"
+                  ? t('record.connected')
                   : connectionStatus === "connecting"
-                    ? "Connecting"
-                    : "Error"}
+                    ? t('record.connecting')
+                    : t('record.error')}
               </div>
             </div>
           </div>
@@ -498,13 +497,13 @@ export default function ConsultationRecordPage() {
           <Card>
             <CardContent className="pt-6">
               <h3 className="mb-4 text-sm font-semibold uppercase text-medical-muted">
-                Live Transcript
+                {t('consultation.liveTranscript')}
               </h3>
               <div className="max-h-80 space-y-3 overflow-y-auto rounded-lg bg-gray-50 p-4">
                 {isTranscribing ? (
                   <div className="flex items-center gap-3 text-sm text-medical-muted">
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-200 border-t-brand-600" />
-                    <p>Transcribing with Deepgram {selectedLanguage === "en" ? "Nova 3 Medical" : "Nova 3"}...</p>
+                    <p>{t('consultation.transcribing')} {selectedLanguage === "en" ? "Nova 3 Medical" : "Nova 3"}...</p>
                   </div>
                 ) : transcript.length === 0 ? (
                   <div className="text-center py-6">
@@ -518,7 +517,7 @@ export default function ConsultationRecordPage() {
                       ))}
                     </div>
                     <p className="text-sm text-medical-muted">
-                      Listening... Speak naturally. The conversation will be transcribed when you end the consultation.
+                      {t('consultation.listening')}
                     </p>
                   </div>
                 ) : (
@@ -540,7 +539,7 @@ export default function ConsultationRecordPage() {
                         >
                           <div className="flex items-center gap-2 mb-1">
                             <span className={`text-[10px] font-bold uppercase tracking-wider ${isDoctor ? "text-blue-600" : "text-green-600"}`}>
-                              {isDoctor ? "Doctor" : "Patient"}
+                              {isDoctor ? t('consultation.doctor') : t('consultation.patient2')}
                             </span>
                             {item.timestamp > 0 && (
                               <span className="text-[10px] text-gray-400">
@@ -548,7 +547,7 @@ export default function ConsultationRecordPage() {
                               </span>
                             )}
                             {item.confidence > 0 && item.confidence < 0.8 && (
-                              <span className="text-[10px] text-amber-500" title={`Confidence: ${Math.round(item.confidence * 100)}%`}>
+                              <span className="text-[10px] text-amber-500" title={`${t('note.confidence')}: ${Math.round(item.confidence * 100)}%`}>
                                 ~{Math.round(item.confidence * 100)}%
                               </span>
                             )}
@@ -567,12 +566,12 @@ export default function ConsultationRecordPage() {
           <Card>
             <CardContent className="pt-6">
               <h3 className="mb-3 text-sm font-semibold uppercase text-medical-muted">
-                Session Notes (Manual)
+                {t('consultation.sessionNotes')}
               </h3>
               <textarea
                 value={sessionNotes}
                 onChange={(e) => setSessionNotes(e.target.value)}
-                placeholder="Add your own notes during the session... These will be saved alongside the transcript."
+                placeholder={t('consultation.sessionNotesPlaceholder')}
                 className="w-full min-h-[100px] rounded-lg border border-medical-border bg-white px-4 py-3 text-sm text-medical-text placeholder-medical-muted focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 resize-y"
               />
             </CardContent>
@@ -594,7 +593,7 @@ export default function ConsultationRecordPage() {
               size="md"
               className="flex-1"
             >
-              {isPaused ? "Resume" : "Pause"}
+              {isPaused ? t('consultation.resume') : t('consultation.pause')}
             </Button>
             <Button
               onClick={handleEndRecording}
@@ -603,7 +602,7 @@ export default function ConsultationRecordPage() {
               size="md"
               className="flex-1"
             >
-              End Consultation
+              {t('consultation.endConsultation')}
             </Button>
           </div>
 
@@ -622,10 +621,10 @@ export default function ConsultationRecordPage() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-medical-text">
-                Consultation Complete
+                {t('consultation.complete')}
               </h2>
               <p className="mt-2 text-medical-muted">
-                Duration: {formatDuration(duration)} &middot; {transcript.filter(t => t.isFinal).length} segments
+                {t('consultation.duration')}: {formatDuration(duration)} &middot; {transcript.filter(t => t.isFinal).length} {t('consultation.segments')}
               </p>
             </div>
             <Button
@@ -652,7 +651,7 @@ export default function ConsultationRecordPage() {
               }}
             >
               <svg className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
-              Export Transcript
+              {t('consultation.exportTranscript')}
             </Button>
           </div>
 
@@ -661,10 +660,10 @@ export default function ConsultationRecordPage() {
             {/* Left: Transcript Review */}
             <Card>
               <CardContent className="space-y-4 pt-6">
-                <h3 className="font-semibold text-medical-text">Transcript Review</h3>
+                <h3 className="font-semibold text-medical-text">{t('consultation.transcriptReview')}</h3>
                 <div className="max-h-[500px] space-y-2 overflow-y-auto rounded-lg bg-gray-50 p-4 text-sm">
                   {transcript.length === 0 ? (
-                    <p className="italic text-medical-muted">No transcript available</p>
+                    <p className="italic text-medical-muted">{t('consultation.noTranscript')}</p>
                   ) : (
                     transcript
                       .filter((item) => item.isFinal)
@@ -682,7 +681,7 @@ export default function ConsultationRecordPage() {
                             }`}>
                               <div className="flex items-center gap-2 mb-1">
                                 <span className={`text-[10px] font-bold uppercase tracking-wider ${isDoctor ? "text-blue-600" : "text-green-600"}`}>
-                                  {isDoctor ? "Doctor" : "Patient"}
+                                  {isDoctor ? t('consultation.doctor') : t('consultation.patient2')}
                                 </span>
                                 {item.timestamp > 0 && (
                                   <span className="text-[10px] text-gray-400">
@@ -713,7 +712,7 @@ export default function ConsultationRecordPage() {
           {sessionNotes.trim() && (
             <Card>
               <CardContent className="space-y-3 pt-6">
-                <h3 className="font-semibold text-medical-text">Session Notes (Manual)</h3>
+                <h3 className="font-semibold text-medical-text">{t('consultation.sessionNotes')}</h3>
                 <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-medical-text whitespace-pre-wrap">
                   {sessionNotes}
                 </div>
@@ -726,7 +725,7 @@ export default function ConsultationRecordPage() {
             <CardContent className="space-y-4 pt-6">
               <div>
                 <label htmlFor="template" className="block text-sm font-medium text-medical-text">
-                  Select Note Template
+                  {t('consultation.selectTemplate')}
                 </label>
                 <select
                   id="template"
@@ -755,9 +754,9 @@ export default function ConsultationRecordPage() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                     </svg>
-                    Generating Clinical Note...
+                    {t('consultation.generatingNote')}
                   </span>
-                ) : "Generate Clinical Note"}
+                ) : t('consultation.generateNote')}
               </Button>
             </CardContent>
           </Card>

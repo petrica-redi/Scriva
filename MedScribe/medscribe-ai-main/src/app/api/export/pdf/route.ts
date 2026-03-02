@@ -1,0 +1,132 @@
+import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { logAudit, getClientIp } from "@/lib/audit";
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+export async function GET(request: Request) {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const [
+      { data: profile },
+      { data: patients },
+      { data: consultations },
+    ] = await Promise.all([
+      supabase.from("users").select("*").eq("id", user.id).single(),
+      supabase.from("patients").select("*").eq("user_id", user.id),
+      supabase.from("consultations").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+    ]);
+
+    const consultationIds = (consultations || []).map((c) => c.id);
+    let transcripts: Record<string, { full_text: string }> = {};
+    let clinicalNotes: Record<string, { sections: { title: string; content: string }[]; billing_codes: { code: string; system: string; description: string }[]; status: string }[]> = {};
+
+    if (consultationIds.length > 0) {
+      const [{ data: t }, { data: n }] = await Promise.all([
+        supabase.from("transcripts").select("*").in("consultation_id", consultationIds),
+        supabase.from("clinical_notes").select("*").in("consultation_id", consultationIds),
+      ]);
+      (t || []).forEach((tr: any) => { transcripts[tr.consultation_id] = tr; });
+      (n || []).forEach((note: any) => {
+        if (!clinicalNotes[note.consultation_id]) clinicalNotes[note.consultation_id] = [];
+        clinicalNotes[note.consultation_id].push(note);
+      });
+    }
+
+    // Build HTML document
+    let html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>MedScribe Data Export</title>
+<style>
+  body { font-family: Georgia, serif; margin: 40px; color: #1a1a1a; font-size: 12px; }
+  h1 { color: #1e40af; border-bottom: 2px solid #1e40af; padding-bottom: 8px; }
+  h2 { color: #1e3a5f; margin-top: 30px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+  h3 { color: #374151; margin-top: 20px; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+  th, td { border: 1px solid #d1d5db; padding: 6px 10px; text-align: left; }
+  th { background: #f3f4f6; font-weight: bold; }
+  .section { margin: 15px 0; padding: 10px; background: #f9fafb; border-radius: 4px; }
+  .meta { color: #6b7280; font-size: 11px; }
+  @media print { body { margin: 20px; } }
+</style></head><body>`;
+
+    html += `<h1>MedScribe AI — Patient Data Export</h1>`;
+    html += `<p class="meta">Exported: ${new Date().toLocaleString()} | User: ${escapeHtml(profile?.full_name || user.email || "")}</p>`;
+
+    // Profile
+    html += `<h2>User Profile</h2><table>
+      <tr><th>Name</th><td>${escapeHtml(profile?.full_name || "")}</td></tr>
+      <tr><th>Email</th><td>${escapeHtml(user.email || "")}</td></tr>
+      <tr><th>Specialty</th><td>${escapeHtml(profile?.specialty || "N/A")}</td></tr>
+      <tr><th>License</th><td>${escapeHtml(profile?.license_number || "N/A")}</td></tr>
+    </table>`;
+
+    // Patients
+    html += `<h2>Patients (${(patients || []).length})</h2>`;
+    if ((patients || []).length > 0) {
+      html += `<table><tr><th>Name</th><th>MRN</th><th>DOB</th><th>Gender</th></tr>`;
+      (patients || []).forEach((p: any) => {
+        html += `<tr><td>${escapeHtml(p.full_name)}</td><td>${escapeHtml(p.mrn || "—")}</td><td>${p.date_of_birth || "—"}</td><td>${escapeHtml(p.gender || "—")}</td></tr>`;
+      });
+      html += `</table>`;
+    }
+
+    // Consultations with transcripts and notes
+    html += `<h2>Consultations (${(consultations || []).length})</h2>`;
+    (consultations || []).forEach((c: any) => {
+      html += `<h3>${escapeHtml(c.visit_type)} — ${c.status} — ${new Date(c.created_at).toLocaleString()}</h3>`;
+
+      const transcript = transcripts[c.id];
+      if (transcript?.full_text) {
+        html += `<div class="section"><strong>Transcript:</strong><br>${escapeHtml(transcript.full_text)}</div>`;
+      }
+
+      const notes = clinicalNotes[c.id];
+      if (notes) {
+        notes.forEach((note) => {
+          html += `<div class="section"><strong>Clinical Note (${escapeHtml(note.status)}):</strong>`;
+          (note.sections || []).forEach((s) => {
+            html += `<p><strong>${escapeHtml(s.title)}:</strong> ${escapeHtml(s.content)}</p>`;
+          });
+          if (note.billing_codes?.length > 0) {
+            html += `<p><strong>Billing:</strong> ${note.billing_codes.map((bc) => `${escapeHtml(bc.system)}: ${escapeHtml(bc.code)}`).join(", ")}</p>`;
+          }
+          html += `</div>`;
+        });
+      }
+    });
+
+    html += `<hr><p class="meta">Generated by MedScribe AI — GDPR Data Export</p></body></html>`;
+
+    await logAudit({
+      user_id: user.id,
+      action: "data_export_pdf",
+      resource_type: "all_user_data",
+      resource_id: user.id,
+      ip_address: getClientIp(request),
+    });
+
+    return new NextResponse(html, {
+      headers: {
+        "Content-Type": "text/html",
+        "Content-Disposition": `attachment; filename="medscribe-export-${new Date().toISOString().split("T")[0]}.html"`,
+      },
+    });
+  } catch (error) {
+    console.error("PDF export error:", error);
+    return NextResponse.json({ error: "Export failed" }, { status: 500 });
+  }
+}

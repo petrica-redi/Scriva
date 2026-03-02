@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-radial-a: rgba(59, 130, 246, 0.08);
+  --bg-radial-b: rgba(37, 99, 235, 0.05);
+  --bg-radial-c: rgba(96, 165, 250, 0.06);
+}
+
+@layer base {
+  * {
+    @apply border-medical-border;
+  }
+
+  body {
+    background:
+      radial-gradient(900px 500px at 8% -10%, var(--bg-radial-a), transparent 55%),
+      radial-gradient(800px 480px at 92% 0%, var(--bg-radial-b), transparent 56%),
+      radial-gradient(700px 420px at 50% 120%, var(--bg-radial-c), transparent 55%),
+      #ffffff;
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply border border-white/60 bg-white/70 shadow-ambient backdrop-blur-md;
+  }
+
+  .elev-card {
+    @apply rounded-2xl border border-white/70 bg-white shadow-ambient transition-all duration-300;
+  }
+
+  .elev-card:hover {
+    @apply -translate-y-0.5 shadow-lift;
+  }
+
+  .dashboard-title {
+    @apply font-display text-medical-text tracking-tight;
+  }
+
+  .stagger-item {
+    animation: staggerIn 0.45s ease both;
+  }
+}
+
+@keyframes staggerIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

@@ -1,0 +1,26 @@
+
+> heidi-clone@0.1.0 dev
+> next dev
+
+   ▲ Next.js 15.5.12
+   - Local:        http://localhost:3000
+   - Network:      http://10.211.55.3:3000
+   - Environments: .env.local
+   - Experiments (use with caution):
+     · serverActions
+
+ ✓ Starting...
+ ✓ Ready in 1241ms
+ ✓ Compiled /middleware in 75ms (114 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 701ms (549 modules)
+ GET / 307 in 917ms
+ ✓ Compiled in 285ms (230 modules)
+ GET / 307 in 40ms
+ ✓ Compiled /dashboard in 420ms (845 modules)
+ GET /dashboard 200 in 668ms
+ ⚠ Cross origin request detected from 10.211.55.3 to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+ ✓ Compiled /api/auth/[...nextauth] in 252ms (1080 modules)
+ GET /api/auth/session 200 in 629ms
+ GET / 307 in 99ms

@@ -28,20 +28,42 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient();
     // Demo mode: no auth required
 
-    const { transcript, visitType, patientName } = await request.json();
+    const { transcript, visitType, patientName, locale } = await request.json();
+    const isRo = locale === 'ro';
 
     if (!transcript || transcript.trim().length === 0) {
       return NextResponse.json({ error: "No transcript provided" }, { status: 400 });
     }
 
-    const mistralApiKey = process.env.MISTRAL_API_KEY;
-    if (!mistralApiKey) {
-      return NextResponse.json({ error: "Mistral API key not configured" }, { status: 500 });
+    const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+    if (!anthropicApiKey) {
+      return NextResponse.json({ error: "Anthropic API key not configured" }, { status: 500 });
     }
 
-    const systemPrompt = `You are an expert clinical decision support AI assisting a doctor during a live consultation. Analyze the doctor-patient conversation transcript and provide actionable clinical intelligence.
+    const systemPrompt = isRo
+      ? `Ești un sistem expert de suport decizional clinic care asistă un medic în timpul unei consultații live. Analizezi transcrierea conversației medic-pacient și oferi inteligență clinică acționabilă.
 
-You MUST respond with valid JSON only (no markdown, no code blocks). Use this exact structure:
+COMPETENȚE MEDICALE ROMÂNEȘTI:
+- Folosești terminologia medicală românească conformă cu nomenclatorul Colegiului Medicilor din România
+- Cunoști sistemul de sănătate românesc (CNAS, CAS, medic de familie, trimiteri, rețete compensate)
+- Folosești coduri ICD-10-AM (versiunea românească) și nomenclatorul de specialități medicale din România
+- Cunoști protocoalele terapeutice aprobate de Ministerul Sănătății
+- Cunoști medicamentele disponibile pe piața românească (DCI + denumiri comerciale românești)
+- Pentru interacțiuni medicamentoase, menționezi atât DCI-ul internațional cât și denumirile comerciale din România
+- Folosești unitățile de măsură standard (SI) utilizate în practica medicală românească
+- Cunoști ghidurile de practică medicală ale societăților medicale românești
+
+TERMINOLOGIE:
+- "Antecedente heredo-colaterale" (nu "family history")
+- "Examen obiectiv" (nu "physical exam")  
+- "Bilanț paraclinic" (nu "lab workup")
+- "Tratament de fond" / "Tratament simptomatic"
+- "Evoluție și prognostic"
+- "Dispensarizare" pentru urmărirea pacienților cronici
+- "Rețetă compensată" / "Rețetă gratuită" pentru medicamente`
+      : `You are an expert clinical decision support AI assisting a doctor during a live consultation. Analyze the doctor-patient conversation transcript and provide actionable clinical intelligence.`;
+
+    const jsonInstructions = `You MUST respond with valid JSON only (no markdown, no code blocks). Use this exact structure:
 
 {
   "diagnoses": [
@@ -110,7 +132,10 @@ MEDICATION & DRUG INTERACTION RULES:
 - Also flag interactions with common foods/substances if mentioned (e.g. grapefruit, alcohol, St. John's Wort).
 - Severity levels: "major" = potentially life-threatening or causing permanent damage, "moderate" = may require intervention or monitoring, "minor" = minimal clinical significance but worth noting.
 - If NO medications are mentioned, return empty arrays for medications and drugInteractions.
-- Be thorough: even if only 2 medications are mentioned, check for interactions. Drug safety is critical.`;
+- Be thorough: even if only 2 medications are mentioned, check for interactions. Drug safety is critical.
+${isRo ? `\nCRITICAL: The consultation is in Romanian. You MUST respond with ALL text fields in Romanian (diagnoses, questions, findings, red flags, medication info, differential notes). Use proper Romanian medical terminology. Only ICD-10 codes and medication generic names stay in their standard international form.` : ''}`;
+
+    const fullSystemPrompt = systemPrompt + "\n\n" + jsonInstructions;
 
     const userPrompt = `Analyze this live consultation transcript and provide clinical decision support.
 
@@ -123,28 +148,36 @@ ${transcript}
 
 Respond with JSON only.`;
 
-    const { Mistral } = await import("@mistralai/mistralai");
-    const mistralClient = new Mistral({ apiKey: mistralApiKey });
-
-    let mistralData;
+    let responseText = "";
     try {
-      mistralData = await mistralClient.chat.complete({
-        model: "mistral-large-latest",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        maxTokens: 2048,
+      const anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": anthropicApiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 2048,
+          system: fullSystemPrompt,
+          messages: [{ role: "user", content: userPrompt }],
+        }),
       });
+
+      if (!anthropicResponse.ok) {
+        const errText = await anthropicResponse.text();
+        console.error("[AnalyzeConsultation] Anthropic error:", errText);
+        return NextResponse.json({ error: "AI analysis failed" }, { status: 500 });
+      }
+
+      const anthropicData = await anthropicResponse.json();
+      responseText = anthropicData.content?.[0]?.text || "";
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      console.error("[AnalyzeConsultation] Mistral error:", errMsg);
+      console.error("[AnalyzeConsultation] Anthropic error:", errMsg);
       return NextResponse.json({ error: "AI analysis failed" }, { status: 500 });
     }
-
-    const responseText = typeof mistralData.choices?.[0]?.message?.content === 'string'
-      ? mistralData.choices[0].message.content
-      : "";
 
     let analysis;
     try {
@@ -158,7 +191,7 @@ Respond with JSON only.`;
     return NextResponse.json({
       ...analysis,
       analyzedAt: new Date().toISOString(),
-      model: mistralData.model || "mistral-large-latest",
+      model: "claude-sonnet-4-20250514",
     });
   } catch (err) {
     console.error("[AnalyzeConsultation] Error:", err);

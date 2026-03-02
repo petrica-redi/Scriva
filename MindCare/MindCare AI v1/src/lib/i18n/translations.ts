@@ -101,6 +101,22 @@ const translations: Record<Locale, Record<string, string>> = {
     'table.status': 'Status',
     'table.actions': 'Actions',
 
+    // Status labels
+    'status.scheduled': 'Scheduled',
+    'status.recording': 'Recording',
+    'status.transcribed': 'Transcribed',
+    'status.note_generated': 'Note Generated',
+    'status.reviewed': 'Reviewed',
+    'status.finalized': 'Finalized',
+    'status.draft': 'Draft',
+
+    // Visit types (from DB)
+    'visitType.New Patient': 'New Patient',
+    'visitType.Follow-up Visit': 'Follow-up Visit',
+    'visitType.Emergency': 'Emergency',
+    'visitType.Consultation': 'Consultation',
+    'visitType.Routine Checkup': 'Routine Checkup',
+
     // Notifications
     'notifications.title': 'Notifications',
     'notifications.none': 'No new notifications',
@@ -232,6 +248,35 @@ const translations: Record<Locale, Record<string, string>> = {
     'settings.noEHR': 'No EHR Connected',
     'settings.noEHRDesc': 'Configure your EHR system to enable patient import and note export',
     'settings.ehrActive': 'Patient data sync is active',
+
+    // Specialties
+    'specialty.cardiology': 'Cardiology',
+    'specialty.dermatology': 'Dermatology',
+    'specialty.emergencyMedicine': 'Emergency Medicine',
+    'specialty.familyMedicine': 'Family Medicine',
+    'specialty.gastroenterology': 'Gastroenterology',
+    'specialty.internalMedicine': 'Internal Medicine',
+    'specialty.neurology': 'Neurology',
+    'specialty.orthopedics': 'Orthopedics',
+    'specialty.pediatrics': 'Pediatrics',
+    'specialty.psychiatry': 'Psychiatry',
+    'specialty.radiology': 'Radiology',
+    'specialty.surgery': 'Surgery',
+    'specialty.other': 'Other',
+
+    // Settings extras
+    'settings.enterLicense': 'Enter your license number',
+    'settings.audioStandard': 'Standard (48kbps)',
+    'settings.audioHigh': 'High (128kbps)',
+    'settings.enterNewPassword': 'Enter new password',
+    'settings.confirmNewPassword': 'Confirm new password',
+    'settings.fillBothPasswords': 'Please fill in both password fields',
+    'settings.passwordsMismatch': 'Passwords do not match',
+    'settings.connectedTo': 'Connected to',
+    'settings.freqDaily': 'Daily',
+    'settings.freqTwiceDaily': 'Twice Daily',
+    'settings.freqWeekly': 'Weekly',
+    'settings.freqNever': 'Never',
 
     // Calendar page
     'calendar.title': 'Calendar',
@@ -484,6 +529,67 @@ const translations: Record<Locale, Record<string, string>> = {
     'portal.emergencyContacts': 'Emergency Contacts',
     'portal.crisisHotline': 'Crisis Hotline',
 
+    // AI Assistant Panel
+    'aiPanel.title': 'AI Clinical Assistant',
+    'aiPanel.subtitle': 'Live diagnostic predictions & suggestions',
+    'aiPanel.auto': 'Auto',
+    'aiPanel.analyze': 'Analyze',
+    'aiPanel.analyzing': 'Analyzing...',
+    'aiPanel.analyzingConsultation': 'Analyzing consultation...',
+    'aiPanel.waitingTranscript': 'AI analysis will begin once the transcript is available...',
+    'aiPanel.noTranscriptData': 'No transcript data available for analysis.',
+    'aiPanel.retry': 'Retry',
+    'aiPanel.redFlags': 'Red Flags',
+    'aiPanel.majorDrugInteraction': 'Major Drug Interaction(s) Detected',
+    'aiPanel.viewAllInteractions': 'View all interactions',
+    'aiPanel.diagnoses': 'Diagnoses',
+    'aiPanel.questions': 'Questions',
+    'aiPanel.findings': 'Findings',
+    'aiPanel.medsInteractions': 'Meds & Interactions',
+    'aiPanel.askedClickUnmark': 'Asked — click to unmark',
+    'aiPanel.medicationsDetected': 'Medications Detected',
+    'aiPanel.drugInteractions': 'Drug Interactions',
+    'aiPanel.noInteractions': 'No drug interactions detected',
+    'aiPanel.noMedications': 'No medications mentioned in the conversation',
+    'aiPanel.lastAnalyzed': 'Last analyzed',
+    'aiPanel.mechanism': 'Mechanism',
+
+    // Record page extras
+    'record.goBack': 'Go Back',
+    'record.error': 'Error',
+    'record.stereoMicTab': 'Stereo (Mic + Tab)',
+    'record.singleMic': 'Single Mic',
+    'record.connected': 'Connected',
+    'record.connecting': 'Connecting',
+    'record.connectingDeepgram': 'Connecting to Deepgram...',
+    'record.connectionError': 'Connection error',
+    'record.readyToRecord': 'Ready to record',
+    'record.howItWorks': 'How it works:',
+
+    // Note page extras
+    'note.saving': 'Saving...',
+    'note.mse': 'MSE',
+    'note.referral': 'Referral',
+    'note.symptoms': 'Symptoms',
+    'note.linkCopied': 'Link copied to clipboard. Share it with colleagues who have access to this consultation.',
+    'note.enterContent': 'Enter {title} content...',
+    'note.confidence': 'confidence',
+
+    // Nav extras
+    'nav.patientPortal': 'Patient Portal',
+
+    // Template extras  
+    'templates.editTemplate': 'Edit Template',
+    'templates.specialty': 'Specialty',
+    'templates.saving': 'Saving...',
+    'templates.sectionNumber': 'Section',
+    'templates.nameRequired': 'Template name is required',
+    'templates.addOneSection': 'Add at least one section',
+    'templates.created': 'Template created',
+    'templates.saved': 'Template saved',
+    'templates.saveFailed': 'Failed to save template',
+    'templates.notFound': 'Template not found',
+
     // Common
     'common.loading': 'Loading...',
     'common.save': 'Save',
@@ -598,6 +704,22 @@ const translations: Record<Locale, Record<string, string>> = {
     'table.appointment': 'Programare',
     'table.status': 'Status',
     'table.actions': 'Acțiuni',
+
+    // Status labels
+    'status.scheduled': 'Programat',
+    'status.recording': 'În Înregistrare',
+    'status.transcribed': 'Transcris',
+    'status.note_generated': 'Notă Generată',
+    'status.reviewed': 'Revizuit',
+    'status.finalized': 'Finalizat',
+    'status.draft': 'Ciornă',
+
+    // Visit types (from DB)
+    'visitType.New Patient': 'Pacient Nou',
+    'visitType.Follow-up Visit': 'Vizită de Control',
+    'visitType.Emergency': 'Urgență',
+    'visitType.Consultation': 'Consultație',
+    'visitType.Routine Checkup': 'Control de Rutină',
 
     // Notifications
     'notifications.title': 'Notificări',
@@ -730,6 +852,35 @@ const translations: Record<Locale, Record<string, string>> = {
     'settings.noEHR': 'Niciun EHR Conectat',
     'settings.noEHRDesc': 'Configurează sistemul EHR pentru a activa importul pacienților și exportul notelor',
     'settings.ehrActive': 'Sincronizarea datelor pacienților este activă',
+
+    // Specialties
+    'specialty.cardiology': 'Cardiologie',
+    'specialty.dermatology': 'Dermatologie',
+    'specialty.emergencyMedicine': 'Medicină de Urgență',
+    'specialty.familyMedicine': 'Medicină de Familie',
+    'specialty.gastroenterology': 'Gastroenterologie',
+    'specialty.internalMedicine': 'Medicină Internă',
+    'specialty.neurology': 'Neurologie',
+    'specialty.orthopedics': 'Ortopedie',
+    'specialty.pediatrics': 'Pediatrie',
+    'specialty.psychiatry': 'Psihiatrie',
+    'specialty.radiology': 'Radiologie',
+    'specialty.surgery': 'Chirurgie',
+    'specialty.other': 'Altă specialitate',
+
+    // Settings extras
+    'settings.enterLicense': 'Introdu numărul licenței',
+    'settings.audioStandard': 'Standard (48kbps)',
+    'settings.audioHigh': 'Înaltă (128kbps)',
+    'settings.enterNewPassword': 'Introdu parola nouă',
+    'settings.confirmNewPassword': 'Confirmă parola nouă',
+    'settings.fillBothPasswords': 'Te rugăm să completezi ambele câmpuri de parolă',
+    'settings.passwordsMismatch': 'Parolele nu coincid',
+    'settings.connectedTo': 'Conectat la',
+    'settings.freqDaily': 'Zilnic',
+    'settings.freqTwiceDaily': 'De două ori pe zi',
+    'settings.freqWeekly': 'Săptămânal',
+    'settings.freqNever': 'Niciodată',
 
     // Calendar page
     'calendar.title': 'Calendar',
@@ -981,6 +1132,67 @@ const translations: Record<Locale, Record<string, string>> = {
     'portal.resources': 'Resurse',
     'portal.emergencyContacts': 'Contacte de Urgență',
     'portal.crisisHotline': 'Linie de Criză',
+
+    // AI Assistant Panel
+    'aiPanel.title': 'Asistent Clinic AI',
+    'aiPanel.subtitle': 'Predicții diagnostice live și sugestii',
+    'aiPanel.auto': 'Auto',
+    'aiPanel.analyze': 'Analizează',
+    'aiPanel.analyzing': 'Se analizează...',
+    'aiPanel.analyzingConsultation': 'Se analizează consultația...',
+    'aiPanel.waitingTranscript': 'Analiza AI va începe odată ce transcrierea este disponibilă...',
+    'aiPanel.noTranscriptData': 'Nu sunt date de transcriere disponibile pentru analiză.',
+    'aiPanel.retry': 'Reîncearcă',
+    'aiPanel.redFlags': 'Semnale de Alarmă',
+    'aiPanel.majorDrugInteraction': 'Interacțiune(i) Medicamentoasă(e) Majoră(e) Detectată(e)',
+    'aiPanel.viewAllInteractions': 'Vezi toate interacțiunile',
+    'aiPanel.diagnoses': 'Diagnostice',
+    'aiPanel.questions': 'Întrebări',
+    'aiPanel.findings': 'Constatări',
+    'aiPanel.medsInteractions': 'Medicamente și Interacțiuni',
+    'aiPanel.askedClickUnmark': 'Întrebat — click pentru a demarca',
+    'aiPanel.medicationsDetected': 'Medicamente Detectate',
+    'aiPanel.drugInteractions': 'Interacțiuni Medicamentoase',
+    'aiPanel.noInteractions': 'Nu s-au detectat interacțiuni medicamentoase',
+    'aiPanel.noMedications': 'Nu au fost menționate medicamente în conversație',
+    'aiPanel.lastAnalyzed': 'Ultima analiză',
+    'aiPanel.mechanism': 'Mecanism',
+
+    // Record page extras
+    'record.goBack': 'Înapoi',
+    'record.error': 'Eroare',
+    'record.stereoMicTab': 'Stereo (Microfon + Tab)',
+    'record.singleMic': 'Un Microfon',
+    'record.connected': 'Conectat',
+    'record.connecting': 'Se conectează',
+    'record.connectingDeepgram': 'Se conectează la Deepgram...',
+    'record.connectionError': 'Eroare de conexiune',
+    'record.readyToRecord': 'Pregătit pentru înregistrare',
+    'record.howItWorks': 'Cum funcționează:',
+
+    // Note page extras
+    'note.saving': 'Se salvează...',
+    'note.mse': 'ESM',
+    'note.referral': 'Trimitere',
+    'note.symptoms': 'Simptome',
+    'note.linkCopied': 'Link copiat. Partajează-l cu colegii care au acces la această consultație.',
+    'note.enterContent': 'Introdu conținutul pentru {title}...',
+    'note.confidence': 'încredere',
+
+    // Nav extras
+    'nav.patientPortal': 'Portal Pacient',
+
+    // Template extras
+    'templates.editTemplate': 'Editează Șablon',
+    'templates.specialty': 'Specialitate',
+    'templates.saving': 'Se salvează...',
+    'templates.sectionNumber': 'Secțiunea',
+    'templates.nameRequired': 'Numele șablonului este obligatoriu',
+    'templates.addOneSection': 'Adaugă cel puțin o secțiune',
+    'templates.created': 'Șablon creat',
+    'templates.saved': 'Șablon salvat',
+    'templates.saveFailed': 'Nu s-a putut salva șablonul',
+    'templates.notFound': 'Șablon negăsit',
 
     // Common
     'common.loading': 'Se încarcă...',

@@ -5,19 +5,21 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n/i18n-context";
 import type { Consultation, Patient } from "@/types";
 
-const VISIT_TYPES = [
-  "General Visit",
-  "Follow-up",
-  "New Patient",
-  "Urgent Care",
-  "Specialist Referral",
-  "Annual Checkup",
-];
+const VISIT_TYPES: Record<string, { en: string; ro: string }> = {
+  "General Visit": { en: "General Visit", ro: "Consultație Generală" },
+  "Follow-up": { en: "Follow-up", ro: "Control" },
+  "New Patient": { en: "New Patient", ro: "Pacient Nou" },
+  "Urgent Care": { en: "Urgent Care", ro: "Urgență" },
+  "Specialist Referral": { en: "Specialist Referral", ro: "Trimitere la Specialist" },
+  "Annual Checkup": { en: "Annual Checkup", ro: "Control Anual" },
+};
 
 export default function NewConsultationPage() {
   const router = useRouter();
+  const { t, locale } = useI18n();
   const supabase = useMemo(() => createClient(), []);
 
   const [patientName, setPatientName] = useState("");
@@ -109,15 +111,15 @@ export default function NewConsultationPage() {
   return (
     <div className="mx-auto max-w-2xl p-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-medical-text">New Consultation</h1>
+        <h1 className="text-3xl font-bold text-medical-text">{t('consultation.new')}</h1>
         <p className="mt-2 text-medical-muted">
-          Create a new consultation session and begin recording.
+          {t('consultation.newDesc')}
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Consultation Details</CardTitle>
+          <CardTitle>{t('consultation.details')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Error Alert */}
@@ -130,19 +132,19 @@ export default function NewConsultationPage() {
           {/* Patient Name Field with Autocomplete */}
           <div ref={patientInputRef} className="relative">
             <label htmlFor="patientName" className="block text-sm font-medium text-medical-text">
-              Patient Name (Optional)
+              {t('consultation.patientName')}
             </label>
             <input
               id="patientName"
               type="text"
-              placeholder="Search existing patients or type a new name..."
+              placeholder={t('consultation.searchPatient')}
               value={patientName}
               onChange={(e) => { setPatientName(e.target.value); setSelectedPatientId(null); }}
               onFocus={() => patientSuggestions.length > 0 && setShowSuggestions(true)}
               className="mt-2 block w-full rounded-lg border border-medical-border px-4 py-2.5 text-medical-text placeholder-medical-muted focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
             />
             {selectedPatientId && (
-              <span className="absolute right-3 top-[calc(50%+4px)] text-xs text-green-600 font-medium">Linked</span>
+              <span className="absolute right-3 top-[calc(50%+4px)] text-xs text-green-600 font-medium">{t('consultation.linked')}</span>
             )}
             {showSuggestions && patientSuggestions.length > 0 && (
               <div className="absolute left-0 right-0 top-full z-10 mt-1 rounded-lg border border-medical-border bg-white shadow-lg">
@@ -163,7 +165,7 @@ export default function NewConsultationPage() {
           {/* Visit Type Dropdown */}
           <div>
             <label htmlFor="visitType" className="block text-sm font-medium text-medical-text">
-              Visit Type <span className="text-red-500">*</span>
+              {t('consultation.visitType')} <span className="text-red-500">*</span>
             </label>
             <select
               id="visitType"
@@ -171,9 +173,9 @@ export default function NewConsultationPage() {
               onChange={(e) => setVisitType(e.target.value)}
               className="mt-2 block w-full rounded-lg border border-medical-border px-4 py-2.5 text-medical-text focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
             >
-              {VISIT_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {type}
+              {Object.entries(VISIT_TYPES).map(([key, labels]) => (
+                <option key={key} value={key}>
+                  {labels[locale] || labels.en}
                 </option>
               ))}
             </select>
@@ -182,11 +184,11 @@ export default function NewConsultationPage() {
           {/* Notes Textarea */}
           <div>
             <label htmlFor="notes" className="block text-sm font-medium text-medical-text">
-              Initial Notes (Optional)
+              {t('consultation.initialNotes')}
             </label>
             <textarea
               id="notes"
-              placeholder="Any pre-consultation notes or context..."
+              placeholder={t('consultation.notesPlaceholder')}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={4}
@@ -203,7 +205,7 @@ export default function NewConsultationPage() {
               size="lg"
               className="flex-1"
             >
-              {isLoading ? "Creating Consultation..." : "Start Recording"}
+              {isLoading ? t('consultation.creatingConsultation') : t('consultation.startRecording')}
             </Button>
             <Button
               onClick={() => router.back()}
@@ -212,7 +214,7 @@ export default function NewConsultationPage() {
               size="lg"
               className="flex-1"
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
           </div>
         </CardContent>
@@ -221,9 +223,7 @@ export default function NewConsultationPage() {
       {/* Info Section */}
       <div className="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
         <p className="text-sm text-blue-800">
-          <span className="font-medium">Note:</span> After starting, you'll be prompted to confirm
-          patient consent before recording begins. All consultations are encrypted and securely
-          stored.
+          {t('consultation.consentNote')}
         </p>
       </div>
     </div>
