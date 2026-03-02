@@ -2,18 +2,18 @@
 
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { StatusBadge } from "@/components/ui/badge";
 import { useTranslation } from "@/lib/i18n/context";
 import { Calendar } from "lucide-react";
 
 interface ScheduleItem {
   id: string;
   visit_type: string;
-  status: string;
   created_at: string;
   patientName: string;
   patientCode: string;
   diagnosis: string;
+  riskStatus?: string;
+  pendingActions?: string;
 }
 
 interface TodayScheduleProps {
@@ -26,6 +26,31 @@ function formatTime(dateStr: string): string {
     minute: "2-digit",
     hour12: true,
   });
+}
+
+function RiskBadge({ risk }: { risk?: string }) {
+  const level = (risk || "normal").toLowerCase();
+  const styles =
+    level === "high" || level === "critical"
+      ? "bg-red-100 text-red-700"
+      : level === "medium"
+        ? "bg-amber-100 text-amber-700"
+        : level === "low"
+          ? "bg-emerald-100 text-emerald-700"
+          : "bg-slate-100 text-slate-600";
+  const label =
+    level === "high" || level === "critical"
+      ? "High"
+      : level === "medium"
+        ? "Medium"
+        : level === "low"
+          ? "Low"
+          : "Normal";
+  return (
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${styles}`}>
+      {label}
+    </span>
+  );
 }
 
 function formatDay(dateStr: string): string {
@@ -78,7 +103,10 @@ export function TodaySchedule({ items }: TodayScheduleProps) {
                     {t("table.diagnosis")}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-medical-muted">
-                    {t("table.status")}
+                    {t("table.riskLevel")}
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-medical-muted">
+                    {t("table.pendingActions")}
                   </th>
                 </tr>
               </thead>
@@ -102,7 +130,10 @@ export function TodaySchedule({ items }: TodayScheduleProps) {
                       {item.diagnosis}
                     </td>
                     <td className="px-4 py-3">
-                      <StatusBadge status={item.status} />
+                      <RiskBadge risk={item.riskStatus} />
+                    </td>
+                    <td className="px-4 py-3 text-xs text-medical-muted">
+                      {item.pendingActions || "—"}
                     </td>
                     {/* Day column removed */}
                   </tr>

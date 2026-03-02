@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
-import { StatusBadge } from "@/components/ui/badge";
 import { formatDateTime } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n/context";
 import {
@@ -25,6 +24,33 @@ export interface StatConsultation {
   created_at: string;
   patientName: string;
   diagnosis?: string;
+  riskStatus?: string;
+  pendingActions?: string;
+}
+
+function RiskBadge({ risk }: { risk?: string }) {
+  const level = (risk || "normal").toLowerCase();
+  const styles =
+    level === "high" || level === "critical"
+      ? "bg-red-100 text-red-700"
+      : level === "medium"
+        ? "bg-amber-100 text-amber-700"
+        : level === "low"
+          ? "bg-emerald-100 text-emerald-700"
+          : "bg-slate-100 text-slate-600";
+  const label =
+    level === "high" || level === "critical"
+      ? "High"
+      : level === "medium"
+        ? "Medium"
+        : level === "low"
+          ? "Low"
+          : "Normal";
+  return (
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${styles}`}>
+      {label}
+    </span>
+  );
 }
 
 interface StatCardConfig {
@@ -199,7 +225,10 @@ export function DashboardStats({
                         {t("stats.visitType")}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-medical-muted">
-                        {t("stats.status")}
+                        Risk Level
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-medical-muted">
+                        Pending Actions
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-medical-muted">
                         {t("stats.date")}
@@ -229,7 +258,10 @@ export function DashboardStats({
                           {item.visit_type?.replace(/_/g, " ") || "—"}
                         </td>
                         <td className="px-6 py-3">
-                          <StatusBadge status={item.status} />
+                          <RiskBadge risk={item.riskStatus} />
+                        </td>
+                        <td className="px-6 py-3 text-xs text-medical-muted">
+                          {item.pendingActions || "—"}
                         </td>
                         <td className="px-6 py-3 text-xs text-medical-muted">
                           {formatDateTime(item.created_at)}

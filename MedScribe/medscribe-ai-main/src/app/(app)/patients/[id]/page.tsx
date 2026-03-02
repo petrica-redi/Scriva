@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { formatDateTime } from "@/lib/utils";
@@ -33,6 +34,14 @@ export default function PatientDetailPage() {
   const [loading, setLoading] = useState(true);
   const [expandedConsultation, setExpandedConsultation] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "consultations" | "notes" | "risk">("overview");
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editMRN, setEditMRN] = useState("");
+  const [editDOB, setEditDOB] = useState("");
+  const [editGender, setEditGender] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -142,6 +151,57 @@ export default function PatientDetailPage() {
     return `${m}m ${s}s`;
   }
 
+  const handleEditSave = async () => {
+    if (!editName.trim()) { toast("Name is required", "error"); return; }
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/patients/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          full_name: editName.trim(),
+          mrn: editMRN.trim() || null,
+          date_of_birth: editDOB || null,
+          gender: editGender || null,
+          contact_info: {
+            ...(editPhone ? { phone: editPhone } : {}),
+            ...(editEmail ? { email: editEmail } : {}),
+          },
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to update");
+      toast("Patient updated", "success");
+      setIsEditing(false);
+      fetchData();
+    } catch {
+      toast("Failed to update patient", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm("Delete this patient? This cannot be undone. All consultations will remain but will be unlinked.")) return;
+    try {
+      const res = await fetch(`/api/patients/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete");
+      toast("Patient deleted", "success");
+      router.push("/patients");
+    } catch {
+      toast("Failed to delete patient", "error");
+    }
+  };
+
+  const startEditing = () => {
+    setIsEditing(true);
+    setEditName(patient.full_name);
+    setEditMRN(patient.mrn || "");
+    setEditDOB(patient.date_of_birth ? patient.date_of_birth.slice(0, 10) : "");
+    setEditGender(patient.gender || "");
+    setEditPhone(patient.contact_info?.phone || "");
+    setEditEmail(patient.contact_info?.email || "");
+  };
+
   const tabs = [
     { key: "overview" as const, label: "Overview" },
     { key: "consultations" as const, label: `Consultations (${consultations.length})` },
@@ -153,37 +213,71 @@ export default function PatientDetailPage() {
     <div className="flex flex-col gap-6 p-6">
       {/* Back + Header */}
       <div>
-        <Button variant="ghost" size="sm" onClick={() => router.back()} className="mb-3 text-medical-muted hover:text-medical-text">
-          <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
-          Back
-        </Button>
+        <div className="mb-3 flex items-center justify-between">
+          <Button variant="ghost" size="sm" onClick={() => router.back()} className="text-medical-muted hover:text-medical-text">
+            <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
+            Back
+          </Button>
+          <div className="flex gap-2">
+            {isEditing ? (
+              <>
+                <Button size="sm" onClick={handleEditSave} disabled={saving}>Save</Button>
+                <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)}>Cancel</Button>
+              </>
+            ) : (
+              <>
+                <Button size="sm" variant="outline" onClick={startEditing}>Edit</Button>
+                <Button size="sm" variant="outline" onClick={handleDelete} className="text-red-600 hover:text-red-700 hover:bg-red-50">Delete</Button>
+              </>
+            )}
+          </div>
+        </div>
 
         <Card>
           <CardContent className="py-5 px-6">
-            <div className="flex items-start gap-4">
-              <div className="h-14 w-14 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-lg shrink-0">
-                {patient.full_name.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase()}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <h1 className="text-xl font-semibold text-medical-text">{patient.full_name}</h1>
-                  {riskLevel && (
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      riskLevel === "high" ? "bg-red-100 text-red-700" : riskLevel === "medium" ? "bg-orange-100 text-orange-700" : "bg-green-100 text-green-700"
-                    }`}>
-                      {riskLevel.charAt(0).toUpperCase() + riskLevel.slice(1)} Risk
-                    </span>
-                  )}
+            {isEditing ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Input label="Full Name *" value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Patient full name" />
+                <Input label="MRN" value={editMRN} onChange={(e) => setEditMRN(e.target.value)} placeholder="Medical Record Number" />
+                <Input label="Date of Birth" type="date" value={editDOB} onChange={(e) => setEditDOB(e.target.value)} />
+                <div>
+                  <label className="block text-sm font-medium text-medical-text mb-1.5">Gender</label>
+                  <select value={editGender} onChange={(e) => setEditGender(e.target.value)} className="block w-full rounded-lg border border-medical-border px-4 py-2.5 text-sm text-medical-text focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20">
+                    <option value="">Select</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
                 </div>
-                <div className="flex flex-wrap gap-x-6 gap-y-1 mt-2 text-sm text-medical-muted">
-                  {patient.mrn && <span>MRN: <span className="font-mono text-medical-text">{patient.mrn}</span></span>}
-                  {patient.date_of_birth && <span>DOB: {new Date(patient.date_of_birth).toLocaleDateString()}</span>}
-                  {patient.gender && <span className="capitalize">{patient.gender}</span>}
-                  {patient.contact_info?.phone && <span>📞 {patient.contact_info.phone}</span>}
-                  {patient.contact_info?.email && <span>✉️ {patient.contact_info.email}</span>}
+                <Input label="Phone" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="+1 (555) 000-0000" />
+                <Input label="Email" type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="patient@email.com" />
+              </div>
+            ) : (
+              <div className="flex items-start gap-4">
+                <div className="h-14 w-14 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-lg shrink-0">
+                  {patient.full_name.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <h1 className="text-xl font-semibold text-medical-text">{patient.full_name}</h1>
+                    {riskLevel && (
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                        riskLevel === "high" ? "bg-red-100 text-red-700" : riskLevel === "medium" ? "bg-orange-100 text-orange-700" : "bg-green-100 text-green-700"
+                      }`}>
+                        {riskLevel.charAt(0).toUpperCase() + riskLevel.slice(1)} Risk
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-x-6 gap-y-1 mt-2 text-sm text-medical-muted">
+                    {patient.mrn && <span>MRN: <span className="font-mono text-medical-text">{patient.mrn}</span></span>}
+                    {patient.date_of_birth && <span>DOB: {new Date(patient.date_of_birth).toLocaleDateString()}</span>}
+                    {patient.gender && <span className="capitalize">{patient.gender}</span>}
+                    {patient.contact_info?.phone && <span>📞 {patient.contact_info.phone}</span>}
+                    {patient.contact_info?.email && <span>✉️ {patient.contact_info.email}</span>}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>

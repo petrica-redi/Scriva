@@ -105,16 +105,33 @@ export default async function DashboardPage() {
       .limit(20),
   ]);
 
+  const statusToPendingAction: Record<string, string> = {
+    scheduled: "Start consultation",
+    recording: "Recording in progress",
+    transcribed: "Validate forms",
+    note_generated: "Validate forms",
+    reviewed: "Submit forms",
+    finalized: "Refer to clinician",
+    deleted: "—",
+  };
+
   function toStatConsultation(c: Record<string, unknown>): StatConsultation {
     const meta = ((c.metadata || {}) as Record<string, unknown>);
+    const status = (c.status as string) || "scheduled";
+    const riskLevel =
+      (typeof meta.risk_level === "string" && meta.risk_level) ||
+      (typeof meta.risk_status === "string" && meta.risk_status) ||
+      "normal";
     return {
       id: c.id as string,
       patient_id: (c.patient_id as string) ?? null,
       visit_type: (c.visit_type as string) ?? "General Visit",
-      status: c.status as string,
+      status,
       created_at: c.created_at as string,
       patientName: safeString(meta.patient_name, "Unnamed Patient"),
       diagnosis: safeString(meta.diagnosis),
+      riskStatus: riskLevel,
+      pendingActions: statusToPendingAction[status] ?? "—",
     };
   }
 
@@ -128,13 +145,18 @@ export default async function DashboardPage() {
 
   const todayItems = (todaySchedule || []).map((c) => {
     const meta = (c.metadata || {}) as Record<string, unknown>;
+    const status = (c.status as string) || "scheduled";
+    const riskLevel =
+      (typeof meta.risk_level === "string" && meta.risk_level) ||
+      (typeof meta.risk_status === "string" && meta.risk_status) ||
+      "normal";
     return {
       ...c,
       patientName: safeString(meta.patient_name, "Unnamed Patient"),
       patientCode: safeString(meta.patient_code, c.patient_id?.substring(0, 8) || "—"),
       diagnosis: safeString(meta.primary_diagnosis, safeString(meta.diagnosis, "Undocumented")),
-      riskStatus:
-        typeof meta.risk_status === "string" ? meta.risk_status : "normal",
+      riskStatus: riskLevel,
+      pendingActions: statusToPendingAction[status] ?? "—",
     };
   });
 

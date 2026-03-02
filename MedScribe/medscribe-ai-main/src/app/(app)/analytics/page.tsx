@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,13 +27,32 @@ interface NoteRow {
   created_at: string;
 }
 
+const statusToPendingAction: Record<string, string> = {
+  scheduled: "Recording",
+  recording: "Recording",
+  transcribed: "Validate forms",
+  note_generated: "Validate forms",
+  reviewed: "Submit forms",
+  finalized: "Refer to clinician",
+  deleted: "—",
+};
+
+function safeString(value: unknown, fallback = "—"): string {
+  return typeof value === "string" && value.trim().length > 0 ? value : fallback;
+}
+
 export default function AnalyticsPage() {
   const supabase = createClient();
   const { t } = useTranslation();
 
   const [consultations, setConsultations] = useState<ConsultationRow[]>([]);
   const [notes, setNotes] = useState<NoteRow[]>([]);
+  const [referralCount, setReferralCount] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  // Drill-down modal
+  const [drillDownStatus, setDrillDownStatus] = useState<"draft" | "reviewed" | "finalized" | null>(null);
+  const [drillDownICD, setDrillDownICD] = useState<string | null>(null);
 
   // Filters
   const [filterGender, setFilterGender] = useState("");
@@ -89,6 +109,7 @@ export default function AnalyticsPage() {
         let notesResult = (notesData || []) as unknown as NoteRow[];
 
         // Filter by ICD code if specified
+        let consultIdsForReferrals = filtered.map((c) => c.id);
         if (filterICD) {
           const icdLower = filterICD.toLowerCase();
           notesResult = notesResult.filter((n) =>
@@ -96,14 +117,28 @@ export default function AnalyticsPage() {
               bc.code.toLowerCase().includes(icdLower) || bc.description.toLowerCase().includes(icdLower)
             )
           );
-          // Also filter consultations to only those with matching notes
           const matchingConsultationIds = new Set(notesResult.map((n) => n.consultation_id));
+          consultIdsForReferrals = filtered.filter((c) => matchingConsultationIds.has(c.id)).map((c) => c.id);
           setConsultations((prev) => prev.filter((c) => matchingConsultationIds.has(c.id)));
         }
 
         setNotes(notesResult);
+
+        // Fetch referral count (consultation_documents with document_type = referral_letter)
+        if (consultIdsForReferrals.length > 0) {
+          const { count } = await supabase
+            .from("consultation_documents")
+            .select("*", { count: "exact", head: true })
+            .eq("document_type", "referral_letter")
+            .in("consultation_id", consultIdsForReferrals)
+            .eq("status", "active");
+          setReferralCount(count ?? 0);
+        } else {
+          setReferralCount(0);
+        }
       } else {
         setNotes([]);
+        setReferralCount(0);
       }
     } catch {
       // fail silently
@@ -164,6 +199,102 @@ export default function AnalyticsPage() {
   const statusColors: Record<string, string> = {
     scheduled: "bg-gray-400", recording: "bg-red-400", transcribed: "bg-yellow-400",
     note_generated: "bg-blue-400", reviewed: "bg-indigo-400", finalized: "bg-green-400",
+  };
+
+  // Phase 1: Patients Needing Attention (actionable list)
+  const attentionConsultations = consultations.filter((c) =>
+    ["transcribed", "note_generated", "reviewed"].includes(c.status)
+  );
+  const patientsNeedingAttention = attentionConsultations.map((c) => {
+    const meta = (c.metadata || {}) as Record<string, unknown>;
+    const riskLevel =
+      (typeof meta.risk_level === "string" && meta.risk_level) ||
+      (typeof meta.risk_status === "string" && meta.risk_status) ||
+      "normal";
+    const nextAction = statusToPendingAction[c.status] ?? "—";
+    return {
+      id: c.id,
+      patient_id: c.patient_id,
+      patientName: safeString(meta.patient_name, "Unnamed Patient"),
+      nextAction,
+      riskLevel: riskLevel as string,
+      visit_type: c.visit_type,
+    };
+  }).sort((a, b) => {
+    const riskOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+    return (riskOrder[a.riskLevel] ?? 9) - (riskOrder[b.riskLevel] ?? 9);
+  });
+
+  // Phase 1: Patients at Risk
+  const riskMap = new Map<string, { id: string; patientName: string; riskLevel: string }>();
+  for (const c of consultations) {
+    const meta = (c.metadata || {}) as Record<string, unknown>;
+    const patientId = c.patient_id as string;
+    if (!patientId || riskMap.has(patientId)) continue;
+    const riskLevel = (meta.risk_level as string) || (meta.risk_status as string);
+    if (riskLevel && ["high", "medium", "low"].includes(riskLevel)) {
+      riskMap.set(patientId, {
+        id: patientId,
+        patientName: safeString(meta.patient_name, "Unknown"),
+        riskLevel,
+      });
+    }
+  }
+  const patientsAtRisk = Array.from(riskMap.values()).sort((a, b) => {
+    const order: Record<string, number> = { high: 0, medium: 1, low: 2 };
+    return (order[a.riskLevel] ?? 9) - (order[b.riskLevel] ?? 9);
+  });
+
+  // Phase 1: Time Saved (estimated: 50% reduction in documentation time vs manual)
+  const monthDurations = consultations
+    .filter((c) => new Date(c.created_at) >= thirtyDaysAgo && c.recording_duration_seconds)
+    .map((c) => c.recording_duration_seconds!);
+  const totalMonthSeconds = monthDurations.reduce((a, b) => a + b, 0);
+  const timeSavedMinutes = Math.round((totalMonthSeconds / 60) * 0.5); // 50% time savings
+
+  // Phase 2: Patient Retention
+  const visitsByPatient: Record<string, number> = {};
+  consultations.forEach((c) => {
+    const pid = c.patient_id || "unknown";
+    visitsByPatient[pid] = (visitsByPatient[pid] || 0) + 1;
+  });
+  const retentionBuckets = {
+    oneVisit: Object.values(visitsByPatient).filter((v) => v === 1).length,
+    twoToFour: Object.values(visitsByPatient).filter((v) => v >= 2 && v <= 4).length,
+    fivePlus: Object.values(visitsByPatient).filter((v) => v >= 5).length,
+  };
+  const newThisMonth = retentionBuckets.oneVisit;
+  const returningThisMonth = retentionBuckets.twoToFour + retentionBuckets.fivePlus;
+  const lastVisitByPatient: Record<string, Date> = {};
+  consultations.forEach((c) => {
+    const pid = c.patient_id;
+    if (!pid || pid === "unknown") return;
+    const d = new Date(c.created_at);
+    if (!lastVisitByPatient[pid] || d > lastVisitByPatient[pid]) lastVisitByPatient[pid] = d;
+  });
+  const needingFollowUp = Object.entries(lastVisitByPatient).filter(
+    ([_, last]) => (now.getTime() - last.getTime()) / (24 * 60 * 60 * 1000) > 30
+  ).length;
+
+  // Phase 2: Diagnosis Trends (from metadata)
+  const diagnosisCounts: Record<string, number> = {};
+  consultations.forEach((c) => {
+    const meta = (c.metadata || {}) as Record<string, unknown>;
+    const diag = (meta.primary_diagnosis as string) || (meta.diagnosis as string);
+    if (diag && typeof diag === "string") {
+      const key = diag.trim();
+      if (key) diagnosisCounts[key] = (diagnosisCounts[key] || 0) + 1;
+    }
+  });
+  const topDiagnoses = Object.entries(diagnosisCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8);
+
+  // Notes by status for drill-down
+  const notesByStatus = {
+    draft: notes.filter((n) => n.status === "draft"),
+    reviewed: notes.filter((n) => n.status === "reviewed"),
+    finalized: notes.filter((n) => n.status === "finalized"),
   };
 
   // Report generation
@@ -310,7 +441,7 @@ export default function AnalyticsPage() {
       ) : activeTab === "overview" ? (
         <>
           {/* Summary Stats */}
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-5">
             <Card>
               <CardContent className="pt-6">
                 <p className="text-sm text-medical-muted">{t("analytics.totalConsultations")}</p>
@@ -337,9 +468,55 @@ export default function AnalyticsPage() {
                 </p>
               </CardContent>
             </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-sm text-medical-muted">{t("analytics.timeSaved")}</p>
+                <p className="mt-2 text-3xl font-bold text-green-600">
+                  {timeSavedMinutes >= 60 ? `${Math.floor(timeSavedMinutes / 60)}h ${timeSavedMinutes % 60}m` : `${timeSavedMinutes}m`}
+                </p>
+                <p className="text-xs text-medical-muted mt-1">{t("analytics.thisMonthEst")}</p>
+              </CardContent>
+            </Card>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
+            {/* Phase 1: Patients Needing Attention */}
+            <Card>
+              <CardHeader><CardTitle>{t("analytics.patientsNeedingAttention")}</CardTitle></CardHeader>
+              <CardContent>
+                {patientsNeedingAttention.length > 0 ? (
+                  <div className="space-y-2">
+                    {patientsNeedingAttention.slice(0, 8).map((item) => (
+                      <Link
+                        key={item.id}
+                        href={item.patient_id ? `/patients/${item.patient_id}` : `/consultation/${item.id}/note`}
+                        className="flex items-center justify-between rounded-lg border border-medical-border px-3 py-2 hover:bg-gray-50 transition"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="font-medium text-sm text-medical-text truncate">{item.patientName}</span>
+                          <span className="text-xs text-medical-muted">—</span>
+                          <span className="text-xs text-medical-muted truncate">{item.nextAction}</span>
+                          <span className={`inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-medium shrink-0 ${
+                            item.riskLevel === "high" ? "bg-red-100 text-red-700" :
+                            item.riskLevel === "medium" ? "bg-amber-100 text-amber-700" :
+                            "bg-gray-100 text-gray-600"
+                          }`}>
+                            {item.riskLevel === "high" ? t("analytics.highRisk") : item.riskLevel === "medium" ? t("analytics.mediumRisk") : item.riskLevel}
+                          </span>
+                        </div>
+                        <span className="text-xs text-brand-600 shrink-0">→</span>
+                      </Link>
+                    ))}
+                    {patientsNeedingAttention.length > 8 && (
+                      <p className="text-xs text-medical-muted pt-1">+{patientsNeedingAttention.length - 8} more</p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-medical-muted text-center py-6">{t("analytics.noConsultations")}</p>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Weekly Activity Chart */}
             <Card>
               <CardHeader><CardTitle>{t("analytics.consultationsThisWeek")}</CardTitle></CardHeader>
@@ -356,15 +533,56 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
 
-            {/* Note Status */}
+            {/* Phase 1: Patients at Risk */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>{t("analytics.patientsAtRisk")}</CardTitle>
+                  {patientsAtRisk.length > 0 && (
+                    <span className="text-xs text-medical-muted">({patientsAtRisk.length})</span>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                {patientsAtRisk.length > 0 ? (
+                  <div className="space-y-2">
+                    {patientsAtRisk.slice(0, 6).map((p) => (
+                      <Link
+                        key={p.id}
+                        href={`/patients/${p.id}`}
+                        className="flex items-center justify-between rounded-lg border border-medical-border px-3 py-2 hover:bg-gray-50 transition"
+                      >
+                        <span className="font-medium text-sm text-medical-text">{p.patientName}</span>
+                        <span className={`inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                          p.riskLevel === "high" ? "bg-red-100 text-red-700" :
+                          p.riskLevel === "medium" ? "bg-amber-100 text-amber-700" :
+                          "bg-gray-100 text-gray-600"
+                        }`}>
+                          {p.riskLevel === "high" ? t("analytics.highRisk") : p.riskLevel === "medium" ? t("analytics.mediumRisk") : t("analytics.lowRisk")}
+                        </span>
+                      </Link>
+                    ))}
+                    {patientsAtRisk.length > 6 && (
+                      <Link href="/patients" className="block text-center text-sm text-brand-600 hover:underline pt-1">
+                        {t("analytics.viewAll")}
+                      </Link>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-medical-muted text-center py-6">{t("analytics.noConsultations")}</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Note Status (Phase 1: Drill-down) */}
             <Card>
               <CardHeader><CardTitle>{t("analytics.noteStatus")}</CardTitle></CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   {[
-                    { label: t("analytics.draft"), count: draftCount, color: "bg-yellow-400" },
-                    { label: t("analytics.reviewed"), count: reviewedCount, color: "bg-blue-400" },
-                    { label: t("analytics.finalized"), count: finalizedCount, color: "bg-green-400" },
+                    { label: t("analytics.draft"), count: draftCount, color: "bg-yellow-400", status: "draft" as const },
+                    { label: t("analytics.reviewed"), count: reviewedCount, color: "bg-blue-400", status: "reviewed" as const },
+                    { label: t("analytics.finalized"), count: finalizedCount, color: "bg-green-400", status: "finalized" as const },
                   ].map((item) => {
                     const total = draftCount + reviewedCount + finalizedCount;
                     const pct = total > 0 ? (item.count / total) * 100 : 0;
@@ -374,7 +592,13 @@ export default function AnalyticsPage() {
                         <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
                           <div className={`h-full ${item.color} rounded-full transition-all`} style={{ width: `${pct}%` }} />
                         </div>
-                        <span className="text-sm font-medium text-medical-text w-10 text-right">{item.count}</span>
+                        <button
+                          type="button"
+                          onClick={() => item.count > 0 && setDrillDownStatus(item.status)}
+                          className={`text-sm font-medium text-right min-w-[80px] ${item.count > 0 ? "text-brand-600 hover:underline cursor-pointer" : "text-medical-muted cursor-default"}`}
+                        >
+                          {item.count}{item.count > 0 ? ` → ${t("analytics.viewList")}` : ""}
+                        </button>
                       </div>
                     );
                   })}
@@ -421,7 +645,84 @@ export default function AnalyticsPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Phase 2: Patient Retention */}
+            <Card>
+              <CardHeader><CardTitle>{t("analytics.patientRetention")}</CardTitle></CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-medical-text">{t("analytics.visits1")}</span>
+                    <span className="text-sm font-medium text-medical-text">{retentionBuckets.oneVisit}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-medical-text">{t("analytics.visits2to4")}</span>
+                    <span className="text-sm font-medium text-medical-text">{retentionBuckets.twoToFour}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-medical-text">{t("analytics.visits5plus")}</span>
+                    <span className="text-sm font-medium text-medical-text">{retentionBuckets.fivePlus}</span>
+                  </div>
+                  <div className="border-t border-medical-border pt-3 mt-3 space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-medical-muted">{t("analytics.newThisMonth")}</span>
+                      <span className="font-medium">{newThisMonth}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-medical-muted">{t("analytics.returningThisMonth")}</span>
+                      <span className="font-medium">{returningThisMonth}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-medical-muted">{t("analytics.needingFollowUp")}</span>
+                      <span className="font-medium text-amber-600">{needingFollowUp}</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Phase 2: Diagnosis Trends */}
+            <Card>
+              <CardHeader><CardTitle>{t("analytics.diagnosisTrends")}</CardTitle></CardHeader>
+              <CardContent>
+                {topDiagnoses.length > 0 ? (
+                  <div className="space-y-3">
+                    {topDiagnoses.map(([diag, count]) => (
+                      <div key={diag} className="flex items-center justify-between">
+                        <span className="text-sm text-medical-text truncate flex-1 mr-2">{diag}</span>
+                        <div className="w-20 h-2 bg-gray-100 rounded-full overflow-hidden shrink-0">
+                          <div className="h-full bg-indigo-400 rounded-full" style={{ width: `${(count / (topDiagnoses[0]?.[1] || 1)) * 100}%` }} />
+                        </div>
+                        <span className="text-xs font-medium text-medical-muted w-6 text-right">{count}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-medical-muted text-center py-6">{t("analytics.noConsultations")}</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Phase 2: Referral Tracking */}
+            <Card>
+              <CardHeader><CardTitle>{t("analytics.referralTracking")}</CardTitle></CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-medical-muted">{t("analytics.referralsSent")}</span>
+                  <span className="text-2xl font-bold text-medical-text">{referralCount}</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Phase 2: Outcome Tracking (placeholder) */}
+            <Card className="bg-gray-50 border-dashed">
+              <CardHeader><CardTitle className="text-medical-muted">{t("analytics.outcomeTracking")}</CardTitle></CardHeader>
+              <CardContent>
+                <p className="text-sm text-medical-muted">{t("analytics.outcomePlaceholder")}</p>
+              </CardContent>
+            </Card>
           </div>
+
         </>
       ) : (
         /* Reports & ICD Analysis Tab */
@@ -438,16 +739,21 @@ export default function AnalyticsPage() {
               {topICD.length > 0 ? (
                 <div className="space-y-3">
                   {topICD.map((icd) => (
-                    <div key={icd.code} className="flex items-center gap-3">
+                    <button
+                      key={icd.code}
+                      type="button"
+                      onClick={() => { setDrillDownStatus(null); setDrillDownICD(icd.code); }}
+                      className="w-full flex items-center gap-3 rounded-lg px-2 py-1 hover:bg-gray-50 transition text-left"
+                    >
                       <span className="inline-block rounded bg-indigo-50 px-2 py-0.5 text-xs font-mono font-medium text-indigo-700 w-16 text-center">{icd.code}</span>
                       <span className="text-sm text-medical-text flex-1">{icd.description}</span>
                       <div className="flex items-center gap-2">
                         <div className="w-20 h-2 bg-gray-100 rounded-full overflow-hidden">
                           <div className="h-full bg-indigo-400 rounded-full" style={{ width: `${(icd.count / (topICD[0]?.count || 1)) * 100}%` }} />
                         </div>
-                        <span className="text-xs font-medium text-medical-muted w-6 text-right">{icd.count}</span>
+                        <span className="text-xs font-medium text-medical-muted w-6 text-right">{icd.count} →</span>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               ) : (
@@ -513,6 +819,81 @@ export default function AnalyticsPage() {
               </div>
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* Drill-down Modal (works from Overview and Reports tabs) */}
+      {(drillDownStatus || drillDownICD) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => { setDrillDownStatus(null); setDrillDownICD(null); }}>
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[80vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="px-4 py-3 border-b border-medical-border flex items-center justify-between">
+              <h3 className="font-semibold text-medical-text">
+                {drillDownStatus
+                  ? `${t("analytics.noteStatus")} — ${drillDownStatus === "draft" ? t("analytics.draft") : drillDownStatus === "reviewed" ? t("analytics.reviewed") : t("analytics.finalized")}`
+                  : `ICD ${drillDownICD}`}
+              </h3>
+              <Button variant="outline" size="sm" onClick={() => { setDrillDownStatus(null); setDrillDownICD(null); }}>
+                {t("analytics.close")}
+              </Button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {drillDownStatus && (
+                <div className="space-y-2">
+                  {(notesByStatus[drillDownStatus] || []).map((note) => {
+                    const consult = consultations.find((c) => c.id === note.consultation_id);
+                    const meta = (consult?.metadata || {}) as Record<string, unknown>;
+                    const patientName = safeString(meta.patient_name, "Unnamed");
+                    return (
+                      <Link
+                        key={note.id}
+                        href={`/consultation/${note.consultation_id}/note`}
+                        className="block rounded-lg border border-medical-border px-3 py-2 hover:bg-gray-50 transition"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-sm">{patientName}</span>
+                          <span className="text-xs text-medical-muted">{formatDateTime(note.created_at)}</span>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                  {(!notesByStatus[drillDownStatus] || notesByStatus[drillDownStatus].length === 0) && (
+                    <p className="text-sm text-medical-muted py-4">{t("analytics.noNotes")}</p>
+                  )}
+                </div>
+              )}
+              {drillDownICD && (() => {
+                const matchingNotes = notes.filter((n) =>
+                  (n.billing_codes || []).some((bc) =>
+                    bc.code.toLowerCase().includes(drillDownICD.toLowerCase()) ||
+                    bc.description.toLowerCase().includes(drillDownICD.toLowerCase())
+                  )
+                );
+                return (
+                  <div className="space-y-2">
+                    {matchingNotes.length > 0 ? matchingNotes.map((note) => {
+                      const consult = consultations.find((c) => c.id === note.consultation_id);
+                      const meta = (consult?.metadata || {}) as Record<string, unknown>;
+                      const patientName = safeString(meta.patient_name, "Unnamed");
+                      return (
+                        <Link
+                          key={note.id}
+                          href={`/consultation/${note.consultation_id}/note`}
+                          className="block rounded-lg border border-medical-border px-3 py-2 hover:bg-gray-50 transition"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-sm">{patientName}</span>
+                            <span className="text-xs text-medical-muted">{formatDateTime(note.created_at)}</span>
+                          </div>
+                        </Link>
+                      );
+                    }) : (
+                      <p className="text-sm text-medical-muted py-4">{t("analytics.noNotes")}</p>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
         </div>
       )}
     </div>

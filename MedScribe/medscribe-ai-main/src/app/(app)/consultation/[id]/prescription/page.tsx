@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { ReferralModal } from "@/components/referral/ReferralModal";
 
 interface Medication {
   name: string;
@@ -32,6 +33,7 @@ export default function PrescriptionPage() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [showPreview, setShowPreview] = useState(false);
+  const [referralOpen, setReferralOpen] = useState(false);
   const [patientName, setPatientName] = useState("");
   const [existingPrescriptions, setExistingPrescriptions] = useState<Array<{
     id: string;
@@ -308,16 +310,31 @@ export default function PrescriptionPage() {
         </div>
       )}
 
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-3">
         <Button onClick={handleSave} disabled={saving} variant="primary" size="lg" className="flex-1">
           {saving ? "Saving..." : "Save Prescription"}
         </Button>
         {saved && (
-          <Button onClick={handleDownloadPdf} variant="outline" size="lg" className="flex-1">
+          <Button onClick={handleDownloadPdf} variant="outline" size="lg">
             Download PDF
           </Button>
         )}
+        <Button onClick={() => setReferralOpen(true)} variant="outline" size="lg" title="Refer to specialist or clinic by email">
+          Refer
+        </Button>
       </div>
+
+      <ReferralModal
+        open={referralOpen}
+        onClose={() => setReferralOpen(false)}
+        documentTitle="Prescription"
+        documentContent={medications
+          .filter((m) => m.name.trim())
+          .map((m) => `${m.name}${m.dosage ? ` ${m.dosage}` : ""}${m.frequency ? ` — ${m.frequency}` : ""}${m.duration ? ` for ${m.duration}` : ""}${m.quantity ? ` (${m.quantity})` : ""}${m.notes ? ` — ${m.notes}` : ""}`)
+          .join("\n") + (generalNotes ? `\n\nNotes: ${generalNotes}` : "")}
+        documentType="Prescription"
+        patientName={patientName || undefined}
+      />
     </div>
   );
 }

@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
 import { formatDuration, getStatusColor, cn } from "@/lib/utils";
+import { ReferralModal } from "@/components/referral/ReferralModal";
 import type {
   ClinicalNote,
   Transcript,
@@ -59,6 +60,7 @@ export default function NoteEditorPage() {
   const [sections, setSections] = useState<NoteSection[]>([]);
   const [status, setStatus] = useState<NoteStatus>("draft");
   const [billingCodes, setBillingCodes] = useState<BillingCode[]>([]);
+  const [referralOpen, setReferralOpen] = useState(false);
 
   // Track content changes for debounced save
   const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -596,6 +598,15 @@ export default function NoteEditorPage() {
             Share
           </Button>
 
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setReferralOpen(true)}
+            title="Refer to specialist or clinic by email"
+          >
+            Refer
+          </Button>
+
           {status === "draft" && (
             <Button
               variant="primary"
@@ -941,6 +952,15 @@ export default function NoteEditorPage() {
           </div>
         </div>
       </div>
+
+      <ReferralModal
+        open={referralOpen}
+        onClose={() => setReferralOpen(false)}
+        documentTitle={String((pageState.note?.generation_metadata as Record<string, unknown>)?.template || "Clinical Note")}
+        documentContent={sections.map((s) => `${s.title}\n${s.content}`).join("\n\n")}
+        documentType="Clinical Note"
+        patientName={String((pageState.note?.generation_metadata as Record<string, unknown>)?.patient_name || "")}
+      />
     </div>
   );
 }

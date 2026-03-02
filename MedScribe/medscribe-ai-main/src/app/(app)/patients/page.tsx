@@ -54,6 +54,10 @@ export default function PatientsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editMRN, setEditMRN] = useState("");
+  const [editDOB, setEditDOB] = useState("");
+  const [editGender, setEditGender] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editEmail, setEditEmail] = useState("");
 
   // Expanded patient view
   const [expandedPatientId, setExpandedPatientId] = useState<string | null>(null);
@@ -124,11 +128,21 @@ export default function PatientsPage() {
   };
 
   const handleEditSave = async (id: string) => {
+    if (!editName.trim()) { toast(t("patients.nameRequired"), "error"); return; }
     try {
       await fetch(`/api/patients/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ full_name: editName, mrn: editMRN }),
+        body: JSON.stringify({
+          full_name: editName.trim(),
+          mrn: editMRN.trim() || null,
+          date_of_birth: editDOB || null,
+          gender: editGender || null,
+          contact_info: {
+            ...(editPhone ? { phone: editPhone } : {}),
+            ...(editEmail ? { email: editEmail } : {}),
+          },
+        }),
       });
       toast("Patient updated", "success");
       setEditingId(null);
@@ -136,6 +150,16 @@ export default function PatientsPage() {
     } catch {
       toast("Failed to update patient", "error");
     }
+  };
+
+  const startEditing = (patient: Patient) => {
+    setEditingId(patient.id);
+    setEditName(patient.full_name);
+    setEditMRN(patient.mrn || "");
+    setEditDOB(patient.date_of_birth ? patient.date_of_birth.slice(0, 10) : "");
+    setEditGender(patient.gender || "");
+    setEditPhone(patient.contact_info?.phone || "");
+    setEditEmail(patient.contact_info?.email || "");
   };
 
   const expandPatient = async (patient: Patient) => {
@@ -299,11 +323,27 @@ export default function PatientsPage() {
                 <div key={patient.id}>
                   <div className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition">
                     {editingId === patient.id ? (
-                      <div className="flex flex-1 items-center gap-3">
-                        <input value={editName} onChange={(e) => setEditName(e.target.value)} className="rounded border border-medical-border px-3 py-1.5 text-sm" />
-                        <input value={editMRN} onChange={(e) => setEditMRN(e.target.value)} placeholder="MRN" className="rounded border border-medical-border px-3 py-1.5 text-sm w-32" />
-                        <Button size="sm" onClick={() => handleEditSave(patient.id)}>{t("common.save")}</Button>
-                        <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>{t("common.cancel")}</Button>
+                      <div className="flex-1 space-y-4 py-2">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          <Input id={`edit-name-${patient.id}`} label={t("patients.fullName") + " *"} value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Patient full name" />
+                          <Input id={`edit-mrn-${patient.id}`} label={t("patients.mrn")} value={editMRN} onChange={(e) => setEditMRN(e.target.value)} placeholder="Medical Record Number" />
+                          <Input id={`edit-dob-${patient.id}`} label={t("patients.dateOfBirth")} type="date" value={editDOB} onChange={(e) => setEditDOB(e.target.value)} />
+                          <div>
+                            <label className="block text-sm font-medium text-medical-text mb-1.5">{t("patients.gender")}</label>
+                            <select value={editGender} onChange={(e) => setEditGender(e.target.value)} className="block w-full rounded-lg border border-medical-border px-4 py-2.5 text-sm text-medical-text focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20">
+                              <option value="">{t("common.select")}</option>
+                              <option value="male">{t("common.male")}</option>
+                              <option value="female">{t("common.female")}</option>
+                              <option value="other">{t("common.other")}</option>
+                            </select>
+                          </div>
+                          <Input id={`edit-phone-${patient.id}`} label={t("patients.phone")} value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="+1 (555) 000-0000" />
+                          <Input id={`edit-email-${patient.id}`} label={t("patients.email")} type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="patient@email.com" />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={() => handleEditSave(patient.id)}>{t("common.save")}</Button>
+                          <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>{t("common.cancel")}</Button>
+                        </div>
                       </div>
                     ) : (
                       <>
@@ -328,7 +368,7 @@ export default function PatientsPage() {
                           <Button size="sm" variant="ghost" onClick={() => expandPatient(patient)}>
                             <svg className={`h-4 w-4 transition ${expandedPatientId === patient.id ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => { setEditingId(patient.id); setEditName(patient.full_name); setEditMRN(patient.mrn || ""); }}>
+                          <Button size="sm" variant="ghost" onClick={() => startEditing(patient)}>
                             {t("common.edit")}
                           </Button>
                           <Button size="sm" variant="ghost" onClick={() => handleDelete(patient.id)} className="text-red-600 hover:text-red-700">

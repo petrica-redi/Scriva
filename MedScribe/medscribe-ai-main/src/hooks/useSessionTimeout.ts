@@ -4,7 +4,7 @@ import { useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutes — HIPAA requirement
+const INACTIVITY_TIMEOUT = 8 * 60 * 60 * 1000; // 8 hours — session persists across work shift
 const ACTIVITY_EVENTS = ["mousedown", "keydown", "touchstart", "scroll"] as const;
 
 export function useSessionTimeout() {
