@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sidebar } from './sidebar';
 import { Header } from './header';
+import { OfflineIndicator } from '@/components/features/OfflineIndicator';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -52,6 +53,8 @@ export function AppShell({ children, userEmail }: AppShellProps) {
           {children}
         </div>
       </main>
+
+      <OfflineIndicator />
     </div>
   );
 }

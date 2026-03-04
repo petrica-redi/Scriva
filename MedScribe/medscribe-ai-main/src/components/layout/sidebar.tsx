@@ -6,10 +6,12 @@ import {
   BrainCircuit,
   Calendar,
   ChartNoAxesCombined,
+  ClipboardList,
   ClipboardPlus,
   FileText,
   LayoutDashboard,
   LogOut,
+  MessageSquare,
   Settings,
   ShieldAlert,
   Users,
@@ -38,6 +40,8 @@ export function Sidebar({ isOpen, onClose, userEmail, onSignOut }: SidebarProps)
     { labelKey: 'nav.analytics', href: '/analytics', icon: ChartNoAxesCombined },
     { labelKey: 'nav.calendar', href: '/calendar', icon: Calendar },
     { labelKey: 'nav.templates', href: '/templates', icon: FileText },
+    { labelKey: 'nav.portal' as TranslationKey, href: '/portal', icon: MessageSquare },
+    { labelKey: 'nav.followUps' as TranslationKey, href: '/follow-ups', icon: ClipboardList },
     { labelKey: 'nav.settings', href: '/settings', icon: Settings },
   ];
 

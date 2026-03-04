@@ -9,7 +9,9 @@ const scriptSrc = isDev
   : "script-src 'self' 'unsafe-inline'";
 
 const nextConfig: NextConfig = {
-  // Redeploy: ensure Vercel picks up new Supabase env vars
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: "2mb",

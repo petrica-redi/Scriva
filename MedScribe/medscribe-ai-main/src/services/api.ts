@@ -249,6 +249,134 @@ const templatesApi = {
   },
 };
 
+const followUpsApi = {
+  async list(params?: { patient_id?: string; status?: string }) {
+    const searchParams = new URLSearchParams();
+    if (params?.patient_id) searchParams.append("patient_id", params.patient_id);
+    if (params?.status) searchParams.append("status", params.status);
+    const response = await fetch(`/api/follow-ups?${searchParams}`, { headers: { "Content-Type": "application/json" } });
+    return handleResponse<{ data: unknown[] }>(response);
+  },
+  async create(data: { patient_id: string; type: string; title: string; due_date: string; description?: string; priority?: string; consultation_id?: string }) {
+    const response = await fetch("/api/follow-ups", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+    return handleResponse<unknown>(response);
+  },
+  async update(data: { id: string; status?: string; snoozed_until?: string }) {
+    const response = await fetch("/api/follow-ups", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+    return handleResponse<unknown>(response);
+  },
+};
+
+const vitalsApi = {
+  async list(patientId: string, params?: { reading_type?: string; days?: number }) {
+    const searchParams = new URLSearchParams({ patient_id: patientId });
+    if (params?.reading_type) searchParams.append("reading_type", params.reading_type);
+    if (params?.days) searchParams.append("days", String(params.days));
+    const response = await fetch(`/api/vitals?${searchParams}`, { headers: { "Content-Type": "application/json" } });
+    return handleResponse<{ data: unknown[]; trends: Record<string, unknown> }>(response);
+  },
+  async record(data: { patient_id: string; device_type: string; reading_type: string; value: number; unit: string; device_name?: string; notes?: string }) {
+    const response = await fetch("/api/vitals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+    return handleResponse<unknown>(response);
+  },
+};
+
+const cdsApi = {
+  async analyze(data: { transcript: string; medications?: string[]; patient_history?: string; consultation_id?: string; patient_id?: string }) {
+    const response = await fetch("/api/ai/clinical-decision-support", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+    return handleResponse<unknown>(response);
+  },
+};
+
+const schedulingApi = {
+  async getPreferences() {
+    const response = await fetch("/api/scheduling", { headers: { "Content-Type": "application/json" } });
+    return handleResponse<{ data: unknown[] }>(response);
+  },
+  async suggest(date: string, visitType?: string) {
+    const searchParams = new URLSearchParams({ action: "suggest", date });
+    if (visitType) searchParams.append("visit_type", visitType);
+    const response = await fetch(`/api/scheduling?${searchParams}`, { headers: { "Content-Type": "application/json" } });
+    return handleResponse<{ suggestions: unknown[] }>(response);
+  },
+  async savePreferences(preferences: unknown[]) {
+    const response = await fetch("/api/scheduling", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ preferences }) });
+    return handleResponse<{ data: unknown[] }>(response);
+  },
+};
+
+const teamApi = {
+  async get() {
+    const response = await fetch("/api/team", { headers: { "Content-Type": "application/json" } });
+    return handleResponse<{ organizations: unknown[]; members: unknown[]; myRole: string }>(response);
+  },
+  async createOrg(name: string, type?: string) {
+    const response = await fetch("/api/team", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "create_org", name, type }) });
+    return handleResponse<unknown>(response);
+  },
+  async invite(organizationId: string, email: string, role?: string) {
+    const response = await fetch("/api/team", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "invite", organization_id: organizationId, email, role }) });
+    return handleResponse<unknown>(response);
+  },
+};
+
+const intakeApi = {
+  async listForms(type?: string) {
+    const searchParams = new URLSearchParams();
+    if (type) searchParams.append("type", type);
+    const response = await fetch(`/api/intake/forms?${searchParams}`, { headers: { "Content-Type": "application/json" } });
+    return handleResponse<{ data: unknown[] }>(response);
+  },
+  async createForm(data: { name: string; form_type: string; questions: unknown[]; description?: string }) {
+    const response = await fetch("/api/intake/forms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+    return handleResponse<unknown>(response);
+  },
+  async submitResponse(data: { form_id: string; responses: Record<string, unknown>; respondent_name?: string; respondent_email?: string; patient_id?: string }) {
+    const response = await fetch("/api/intake/responses", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+    return handleResponse<unknown>(response);
+  },
+};
+
+const fhirApi = {
+  async status() {
+    const response = await fetch("/api/fhir?action=status", { headers: { "Content-Type": "application/json" } });
+    return handleResponse<{ configured: boolean; reachable: boolean; server: string | null }>(response);
+  },
+  async searchPatient(params: { name?: string; identifier?: string }) {
+    const searchParams = new URLSearchParams({ action: "search_patient" });
+    if (params.name) searchParams.append("name", params.name);
+    if (params.identifier) searchParams.append("identifier", params.identifier);
+    const response = await fetch(`/api/fhir?${searchParams}`, { headers: { "Content-Type": "application/json" } });
+    return handleResponse<{ patients: unknown[] }>(response);
+  },
+  async importPatient(fhirId: string) {
+    const response = await fetch("/api/fhir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "import_patient", fhir_id: fhirId }) });
+    return handleResponse<unknown>(response);
+  },
+  async exportNote(consultationId: string) {
+    const response = await fetch("/api/fhir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "export_note", consultation_id: consultationId }) });
+    return handleResponse<unknown>(response);
+  },
+};
+
+const analyticsApi = {
+  async advanced(days?: number) {
+    const response = await fetch(`/api/analytics/advanced?days=${days || 90}`, { headers: { "Content-Type": "application/json" } });
+    return handleResponse<unknown>(response);
+  },
+};
+
+const portalApi = {
+  async getMessages(patientId: string) {
+    const response = await fetch(`/api/portal/messages?patient_id=${patientId}`, { headers: { "Content-Type": "application/json" } });
+    return handleResponse<{ data: unknown[] }>(response);
+  },
+  async sendMessage(data: { patient_id: string; body: string; subject?: string; parent_id?: string }) {
+    const response = await fetch("/api/portal/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+    return handleResponse<unknown>(response);
+  },
+};
+
 /**
  * Main API service object with organized endpoints
  */
@@ -256,4 +384,13 @@ export const api = {
   consultations: consultationsApi,
   notes: notesApi,
   templates: templatesApi,
+  followUps: followUpsApi,
+  vitals: vitalsApi,
+  cds: cdsApi,
+  scheduling: schedulingApi,
+  team: teamApi,
+  intake: intakeApi,
+  fhir: fhirApi,
+  analytics: analyticsApi,
+  portal: portalApi,
 };

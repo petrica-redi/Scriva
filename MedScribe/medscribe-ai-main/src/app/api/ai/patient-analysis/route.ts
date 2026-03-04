@@ -70,10 +70,10 @@ export async function POST(request: NextRequest) {
         .order("created_at", { ascending: true }),
     ]);
 
-    const noteMap: Record<string, typeof notes> = {};
+    const noteMap: Record<string, NonNullable<typeof notes>> = {};
     for (const n of notes || []) {
       if (!noteMap[n.consultation_id]) noteMap[n.consultation_id] = [];
-      noteMap[n.consultation_id].push(n);
+      noteMap[n.consultation_id]!.push(n);
     }
 
     const txMap: Record<string, string> = {};
@@ -81,10 +81,10 @@ export async function POST(request: NextRequest) {
       if (t.full_text) txMap[t.consultation_id] = t.full_text;
     }
 
-    const docMap: Record<string, typeof documents> = {};
+    const docMap: Record<string, NonNullable<typeof documents>> = {};
     for (const d of documents || []) {
       if (!docMap[d.consultation_id]) docMap[d.consultation_id] = [];
-      docMap[d.consultation_id].push(d);
+      docMap[d.consultation_id]!.push(d);
     }
 
     let visitSummaries = "";
