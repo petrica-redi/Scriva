@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,7 @@ function safeString(value: unknown, fallback = "—"): string {
 
 export default function AnalyticsPage() {
   const supabase = createClient();
+  const router = useRouter();
   const { t } = useTranslation();
 
   const [consultations, setConsultations] = useState<ConsultationRow[]>([]);
@@ -244,6 +246,16 @@ export default function AnalyticsPage() {
     const order: Record<string, number> = { high: 0, medium: 1, low: 2 };
     return (order[a.riskLevel] ?? 9) - (order[b.riskLevel] ?? 9);
   });
+
+  // Patient distribution for donut chart
+  const uniquePatientIds = new Set(consultations.map((c) => c.patient_id).filter(Boolean));
+  const totalPatients = uniquePatientIds.size;
+  const riskPatientIds = new Set(patientsAtRisk.map((p) => p.id));
+  const attentionPatientIds = new Set(patientsNeedingAttention.map((p) => p.patient_id).filter(Boolean));
+  const atRiskCount = riskPatientIds.size;
+  const attentionOnlyIds = new Set([...attentionPatientIds].filter((id) => id && !riskPatientIds.has(id)));
+  const needingAttentionCount = attentionOnlyIds.size;
+  const healthyCount = Math.max(0, totalPatients - atRiskCount - needingAttentionCount);
 
   // Phase 1: Time Saved (estimated: 50% reduction in documentation time vs manual)
   const monthDurations = consultations
@@ -479,8 +491,108 @@ export default function AnalyticsPage() {
             </Card>
           </div>
 
+          {/* Patient Overview — Donut Chart */}
+          <Card className="mb-2">
+            <CardHeader><CardTitle>Patient Overview</CardTitle></CardHeader>
+            <CardContent>
+              <div className="flex flex-col md:flex-row items-center gap-8">
+                {/* Donut Chart */}
+                <div className="relative shrink-0">
+                  {(() => {
+                    const segments = [
+                      { label: "At Risk", value: atRiskCount, color: "#ef4444", href: "/patients" },
+                      { label: "Needs Attention", value: needingAttentionCount, color: "#f59e0b", href: "/follow-ups" },
+                      { label: "All Clear", value: healthyCount, color: "#22c55e", href: "/patients" },
+                    ].filter((s) => s.value > 0);
+
+                    if (totalPatients === 0) {
+                      return (
+                        <div className="flex h-48 w-48 items-center justify-center">
+                          <p className="text-sm text-medical-muted">No patient data</p>
+                        </div>
+                      );
+                    }
+
+                    const cx = 96, cy = 96, r = 80, inner = 52;
+                    let cumAngle = -90;
+
+                    const paths = segments.map((seg) => {
+                      const angle = (seg.value / totalPatients) * 360;
+                      const startRad = (cumAngle * Math.PI) / 180;
+                      const endRad = ((cumAngle + angle) * Math.PI) / 180;
+                      cumAngle += angle;
+
+                      const x1o = cx + r * Math.cos(startRad);
+                      const y1o = cy + r * Math.sin(startRad);
+                      const x2o = cx + r * Math.cos(endRad);
+                      const y2o = cy + r * Math.sin(endRad);
+                      const x1i = cx + inner * Math.cos(endRad);
+                      const y1i = cy + inner * Math.sin(endRad);
+                      const x2i = cx + inner * Math.cos(startRad);
+                      const y2i = cy + inner * Math.sin(startRad);
+                      const large = angle > 180 ? 1 : 0;
+
+                      const d = [
+                        `M ${x1o} ${y1o}`,
+                        `A ${r} ${r} 0 ${large} 1 ${x2o} ${y2o}`,
+                        `L ${x1i} ${y1i}`,
+                        `A ${inner} ${inner} 0 ${large} 0 ${x2i} ${y2i}`,
+                        `Z`,
+                      ].join(" ");
+
+                      return { ...seg, d, angle };
+                    });
+
+                    return (
+                      <svg viewBox="0 0 192 192" className="h-48 w-48" role="img" aria-label="Patient distribution chart">
+                        {paths.map((seg) => (
+                          <path
+                            key={seg.label}
+                            d={seg.d}
+                            fill={seg.color}
+                            className="cursor-pointer transition-opacity hover:opacity-80"
+                            onClick={() => router.push(seg.href)}
+                          >
+                            <title>{seg.label}: {seg.value} ({Math.round((seg.value / totalPatients) * 100)}%)</title>
+                          </path>
+                        ))}
+                        <text x={cx} y={cy - 6} textAnchor="middle" className="fill-medical-text text-2xl font-bold" style={{ fontSize: "28px" }}>
+                          {totalPatients}
+                        </text>
+                        <text x={cx} y={cy + 14} textAnchor="middle" className="fill-medical-muted" style={{ fontSize: "11px" }}>
+                          patients
+                        </text>
+                      </svg>
+                    );
+                  })()}
+                </div>
+
+                {/* Legend + Breakdown */}
+                <div className="flex-1 space-y-3 w-full">
+                  {[
+                    { label: "At Risk", value: atRiskCount, pct: totalPatients > 0 ? Math.round((atRiskCount / totalPatients) * 100) : 0, color: "bg-red-500", textColor: "text-red-700", bgColor: "bg-red-50 border-red-200", href: "/patients" },
+                    { label: "Needs Attention", value: needingAttentionCount, pct: totalPatients > 0 ? Math.round((needingAttentionCount / totalPatients) * 100) : 0, color: "bg-amber-500", textColor: "text-amber-700", bgColor: "bg-amber-50 border-amber-200", href: "/follow-ups" },
+                    { label: "All Clear", value: healthyCount, pct: totalPatients > 0 ? Math.round((healthyCount / totalPatients) * 100) : 0, color: "bg-green-500", textColor: "text-green-700", bgColor: "bg-green-50 border-green-200", href: "/patients" },
+                  ].map((item) => (
+                    <button
+                      key={item.label}
+                      onClick={() => router.push(item.href)}
+                      className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 transition hover:shadow-sm ${item.bgColor}`}
+                    >
+                      <div className={`h-3 w-3 rounded-full ${item.color} shrink-0`} />
+                      <span className={`text-sm font-semibold ${item.textColor}`}>{item.label}</span>
+                      <span className="ml-auto text-lg font-bold text-medical-text">{item.value}</span>
+                      <span className="text-xs text-medical-muted">({item.pct}%)</span>
+                      <span className="text-xs text-brand-600">→</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="grid gap-6 lg:grid-cols-2">
-            {/* Phase 1: Patients Needing Attention */}
+            {/* Patients Needing Attention */}
             <Card>
               <CardHeader><CardTitle>{t("analytics.patientsNeedingAttention")}</CardTitle></CardHeader>
               <CardContent>
@@ -521,14 +633,20 @@ export default function AnalyticsPage() {
             <Card>
               <CardHeader><CardTitle>{t("analytics.consultationsThisWeek")}</CardTitle></CardHeader>
               <CardContent>
-                <div className="flex items-end gap-3 h-40">
-                  {dailyCounts.map((day, idx) => (
-                    <div key={idx} className="flex-1 flex flex-col items-center gap-1">
-                      <span className="text-xs text-medical-muted">{day.count}</span>
-                      <div className="w-full bg-blue-500 rounded-t transition-all" style={{ height: `${(day.count / maxDailyCount) * 100}%`, minHeight: day.count > 0 ? "8px" : "2px" }} />
-                      <span className="text-xs text-medical-muted">{day.date}</span>
-                    </div>
-                  ))}
+                <div className="flex items-end gap-2 h-44">
+                  {dailyCounts.map((day, idx) => {
+                    const barH = maxDailyCount > 0 ? (day.count / maxDailyCount) * 100 : 0;
+                    return (
+                      <div key={idx} className="flex-1 flex flex-col items-center gap-1 h-full justify-end">
+                        <span className="text-xs font-semibold text-medical-text">{day.count}</span>
+                        <div
+                          className="w-full rounded-t-md bg-gradient-to-t from-blue-600 to-blue-400 transition-all duration-500"
+                          style={{ height: `${Math.max(barH, day.count > 0 ? 6 : 2)}%` }}
+                        />
+                        <span className="text-[11px] font-medium text-medical-muted">{day.date}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
