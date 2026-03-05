@@ -92,6 +92,12 @@ export default function NewConsultationPage() {
 
   const handleStartRecording = async () => {
     setError("");
+
+    if (!patientName.trim()) {
+      setError("Patient name is required. Please search for an existing patient or type a new name.");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -168,7 +174,7 @@ export default function NewConsultationPage() {
           {/* Patient Name Field with Autocomplete */}
           <div ref={patientInputRef} className="relative">
             <label htmlFor="patientName" className="block text-sm font-medium text-medical-text">
-              {t("consultation.patientName")}
+              {t("consultation.patientName")} <span className="text-red-500">*</span>
             </label>
             <div className="relative mt-2">
               <input
@@ -259,7 +265,7 @@ export default function NewConsultationPage() {
           <div className="flex gap-3 pt-4">
             <Button
               onClick={handleStartRecording}
-              disabled={isLoading}
+              disabled={isLoading || !patientName.trim()}
               variant="primary"
               size="lg"
               className="flex-1"
