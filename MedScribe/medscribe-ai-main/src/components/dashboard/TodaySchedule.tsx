@@ -120,7 +120,7 @@ function PendingActionLinks({
         className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:text-emerald-900 hover:underline"
       >
         <CheckSquare className="h-3 w-3" />
-        Validate &amp; submit
+        Validate & submit
       </Link>
     </div>
   );
@@ -192,7 +192,7 @@ export function TodaySchedule({ items }: TodayScheduleProps) {
                       <RiskBadge risk={item.riskStatus} />
                     </td>
                     <td className="px-4 py-3">
-                      {!item.isNewPatient && item.consultationId ? (
+                      {item.consultationId ? (
                         <PendingActionLinks
                           consultationId={item.consultationId}
                           documents={item.documents || []}
