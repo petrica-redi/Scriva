@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/ui/badge";
 import { formatDateTime } from "@/lib/utils";
 import Link from "next/link";
 import { useTranslation } from "@/lib/i18n/context";
+import { translateVisitType } from "@/lib/i18n/visitTypes";
 
 interface CalendarConsultation {
   id: string;
@@ -67,7 +68,7 @@ export default function CalendarPage() {
       setConsultations(
         (data || []).map((c) => ({
           ...c,
-          patientName: (c.metadata as Record<string, unknown>)?.patient_name as string || "Unnamed Patient",
+          patientName: (c.metadata as Record<string, unknown>)?.patient_name as string || "",
         }))
       );
     } catch {
@@ -206,8 +207,8 @@ export default function CalendarPage() {
                     <p className="text-[10px] text-medical-muted italic">{t("calendar.noConsultations")}</p>
                   ) : dayConsultations.map((c) => (
                     <Link key={c.id} href={`/consultation/${c.id}/note`} className="block rounded-lg border border-medical-border bg-white p-2 hover:bg-blue-50 transition">
-                      <p className="text-xs font-medium text-medical-text truncate">{c.patientName}</p>
-                      <p className="text-[10px] text-medical-muted">{c.visit_type}</p>
+                      <p className="text-xs font-medium text-medical-text truncate">{c.patientName || t("common.unnamedPatient")}</p>
+                      <p className="text-[10px] text-medical-muted">{translateVisitType(c.visit_type, t)}</p>
                       <StatusBadge status={c.status} />
                     </Link>
                   ))}
@@ -229,10 +230,10 @@ export default function CalendarPage() {
             ) : (
               <div className="divide-y divide-medical-border">
                 {consultations.map((c) => (
-                  <div key={c.id} className="flex items-center justify-between py-4">
+                    <div key={c.id} className="flex items-center justify-between py-4">
                     <div className="flex-1">
-                      <Link href={`/consultation/${c.id}/note`} className="font-medium text-medical-text hover:text-brand-600">{c.patientName}</Link>
-                      <p className="text-sm text-medical-muted">{c.visit_type} &middot; {formatDateTime(c.created_at)}</p>
+                      <Link href={`/consultation/${c.id}/note`} className="font-medium text-medical-text hover:text-brand-600">{c.patientName || t("common.unnamedPatient")}</Link>
+                      <p className="text-sm text-medical-muted">{translateVisitType(c.visit_type, t)} &middot; {formatDateTime(c.created_at)}</p>
                     </div>
                     <div className="flex items-center gap-3">
                       <StatusBadge status={c.status} />

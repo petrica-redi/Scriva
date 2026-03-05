@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n/context";
+import { translateVisitType } from "@/lib/i18n/visitTypes";
 
 interface ConsultationRow {
   id: string;
@@ -164,37 +165,13 @@ export default function AnalyticsPage() {
   const durations = consultations.filter((c) => c.recording_duration_seconds).map((c) => c.recording_duration_seconds!);
   const avgDuration = durations.length > 0 ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 0;
 
-  // Visit type normalization map — merges duplicates like "follow-up" / "Follow-up"
-  const normalizeVisitType = (raw: string): string => {
-    const lower = raw.trim().toLowerCase().replace(/[-_]/g, " ");
-    const map: Record<string, string> = {
-      "follow up": "Follow-up",
-      "follow up visit": "Follow-up",
-      "followup": "Follow-up",
-      "general": "General Visit",
-      "general visit": "General Visit",
-      "new patient": "New Patient",
-      "new patient visit": "New Patient",
-      "routine check up": "Routine Check-up",
-      "routine check-up": "Routine Check-up",
-      "routine checkup": "Routine Check-up",
-      "urgent care": "Urgent Care",
-      "emergency": "Emergency",
-      "specialist consultation": "Specialist Consultation",
-      "specialist referral": "Specialist Referral",
-      "telehealth": "Telehealth",
-      "mental health session": "Mental Health Session",
-    };
-    return map[lower] || raw.charAt(0).toUpperCase() + raw.slice(1);
-  };
-
-  // Visit type distribution filtered by period
+  // Visit type distribution filtered by period (uses translateVisitType for dedup + i18n)
   const visitTypePeriodCutoff = visitTypePeriod === "week" ? sevenDaysAgo : thirtyDaysAgo;
   const visitTypeConsultations = consultations.filter((c) => new Date(c.created_at) >= visitTypePeriodCutoff);
   const visitTypeCounts: Record<string, number> = {};
   visitTypeConsultations.forEach((c) => {
-    const normalized = normalizeVisitType(c.visit_type);
-    visitTypeCounts[normalized] = (visitTypeCounts[normalized] || 0) + 1;
+    const translated = translateVisitType(c.visit_type, t);
+    visitTypeCounts[translated] = (visitTypeCounts[translated] || 0) + 1;
   });
   const visitTypes = Object.entries(visitTypeCounts).sort((a, b) => b[1] - a[1]);
   const visitTypeTotal = visitTypeConsultations.length;
@@ -524,22 +501,22 @@ export default function AnalyticsPage() {
 
           {/* Patient Overview — Donut Chart */}
           <Card className="mb-2">
-            <CardHeader><CardTitle>Patient Overview</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{t("chart.patientOverview")}</CardTitle></CardHeader>
             <CardContent>
               <div className="flex flex-col md:flex-row items-center gap-8">
                 {/* Donut Chart */}
                 <div className="relative shrink-0">
                   {(() => {
                     const segments = [
-                      { label: "At Risk", value: atRiskCount, color: "#ef4444", href: "/patients" },
-                      { label: "Needs Attention", value: needingAttentionCount, color: "#f59e0b", href: "/follow-ups" },
-                      { label: "All Clear", value: healthyCount, color: "#22c55e", href: "/patients" },
+                      { label: t("chart.atRisk"), value: atRiskCount, color: "#ef4444", href: "/patients" },
+                      { label: t("chart.needsAttention"), value: needingAttentionCount, color: "#f59e0b", href: "/follow-ups" },
+                      { label: t("chart.allClear"), value: healthyCount, color: "#22c55e", href: "/patients" },
                     ].filter((s) => s.value > 0);
 
                     if (totalPatients === 0) {
                       return (
                         <div className="flex h-48 w-48 items-center justify-center">
-                          <p className="text-sm text-medical-muted">No patient data</p>
+                          <p className="text-sm text-medical-muted">{t("chart.noPatientData")}</p>
                         </div>
                       );
                     }
@@ -591,7 +568,7 @@ export default function AnalyticsPage() {
                           {totalPatients}
                         </text>
                         <text x={cx} y={cy + 14} textAnchor="middle" className="fill-medical-muted" style={{ fontSize: "11px" }}>
-                          patients
+                          {t("chart.patients")}
                         </text>
                       </svg>
                     );
@@ -601,9 +578,9 @@ export default function AnalyticsPage() {
                 {/* Legend + Breakdown */}
                 <div className="flex-1 space-y-3 w-full">
                   {[
-                    { label: "At Risk", value: atRiskCount, pct: totalPatients > 0 ? Math.round((atRiskCount / totalPatients) * 100) : 0, color: "bg-red-500", textColor: "text-red-700", bgColor: "bg-red-50 border-red-200", href: "/patients" },
-                    { label: "Needs Attention", value: needingAttentionCount, pct: totalPatients > 0 ? Math.round((needingAttentionCount / totalPatients) * 100) : 0, color: "bg-amber-500", textColor: "text-amber-700", bgColor: "bg-amber-50 border-amber-200", href: "/follow-ups" },
-                    { label: "All Clear", value: healthyCount, pct: totalPatients > 0 ? Math.round((healthyCount / totalPatients) * 100) : 0, color: "bg-green-500", textColor: "text-green-700", bgColor: "bg-green-50 border-green-200", href: "/patients" },
+                    { label: t("chart.atRisk"), value: atRiskCount, pct: totalPatients > 0 ? Math.round((atRiskCount / totalPatients) * 100) : 0, color: "bg-red-500", textColor: "text-red-700", bgColor: "bg-red-50 border-red-200", href: "/patients" },
+                    { label: t("chart.needsAttention"), value: needingAttentionCount, pct: totalPatients > 0 ? Math.round((needingAttentionCount / totalPatients) * 100) : 0, color: "bg-amber-500", textColor: "text-amber-700", bgColor: "bg-amber-50 border-amber-200", href: "/follow-ups" },
+                    { label: t("chart.allClear"), value: healthyCount, pct: totalPatients > 0 ? Math.round((healthyCount / totalPatients) * 100) : 0, color: "bg-green-500", textColor: "text-green-700", bgColor: "bg-green-50 border-green-200", href: "/patients" },
                   ].map((item) => (
                     <button
                       key={item.label}
@@ -765,13 +742,13 @@ export default function AnalyticsPage() {
                       onClick={() => setVisitTypePeriod("week")}
                       className={`px-3 py-1 transition ${visitTypePeriod === "week" ? "bg-brand-500 text-white" : "text-medical-muted hover:bg-gray-50"}`}
                     >
-                      This Week
+                      {t("analytics.thisWeek")}
                     </button>
                     <button
                       onClick={() => setVisitTypePeriod("month")}
                       className={`px-3 py-1 transition ${visitTypePeriod === "month" ? "bg-brand-500 text-white" : "text-medical-muted hover:bg-gray-50"}`}
                     >
-                      This Month
+                      {t("analytics.thisMonth")}
                     </button>
                   </div>
                 </div>
@@ -791,12 +768,12 @@ export default function AnalyticsPage() {
                       </div>
                     ))}
                     <p className="text-xs text-medical-muted pt-1 border-t border-medical-border mt-2">
-                      {visitTypeTotal} consultations {visitTypePeriod === "week" ? "this week" : "this month"}
+                      {visitTypeTotal} {t("common.consultations")} {visitTypePeriod === "week" ? t("common.thisWeek") : t("common.thisMonth")}
                     </p>
                   </div>
                 ) : (
                   <p className="text-sm text-medical-muted text-center py-4">
-                    No consultations {visitTypePeriod === "week" ? "this week" : "this month"}
+                    {t("common.noConsultations")} {visitTypePeriod === "week" ? t("common.thisWeek") : t("common.thisMonth")}
                   </p>
                 )}
               </CardContent>
@@ -810,7 +787,7 @@ export default function AnalyticsPage() {
                   {Object.entries(statusCounts).map(([s, count]) => (
                     <div key={s} className="flex items-center gap-3">
                       <div className={`w-3 h-3 rounded-full ${statusColors[s] || "bg-gray-400"}`} />
-                      <span className="text-sm text-medical-text flex-1 capitalize">{s.replace(/_/g, " ")}</span>
+                      <span className="text-sm text-medical-text flex-1">{t(`status.${s}` as Parameters<typeof t>[0])}</span>
                       <span className="text-sm font-medium text-medical-muted">{count}</span>
                     </div>
                   ))}

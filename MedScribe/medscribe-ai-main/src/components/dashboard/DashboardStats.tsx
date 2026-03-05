@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDateTime } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n/context";
+import { translateVisitType } from "@/lib/i18n/visitTypes";
 import {
   AlertTriangle,
   CalendarClock,
@@ -29,6 +30,7 @@ export interface StatConsultation {
 }
 
 function RiskBadge({ risk }: { risk?: string }) {
+  const { t } = useTranslation();
   const level = (risk || "normal").toLowerCase();
   const styles =
     level === "high" || level === "critical"
@@ -40,12 +42,12 @@ function RiskBadge({ risk }: { risk?: string }) {
           : "bg-slate-100 text-slate-600";
   const label =
     level === "high" || level === "critical"
-      ? "High"
+      ? t("risk.high")
       : level === "medium"
-        ? "Medium"
+        ? t("risk.medium")
         : level === "low"
-          ? "Low"
-          : "Normal";
+          ? t("risk.low")
+          : t("risk.normal");
   return (
     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${styles}`}>
       {label}
@@ -225,10 +227,10 @@ export function DashboardStats({
                         {t("stats.visitType")}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-medical-muted">
-                        Risk Level
+                        {t("table.riskLevel")}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-medical-muted">
-                        Pending Actions
+                        {t("table.pendingActions")}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-medical-muted">
                         {t("stats.date")}
@@ -261,7 +263,7 @@ export function DashboardStats({
                           )}
                         </td>
                         <td className="px-6 py-3 text-medical-muted capitalize">
-                          {item.visit_type?.replace(/_/g, " ") || "—"}
+                          {item.visit_type ? translateVisitType(item.visit_type, t) : "—"}
                         </td>
                         <td className="px-6 py-3">
                           <RiskBadge risk={item.riskStatus} />

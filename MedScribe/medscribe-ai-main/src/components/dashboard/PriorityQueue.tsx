@@ -41,16 +41,16 @@ const severityBadge: Record<string, string> = {
   medium: "bg-yellow-100 text-yellow-700",
 };
 
-const typeLabels: Record<string, string> = {
-  review: "Review",
-  prescription: "Rx",
-  lab: "Lab",
-  callback: "Callback",
-  note: "Note",
-};
-
 export function PriorityQueue({ items }: PriorityQueueProps) {
   const { t } = useTranslation();
+
+  const typeLabels: Record<string, string> = {
+    review: t("priority.review"),
+    prescription: t("priority.rx"),
+    lab: t("priority.lab"),
+    callback: t("priority.callback"),
+    note: t("priority.note"),
+  };
 
   if (items.length === 0) return null;
 
@@ -60,9 +60,9 @@ export function PriorityQueue({ items }: PriorityQueueProps) {
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-rose-800 text-sm">
             <AlertTriangle className="h-4 w-4" />
-            Priority Follow-up Queue
+            {t("dashboard.priorityFollowUp")}
           </CardTitle>
-          <span className="text-[10px] text-medical-muted">{items.length} items</span>
+          <span className="text-[10px] text-medical-muted">{items.length} {t("common.items")}</span>
         </div>
       </CardHeader>
       <CardContent className="px-4 pb-3 pt-1 space-y-1.5">
@@ -93,7 +93,7 @@ export function PriorityQueue({ items }: PriorityQueueProps) {
               href={item.actionHref || "#"}
               className="shrink-0 rounded-md bg-rose-600 px-2.5 py-1 text-[10px] font-semibold text-white transition hover:bg-rose-700"
             >
-              Open Case
+              {t("priority.openCase")}
             </Link>
           </div>
         ))}

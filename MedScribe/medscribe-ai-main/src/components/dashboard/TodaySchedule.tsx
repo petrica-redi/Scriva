@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTranslation } from "@/lib/i18n/context";
+import { translateVisitType } from "@/lib/i18n/visitTypes";
 import { Calendar, FileText, ClipboardList, CheckSquare } from "lucide-react";
 
 interface DocumentRef {
@@ -41,6 +42,7 @@ function formatTime(dateStr: string): string {
 }
 
 function RiskBadge({ risk }: { risk?: string }) {
+  const { t } = useTranslation();
   const level = (risk || "normal").toLowerCase();
   const styles =
     level === "high" || level === "critical"
@@ -52,31 +54,17 @@ function RiskBadge({ risk }: { risk?: string }) {
           : "bg-slate-100 text-slate-600";
   const label =
     level === "high" || level === "critical"
-      ? "High"
+      ? t("risk.high")
       : level === "medium"
-        ? "Medium"
+        ? t("risk.medium")
         : level === "low"
-          ? "Low"
-          : "Normal";
+          ? t("risk.low")
+          : t("risk.normal");
   return (
     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${styles}`}>
       {label}
     </span>
   );
-}
-
-function formatDay(dateStr: string): string {
-  const d = new Date(dateStr);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const dateObj = new Date(d);
-  dateObj.setHours(0, 0, 0, 0);
-
-  if (dateObj.getTime() === today.getTime()) return "Today";
-  if (dateObj.getTime() === tomorrow.getTime()) return "Tomorrow";
-  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
 
 function PendingActionLinks({
@@ -86,6 +74,7 @@ function PendingActionLinks({
   consultationId: string;
   status: string;
 }) {
+  const { t } = useTranslation();
   const needsFill = status === "scheduled" || status === "recording" || status === "transcribed";
   const needsValidate = status === "transcribed" || status === "note_generated";
   const needsSubmit = status === "reviewed";
@@ -95,7 +84,7 @@ function PendingActionLinks({
     return (
       <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600">
         <CheckSquare className="h-3 w-3" />
-        All completed
+        {t("actions.allCompleted")}
       </span>
     );
   }
@@ -105,21 +94,21 @@ function PendingActionLinks({
       show: needsFill,
       href: `/consultation/${consultationId}/note`,
       icon: FileText,
-      label: "Fill forms",
+      label: t("actions.fillForms"),
       color: "text-brand-700 hover:text-brand-900",
     },
     {
       show: needsValidate,
       href: `/consultation/${consultationId}/note`,
       icon: ClipboardList,
-      label: "Validate forms",
+      label: t("actions.validateForms"),
       color: "text-amber-700 hover:text-amber-900",
     },
     {
       show: needsSubmit,
       href: `/consultation/${consultationId}/note`,
       icon: CheckSquare,
-      label: "Submit forms",
+      label: t("actions.submitForms"),
       color: "text-emerald-700 hover:text-emerald-900",
     },
   ];
@@ -152,7 +141,6 @@ function PendingActionLinks({
 export function TodaySchedule({ items }: TodayScheduleProps) {
   const { t } = useTranslation();
 
-  // Limit to 8 items max (2-day schedule)
   const displayItems = items.slice(0, 8);
 
   return (
@@ -160,7 +148,7 @@ export function TodaySchedule({ items }: TodayScheduleProps) {
       <CardHeader className="flex-row items-center justify-between">
         <div className="flex items-center gap-2">
           <Calendar className="h-5 w-5 text-brand-700" />
-          <CardTitle>Today&apos;s Calendar</CardTitle>
+          <CardTitle>{t("dashboard.todaysCalendar")}</CardTitle>
         </div>
         <Link
           href="/calendar"
@@ -176,7 +164,7 @@ export function TodaySchedule({ items }: TodayScheduleProps) {
               <thead>
                 <tr className="border-b border-medical-border bg-slate-50/80">
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-medical-muted">
-                    Time
+                    {t("table.time")}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-medical-muted">
                     {t("table.patient")}
@@ -211,11 +199,11 @@ export function TodaySchedule({ items }: TodayScheduleProps) {
                         )}
                       </p>
                       <p className="text-xs text-medical-muted">
-                        {item.visit_type}
+                        {translateVisitType(item.visit_type, t)}
                       </p>
                     </td>
                     <td className="px-4 py-3 text-xs text-medical-muted">
-                      {item.diagnosis}
+                      {item.diagnosis || t("common.undocumented")}
                     </td>
                     <td className="px-4 py-3">
                       <RiskBadge risk={item.riskStatus} />

@@ -417,6 +417,46 @@ export const translations = {
     "settings.passwordsNoMatch": "Passwords do not match",
     "settings.passwordTooShort": "Password must be at least 8 characters",
 
+    // Risk levels
+    "risk.high": "High",
+    "risk.medium": "Medium",
+    "risk.low": "Low",
+    "risk.normal": "Normal",
+
+    // Pending action labels
+    "actions.fillForms": "Fill forms",
+    "actions.validateForms": "Validate forms",
+    "actions.submitForms": "Submit forms",
+    "actions.allCompleted": "All completed",
+
+    // Dashboard extra
+    "dashboard.todaysCalendar": "Today's Calendar",
+    "schedule.today": "Today",
+    "schedule.tomorrow": "Tomorrow",
+    "common.unnamedPatient": "Unnamed Patient",
+    "common.undocumented": "Undocumented",
+    "common.items": "items",
+    "common.consultations": "consultations",
+    "common.thisWeek": "this week",
+    "common.thisMonth": "this month",
+    "common.noConsultations": "No consultations",
+
+    // Priority queue
+    "priority.review": "Review",
+    "priority.rx": "Rx",
+    "priority.lab": "Lab",
+    "priority.callback": "Callback",
+    "priority.note": "Note",
+    "priority.openCase": "Open Case",
+
+    // Patient overview chart
+    "chart.patientOverview": "Patient Overview",
+    "chart.atRisk": "At Risk",
+    "chart.needsAttention": "Needs Attention",
+    "chart.allClear": "All Clear",
+    "chart.patients": "patients",
+    "chart.noPatientData": "No patient data",
+
     // Visit types
     "visit.generalVisit": "General Visit",
     "visit.followUp": "Follow-up",
@@ -722,7 +762,7 @@ export const translations = {
     "analytics.newVsReturning": "Noi vs Recurenți",
     "analytics.newThisMonth": "Noi luna aceasta",
     "analytics.returningThisMonth": "Recurenți luna aceasta",
-    "analytics.needingFollowUp": "Necesită follow-up",
+    "analytics.needingFollowUp": "Necesită urmărire",
     "analytics.noVisit30Days": "Fără vizită în 30+ zile",
     "analytics.diagnosisTrends": "Tendințe Diagnostic",
     "analytics.topDiagnoses": "Top diagnostice",
@@ -909,6 +949,46 @@ export const translations = {
     "settings.fillBothPasswords": "Te rugăm să completezi ambele câmpuri de parolă",
     "settings.passwordsNoMatch": "Parolele nu se potrivesc",
     "settings.passwordTooShort": "Parola trebuie să aibă cel puțin 8 caractere",
+
+    // Risk levels
+    "risk.high": "Ridicat",
+    "risk.medium": "Mediu",
+    "risk.low": "Scăzut",
+    "risk.normal": "Normal",
+
+    // Pending action labels
+    "actions.fillForms": "Completează formulare",
+    "actions.validateForms": "Validează formulare",
+    "actions.submitForms": "Trimite formulare",
+    "actions.allCompleted": "Toate completate",
+
+    // Dashboard extra
+    "dashboard.todaysCalendar": "Calendarul de Azi",
+    "schedule.today": "Azi",
+    "schedule.tomorrow": "Mâine",
+    "common.unnamedPatient": "Pacient Neidentificat",
+    "common.undocumented": "Nedocumentat",
+    "common.items": "elemente",
+    "common.consultations": "consultații",
+    "common.thisWeek": "săptămâna aceasta",
+    "common.thisMonth": "luna aceasta",
+    "common.noConsultations": "Nicio consultație",
+
+    // Priority queue
+    "priority.review": "Revizuire",
+    "priority.rx": "Rețetă",
+    "priority.lab": "Laborator",
+    "priority.callback": "Reapelare",
+    "priority.note": "Notă",
+    "priority.openCase": "Deschide Cazul",
+
+    // Patient overview chart
+    "chart.patientOverview": "Prezentare Generală Pacienți",
+    "chart.atRisk": "În Risc",
+    "chart.needsAttention": "Necesită Atenție",
+    "chart.allClear": "Totul în Ordine",
+    "chart.patients": "pacienți",
+    "chart.noPatientData": "Nu există date pacienți",
 
     // Visit types
     "visit.generalVisit": "Vizită Generală",
