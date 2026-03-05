@@ -490,8 +490,36 @@ export default function BookingPage() {
             </div>
           </section>
 
+          {/* Partner Booking */}
+          <section className="max-w-4xl mx-auto px-4 pt-12 pb-4">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Partner Appointments</h2>
+            <a
+              href="http://programarionline.ana-aslan.ro/ProgramariOnline/?sd=11/03/2026&ed=20/03/2026&ls=51&sp=19&m=423500000005152&tp=90&a=1&zi=&d=&c=0&ta=0&PacientId=&relid=&relname=&loc=&o=&op=&ss=2"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md hover:border-blue-200 transition-all group"
+            >
+              <div className="flex items-center gap-5">
+                <div className="w-14 h-14 rounded-xl bg-blue-50 flex items-center justify-center text-2xl shrink-0 group-hover:bg-blue-100 transition-colors">
+                  🏥
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-semibold text-gray-900 text-lg">Ana Aslan — Programări Online</h3>
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">HIPOCRATE</span>
+                  </div>
+                  <p className="text-sm text-gray-500">Psihiatrie · Ambulatoriu integrat Căldarușani · Dr. Purnichi Traian</p>
+                  <p className="text-xs text-blue-600 mt-1 group-hover:underline">Deschide sistemul de programări online →</p>
+                </div>
+                <svg className="w-5 h-5 text-gray-400 shrink-0 group-hover:text-blue-500 transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                </svg>
+              </div>
+            </a>
+          </section>
+
           {/* Feature cards */}
-          <section className="max-w-4xl mx-auto px-4 py-16">
+          <section className="max-w-4xl mx-auto px-4 py-12">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {[
                 { icon: "🔍", title: "Find your doctor", desc: "Search by specialty, location, or name across our network of verified clinics." },
