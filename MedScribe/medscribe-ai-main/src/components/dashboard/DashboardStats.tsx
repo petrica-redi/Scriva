@@ -263,7 +263,7 @@ export function DashboardStats({
                         <td className="px-6 py-3 text-xs text-medical-muted">
                           {item.pendingActions || "—"}
                         </td>
-                        <td className="px-6 py-3 text-xs text-medical-muted">
+                        <td className="px-6 py-3 text-xs text-medical-muted" suppressHydrationWarning>
                           {formatDateTime(item.created_at)}
                         </td>
                         <td className="px-6 py-3 text-right">

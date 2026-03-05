@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Sparkles } from "lucide-react";
@@ -12,18 +11,14 @@ interface DashboardGreetingProps {
 
 export function DashboardGreeting({ displayName }: DashboardGreetingProps) {
   const { t } = useTranslation();
-  const [greeting, setGreeting] = useState("");
 
-  useEffect(() => {
-    const hour = new Date().getHours();
-    setGreeting(
-      hour < 12
-        ? t("dashboard.greeting.morning")
-        : hour < 18
-          ? t("dashboard.greeting.afternoon")
-          : t("dashboard.greeting.evening")
-    );
-  }, [t]);
+  const hour = new Date().getHours();
+  const greeting =
+    hour < 12
+      ? t("dashboard.greeting.morning")
+      : hour < 18
+        ? t("dashboard.greeting.afternoon")
+        : t("dashboard.greeting.evening");
 
   return (
     <section className="glass-panel relative overflow-hidden rounded-3xl px-6 py-8 sm:px-8">
@@ -35,7 +30,7 @@ export function DashboardGreeting({ displayName }: DashboardGreetingProps) {
             <Sparkles className="h-3.5 w-3.5" />
             {t("dashboard.dailyCommandCenter")}
           </p>
-          <h1 className="dashboard-title text-4xl sm:text-5xl">
+          <h1 className="dashboard-title text-4xl sm:text-5xl" suppressHydrationWarning>
             {greeting}, {displayName.startsWith("Dr.") ? displayName : `Dr. ${displayName}`}
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-medical-muted sm:text-base">

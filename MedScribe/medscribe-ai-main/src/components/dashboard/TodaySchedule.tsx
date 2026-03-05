@@ -173,7 +173,7 @@ export function TodaySchedule({ items }: TodayScheduleProps) {
                 {displayItems.map((item) => (
                   <tr key={item.id} className="transition hover:bg-slate-50/70">
                     <td className="px-4 py-3">
-                      <span className="font-semibold text-medical-text text-sm">
+                      <span className="font-semibold text-medical-text text-sm" suppressHydrationWarning>
                         {formatTime(item.created_at)}
                       </span>
                     </td>
