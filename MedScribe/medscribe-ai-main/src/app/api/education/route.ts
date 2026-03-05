@@ -31,12 +31,13 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query.order("title", { ascending: true });
 
     if (error) {
-      return NextResponse.json({ error: "Failed to fetch education content" }, { status: 500 });
+      console.error("Education query error:", error);
+      return NextResponse.json({ data: [] });
     }
 
     return NextResponse.json({ data: data || [] });
   } catch (err) {
     console.error("Education GET error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ data: [] });
   }
 }

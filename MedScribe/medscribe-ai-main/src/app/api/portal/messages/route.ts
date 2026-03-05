@@ -34,13 +34,14 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: true });
 
     if (error) {
-      return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 });
+      console.error("Portal messages query error:", error);
+      return NextResponse.json({ data: [] });
     }
 
     return NextResponse.json({ data: messages || [] });
   } catch (err) {
     console.error("Portal messages GET error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ data: [] });
   }
 }
 
