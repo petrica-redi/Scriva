@@ -12,6 +12,7 @@ import { translateVisitType } from "@/lib/i18n/visitTypes";
 import { AudioVisualizer } from "@/components/consultation/AudioVisualizer";
 import { AIAssistantPanel } from "@/components/consultation/AIAssistantPanel";
 import { GoogleMeetEmbed } from "@/components/consultation/GoogleMeetEmbed";
+import { ClinicalDecisionSupport, CriteriaTracker } from "@/components/features";
 import type { ConsultationMode, ConsultationWithRelations } from "@/types";
 
 type RecordingPhase = "pre" | "recording" | "post";
@@ -584,6 +585,15 @@ export default function ConsultationRecordPage() {
                 visitType={consultationData?.visit_type}
                 patientName={patientName}
               />
+              <ClinicalDecisionSupport
+                consultationId={consultationId}
+                patientId={consultationData?.patient_id ?? undefined}
+                transcript={transcript.filter((t) => t.isFinal).map((t) => (t.speaker === 0 ? "Doctor" : "Patient") + ": " + t.text).join("\n")}
+                medications={[]}
+              />
+              <CriteriaTracker
+                transcript={transcript.filter((t) => t.isFinal).map((t) => t.text).join(" ")}
+              />
             </div>
           </div>
 
@@ -651,12 +661,23 @@ export default function ConsultationRecordPage() {
               </CardContent>
             </Card>
 
-            <AIAssistantPanel
-              transcript={transcript}
-              isRecording={false}
-              visitType={consultationData?.visit_type}
-              patientName={patientName}
-            />
+            <div className="space-y-4">
+              <AIAssistantPanel
+                transcript={transcript}
+                isRecording={false}
+                visitType={consultationData?.visit_type}
+                patientName={patientName}
+              />
+              <ClinicalDecisionSupport
+                consultationId={consultationId}
+                patientId={consultationData?.patient_id ?? undefined}
+                transcript={transcript.filter((t) => t.isFinal).map((t) => (t.speaker === 0 ? "Doctor" : "Patient") + ": " + t.text).join("\n")}
+                medications={[]}
+              />
+              <CriteriaTracker
+                transcript={transcript.filter((t) => t.isFinal).map((t) => t.text).join(" ")}
+              />
+            </div>
           </div>
 
           {sessionNotes.trim() && (

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { ReferralModal } from "@/components/referral/ReferralModal";
+import { SmartPrescriptionPanel } from "@/components/features/SmartPrescriptionPanel";
 
 interface Medication {
   name: string;
@@ -35,6 +36,8 @@ export default function PrescriptionPage() {
   const [showPreview, setShowPreview] = useState(false);
   const [referralOpen, setReferralOpen] = useState(false);
   const [patientName, setPatientName] = useState("");
+  const [diagnosisCode, setDiagnosisCode] = useState<string>("");
+  const [diagnosisName, setDiagnosisName] = useState<string>("");
   const [existingPrescriptions, setExistingPrescriptions] = useState<Array<{
     id: string;
     medications: Medication[];
@@ -44,18 +47,30 @@ export default function PrescriptionPage() {
 
   const supabase = createClient();
 
+  const [patientId, setPatientId] = useState<string | null>(null);
+  const [showFollowUpPrompt, setShowFollowUpPrompt] = useState(false);
+
   const loadConsultation = useCallback(async () => {
     const supabase = createClient();
     const { data } = await supabase
       .from("consultations")
-      .select("metadata")
+      .select("metadata, patient_id")
       .eq("id", consultationId)
       .single();
+    if (data?.patient_id) setPatientId(data.patient_id as string);
     if (data?.metadata) {
       const meta = data.metadata as Record<string, unknown>;
       if (typeof meta.patient_name === "string") setPatientName(meta.patient_name);
       if (Array.isArray(meta.prescriptions)) {
         setExistingPrescriptions(meta.prescriptions as typeof existingPrescriptions);
+      }
+      if (typeof meta.primary_diagnosis === "string") setDiagnosisName(meta.primary_diagnosis);
+      if (typeof meta.diagnosis_code === "string") setDiagnosisCode(meta.diagnosis_code);
+      if (Array.isArray(meta.billing_codes)) {
+        const firstIcd = (meta.billing_codes as Array<{ code?: string; system?: string }>).find(
+          (bc) => bc.system === "ICD-10" && bc.code
+        );
+        if (firstIcd?.code && !(meta.diagnosis_code as string)) setDiagnosisCode(firstIcd.code);
       }
     }
   }, [consultationId]);
@@ -71,6 +86,15 @@ export default function PrescriptionPage() {
   const removeMedication = (index: number) => {
     if (medications.length <= 1) return;
     setMedications((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSelectSmartMedication = (name: string) => {
+    const firstEmpty = medications.findIndex((m) => !m.name.trim());
+    if (firstEmpty >= 0) {
+      updateMed(firstEmpty, "name", name);
+    } else {
+      setMedications((prev) => [...prev, { ...emptyMed(), name }]);
+    }
   };
 
   const handleSave = async () => {
@@ -103,6 +127,7 @@ export default function PrescriptionPage() {
       }
 
       setSaved(true);
+      setShowFollowUpPrompt(!!patientId);
       loadConsultation();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save prescription");
@@ -113,6 +138,30 @@ export default function PrescriptionPage() {
 
   const handleDownloadPdf = () => {
     window.open(`/api/prescriptions/pdf?consultation_id=${consultationId}`, "_blank");
+  };
+
+  const handleCreateSuggestedFollowUp = async () => {
+    if (!patientId) return;
+    const due = new Date();
+    due.setDate(due.getDate() + 14);
+    try {
+      const res = await fetch("/api/follow-ups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          patient_id: patientId,
+          consultation_id: consultationId,
+          type: "medication_review",
+          title: "Medication review",
+          description: "Follow-up after prescription",
+          due_date: due.toISOString().split("T")[0],
+          priority: "medium",
+        }),
+      });
+      if (res.ok) setShowFollowUpPrompt(false);
+    } catch {
+      // ignore
+    }
   };
 
   return (
@@ -126,6 +175,25 @@ export default function PrescriptionPage() {
           ← Back
         </Button>
       </div>
+
+      {/* Suggested follow-up after save */}
+      {saved && showFollowUpPrompt && patientId && (
+        <Card className="border-brand-200 bg-brand-50/30">
+          <CardContent className="pt-4 pb-4 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-medical-text">
+              <strong>Suggested follow-up:</strong> Medication review in 2 weeks
+            </p>
+            <div className="flex gap-2">
+              <Button size="sm" variant="primary" onClick={handleCreateSuggestedFollowUp}>
+                Create follow-up
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setShowFollowUpPrompt(false)}>
+                Dismiss
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Existing Prescriptions */}
       {existingPrescriptions.length > 0 && (
@@ -162,6 +230,13 @@ export default function PrescriptionPage() {
           <h2 className="text-lg font-semibold text-medical-text">Add New Prescription</h2>
         </div>
       )}
+
+      {/* Smart Prescription */}
+      <SmartPrescriptionPanel
+        diagnosisCode={diagnosisCode || undefined}
+        diagnosisName={diagnosisName || undefined}
+        onSelectMedication={handleSelectSmartMedication}
+      />
 
       {/* Medications */}
       <div className="space-y-4">

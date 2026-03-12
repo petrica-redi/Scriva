@@ -1,0 +1,32 @@
+/** List of countries for "country of practice" (țara în care practică). */
+export const PRACTICE_COUNTRIES = [
+  "Romania",
+  "United Kingdom",
+  "Germany",
+  "France",
+  "Italy",
+  "Spain",
+  "Netherlands",
+  "Belgium",
+  "Austria",
+  "Switzerland",
+  "Ireland",
+  "Portugal",
+  "Poland",
+  "Hungary",
+  "Czech Republic",
+  "Greece",
+  "Sweden",
+  "Denmark",
+  "Norway",
+  "Finland",
+  "United States",
+  "Canada",
+  "Australia",
+  "Israel",
+  "United Arab Emirates",
+  "Saudi Arabia",
+  "Other",
+] as const;
+
+export type PracticeCountry = (typeof PRACTICE_COUNTRIES)[number];

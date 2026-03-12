@@ -81,3 +81,25 @@ export const createTemplateSchema = z.object({
 });
 
 export type CreateTemplateInput = z.infer<typeof createTemplateSchema>;
+
+// Follow-ups POST
+export const followUpsPostSchema = z.object({
+  patient_id: z.string().uuid("Invalid patient ID"),
+  consultation_id: z.string().uuid().optional(),
+  type: z.string().min(1, "Type is required").max(100),
+  title: z.string().min(1, "Title is required").max(500),
+  description: z.string().max(2000).optional(),
+  due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "due_date must be YYYY-MM-DD"),
+  priority: z.enum(["low", "medium", "high"]).optional(),
+});
+export type FollowUpsPostInput = z.infer<typeof followUpsPostSchema>;
+
+// Visit summaries POST
+export const visitSummariesPostSchema = z.object({
+  consultation_id: z.string().uuid("Invalid consultation ID"),
+  patient_id: z.string().uuid("Invalid patient ID"),
+  clinical_note_sections: z
+    .array(z.object({ title: z.string(), content: z.string() }))
+    .optional(),
+});
+export type VisitSummariesPostInput = z.infer<typeof visitSummariesPostSchema>;

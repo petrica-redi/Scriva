@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { visitSummariesPostSchema } from "@/lib/validators";
 import { generateWithFallback } from "@/lib/ai/provider";
 import { pseudonymize, dePseudonymize } from "@/lib/pseudonymize";
 import { NextRequest, NextResponse } from "next/server";
@@ -43,11 +44,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { consultation_id, patient_id, clinical_note_sections } = await request.json();
-
-    if (!consultation_id || !patient_id) {
-      return NextResponse.json({ error: "consultation_id and patient_id are required" }, { status: 400 });
+    const body = await request.json();
+    const parsed = visitSummariesPostSchema.safeParse(body);
+    if (!parsed.success) {
+      const msg = parsed.error.flatten().fieldErrors
+        ? Object.entries(parsed.error.flatten().fieldErrors)
+            .map(([k, v]) => `${k}: ${(v as string[])?.[0] ?? "invalid"}`)
+            .join("; ")
+        : "Validation failed";
+      return NextResponse.json({ error: msg, code: "VALIDATION_ERROR" }, { status: 400 });
     }
+    const { consultation_id, patient_id, clinical_note_sections } = parsed.data;
 
     // Generate patient-friendly summary from clinical note
     let summary_text = "";

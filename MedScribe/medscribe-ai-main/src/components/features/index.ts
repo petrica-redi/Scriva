@@ -1,5 +1,6 @@
 export { ClinicalDecisionSupport } from "./ClinicalDecisionSupport";
 export { PreVisitBrief } from "./PreVisitBrief";
+export { CriteriaTracker } from "./CriteriaTracker";
 export { VoiceCommandIndicator } from "./VoiceCommandIndicator";
 export { FollowUpManager } from "./FollowUpManager";
 export { VitalTracker } from "./VitalTracker";
@@ -9,3 +10,4 @@ export { TeamPanel } from "./TeamPanel";
 export { IntakeFormBuilder } from "./IntakeFormBuilder";
 export { AdvancedAnalyticsDashboard } from "./AdvancedAnalyticsDashboard";
 export { MultiLanguageSelector } from "./MultiLanguageSelector";
+export { SmartPrescriptionPanel } from "./SmartPrescriptionPanel";

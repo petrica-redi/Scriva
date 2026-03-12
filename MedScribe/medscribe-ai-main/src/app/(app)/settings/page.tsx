@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
+import { PRACTICE_COUNTRIES } from "@/lib/practiceCountries";
 
 const TAB_KEYS = [
   { key: "Profile", labelKey: "settings.profile" },
@@ -27,6 +28,7 @@ interface UserProfile {
   email: string;
   specialty: string | null;
   license_number: string | null;
+  practice_country: string | null;
   settings: {
     audio_quality?: "standard" | "high";
     silence_threshold?: number;
@@ -62,6 +64,7 @@ export default function SettingsPage() {
   const [email, setEmail] = useState("");
   const [specialty, setSpecialty] = useState("");
   const [licenseNumber, setLicenseNumber] = useState("");
+  const [practiceCountry, setPracticeCountry] = useState("");
 
   // Audio tab state
   const [audioQuality, setAudioQuality] = useState<"standard" | "high">(
@@ -116,6 +119,7 @@ export default function SettingsPage() {
           setEmail(userData.email || authUser.email || "");
           setSpecialty(userData.specialty || "");
           setLicenseNumber(userData.license_number || "");
+          setPracticeCountry(userData.practice_country || "");
           setAudioQuality(userData.settings?.audio_quality || "standard");
           setSilenceThreshold(userData.settings?.silence_threshold || 3);
           setDefaultTemplate(userData.settings?.default_template_id || "");
@@ -171,6 +175,7 @@ export default function SettingsPage() {
           full_name: fullName,
           specialty: specialty || null,
           license_number: licenseNumber || null,
+          practice_country: practiceCountry || null,
         })
         .eq("id", authUser.id);
 
@@ -369,6 +374,18 @@ export default function SettingsPage() {
               value={licenseNumber}
               onChange={(e) => setLicenseNumber(e.target.value)}
               placeholder={t("settings.enterLicense")}
+            />
+
+            <Select
+              id="practice_country"
+              label={t("settings.practiceCountry")}
+              value={practiceCountry}
+              onChange={(e) => setPracticeCountry(e.target.value)}
+              options={[
+                { value: "", label: t("auth.selectCountry") },
+                ...PRACTICE_COUNTRIES.map((c) => ({ value: c, label: c })),
+              ]}
+              placeholder={t("auth.selectCountry")}
             />
 
             <div className="flex gap-3 pt-4">

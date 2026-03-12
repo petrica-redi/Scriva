@@ -7,6 +7,7 @@ import { useTranslation } from "@/lib/i18n/context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { UserCheck, UserPlus } from "lucide-react";
+import { PreVisitBrief } from "@/components/features";
 import type { Consultation, Patient } from "@/types";
 
 const VISIT_TYPES = [
@@ -245,6 +246,11 @@ export default function NewConsultationPage() {
               ))}
             </select>
           </div>
+
+          {/* Pre-Visit Brief (when existing patient selected) */}
+          {selectedPatientId && (
+            <PreVisitBrief patientId={selectedPatientId} />
+          )}
 
           {/* Notes Textarea */}
           <div>

@@ -7,6 +7,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { Patient } from "@/types";
 
+type ScopeKey = "general" | "patient" | "icd";
+
+interface ChatMessage {
+  role: "user" | "assistant";
+  text: string;
+}
+
 interface ProviderStatus {
   anthropicConfigured: boolean;
   ollamaConfigured: boolean;
@@ -17,20 +24,26 @@ interface ProviderStatus {
   ollamaModel: string;
 }
 
+function getEmptyConversations(): Record<ScopeKey, ChatMessage[]> {
+  return { general: [], patient: [], icd: [] };
+}
+
 export default function AIAssistantPage() {
   const supabase = createClient();
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
-  const [scope, setScope] = useState<"general" | "patient" | "icd">("general");
+  const [scope, setScope] = useState<ScopeKey>("general");
   const [selectedPatientId, setSelectedPatientId] = useState("");
   const [selectedPatientName, setSelectedPatientName] = useState("");
   const [icdCode, setIcdCode] = useState("");
   const [patients, setPatients] = useState<Patient[]>([]);
   const [patientSearch, setPatientSearch] = useState("");
-  const [conversation, setConversation] = useState<{ role: "user" | "assistant"; text: string }[]>([]);
+  const [conversationsByScope, setConversationsByScope] = useState<Record<ScopeKey, ChatMessage[]>>(getEmptyConversations());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [providerStatus, setProviderStatus] = useState<ProviderStatus | null>(null);
+
+  const conversation = conversationsByScope[scope] ?? [];
 
   useEffect(() => {
     fetch("/api/ai/provider-status")
@@ -62,12 +75,16 @@ export default function AIAssistantPage() {
     setLoading(true);
 
     const userMessage = query.trim();
-    setConversation((prev) => [...prev, { role: "user", text: userMessage }]);
+    const activeScope = scope;
+    setConversationsByScope((prev) => ({
+      ...prev,
+      [activeScope]: [...(prev[activeScope] ?? []), { role: "user", text: userMessage }],
+    }));
     setQuery("");
 
     try {
       let contextInfo = "";
-      if (scope === "patient" && selectedPatientId) {
+      if (activeScope === "patient" && selectedPatientId) {
         const { data: consultations } = await supabase
           .from("consultations")
           .select("id, visit_type, status, created_at, metadata")
@@ -95,7 +112,7 @@ export default function AIAssistantPage() {
                 }`
             )
             .join("\n");
-      } else if (scope === "icd" && icdCode) {
+      } else if (activeScope === "icd" && icdCode) {
         contextInfo = `\n\nFocus on ICD-10 code: ${icdCode}. Provide clinical information about this diagnosis code, including typical presentation, workup, management, and coding guidelines.`;
       }
 
@@ -111,10 +128,16 @@ export default function AIAssistantPage() {
       }
 
       const data = await res.json();
-      setConversation((prev) => [...prev, { role: "assistant", text: data.response }]);
+      setConversationsByScope((prev) => ({
+        ...prev,
+        [activeScope]: [...(prev[activeScope] ?? []), { role: "assistant", text: data.response }],
+      }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to get AI response");
-      setConversation((prev) => prev.slice(0, -1));
+      setConversationsByScope((prev) => ({
+        ...prev,
+        [activeScope]: (prev[activeScope] ?? []).slice(0, -1),
+      }));
     } finally {
       setLoading(false);
     }
@@ -129,9 +152,13 @@ export default function AIAssistantPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `ai-assistant-${new Date().toISOString().split("T")[0]}.txt`;
+    a.download = `ai-assistant-${scope}-${new Date().toISOString().split("T")[0]}.txt`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleClearCurrentChat = () => {
+    setConversationsByScope((prev) => ({ ...prev, [scope]: [] }));
   };
 
   return (
@@ -161,7 +188,7 @@ export default function AIAssistantPage() {
         {conversation.length > 0 && (
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={handleExport}>{t("ai.exportConversation")}</Button>
-            <Button variant="outline" size="sm" onClick={() => setConversation([])}>{t("ai.clear")}</Button>
+            <Button variant="outline" size="sm" onClick={handleClearCurrentChat}>{t("ai.clear")}</Button>
           </div>
         )}
       </div>
@@ -252,9 +279,11 @@ export default function AIAssistantPage() {
                 <p className="mt-1 text-sm text-medical-muted">{t("ai.greetingDesc")}</p>
                 <div className="mt-4 flex flex-wrap justify-center gap-2">
                   {[
-                    "What are the differential diagnoses for chest pain?",
-                    "Summarize latest guidelines for hypertension management",
-                    "What medications interact with warfarin?",
+                    "Care sunt diagnosticele diferențiale pentru anxietate cu insomnie de 3 luni?",
+                    "Rezumat ghid NICE pentru depresie moderată (first-line)",
+                    "Echivalență doză sertralină → escitalopram",
+                    "Criterii DSM-5 pentru GAD și ce întrebări să pun pentru criteriul de timp",
+                    "Linia 1 Maudsley pentru GAD; pacientul a încercat deja sertralină",
                   ].map((q) => (
                     <button key={q} onClick={() => setQuery(q)} className="rounded-full border border-medical-border bg-white px-3 py-1.5 text-xs text-medical-muted transition hover:bg-blue-50 hover:text-blue-600">
                       {q}

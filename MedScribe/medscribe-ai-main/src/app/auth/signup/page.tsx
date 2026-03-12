@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useTranslation } from "@/lib/i18n/context";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
+import { PRACTICE_COUNTRIES } from "@/lib/practiceCountries";
 
 const SPECIALTIES = [
   // Mental Health & Healing
@@ -62,6 +63,7 @@ export default function SignUpPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [specialty, setSpecialty] = useState("");
+  const [practiceCountry, setPracticeCountry] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [confirmationSent, setConfirmationSent] = useState(false);
@@ -85,6 +87,7 @@ export default function SignUpPage() {
         data: {
           full_name: fullName,
           specialty,
+          practice_country: practiceCountry || undefined,
         },
       },
     });
@@ -219,6 +222,26 @@ export default function SignUpPage() {
             </div>
 
             <div>
+              <label htmlFor="practiceCountry" className="block text-sm font-semibold text-slate-700">
+                {t("auth.practiceCountry")}
+              </label>
+              <select
+                id="practiceCountry"
+                value={practiceCountry}
+                onChange={(e) => setPracticeCountry(e.target.value)}
+                disabled={loading}
+                className="mt-2 block w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 transition focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50"
+              >
+                <option value="">{t("auth.selectCountry")}</option>
+                {PRACTICE_COUNTRIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
               <label htmlFor="password" className="block text-sm font-semibold text-slate-700">
                 {t("auth.password")}
               </label>
@@ -243,7 +266,7 @@ export default function SignUpPage() {
 
             <button
               type="submit"
-              disabled={loading || !fullName || !email || !specialty || password.length < 8}
+              disabled={loading || !fullName || !email || !specialty || !practiceCountry || password.length < 8}
               className="w-full rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 font-semibold text-white transition duration-200 hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (

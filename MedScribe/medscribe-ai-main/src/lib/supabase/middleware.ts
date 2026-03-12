@@ -40,6 +40,7 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/api/clinics") ||
     request.nextUrl.pathname.startsWith("/api/bookings") ||
     request.nextUrl.pathname.startsWith("/api/waiting-room") ||
+    request.nextUrl.pathname.startsWith("/api/health") ||
     request.nextUrl.pathname.startsWith("/intake") ||
     request.nextUrl.pathname.startsWith("/api/intake/responses") ||
     request.nextUrl.pathname === "/rootCA.pem";

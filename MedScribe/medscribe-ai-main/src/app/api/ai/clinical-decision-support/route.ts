@@ -3,6 +3,8 @@ import { generateWithFallback } from "@/lib/ai/provider";
 import { enforceAIRateLimit } from "@/lib/ai/rate-limit";
 import { logAuditEvent } from "@/lib/audit";
 import { pseudonymize, dePseudonymize } from "@/lib/pseudonymize";
+import { getCountryGuidelinesPromptBlock } from "@/lib/guidelines-by-country";
+import { getDiagnosticCriteriaPromptBlock } from "@/lib/diagnostic-criteria";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -21,6 +23,13 @@ export async function POST(request: NextRequest) {
         { status: 429 }
       );
     }
+
+    const { data: profile } = await supabase
+      .from("users")
+      .select("practice_country")
+      .eq("id", user.id)
+      .single();
+    const countryGuidelinesBlock = getCountryGuidelinesPromptBlock(profile?.practice_country ?? undefined);
 
     const { transcript, medications, patient_history, consultation_id, patient_id } = await request.json();
 
@@ -50,20 +59,28 @@ export async function POST(request: NextRequest) {
 
     const systemPrompt = `You are a Clinical Decision Support system. Analyze the consultation and provide:
 
-1. DIFFERENTIAL DIAGNOSES: Based on symptoms discussed, provide ranked differential diagnoses with ICD-10 codes and confidence levels.
+1. DIFFERENTIAL DIAGNOSES: Base diagnoses on ICD-10 (and DSM where relevant) classification criteria only—not on treatment protocols. For each differential:
+   - Apply TIME criteria (e.g. GAD ≥6 months, major depression ≥2 weeks; acute vs chronic by duration).
+   - Apply SEVERITY and required number of symptoms (e.g. minimum physical/psychological manifestations where applicable).
+   - In "reasoning", state which criteria appear met and which are NOT documented or NOT met (e.g. "6-month duration criterion not documented", "insufficient somatic symptoms mentioned"). Lower confidence when criteria are missing.
+   Provide ranked differentials with ICD-10 codes and confidence levels.
+
 2. DRUG INTERACTIONS: Flag any potential drug interactions between current and discussed medications.
-3. GUIDELINE NUDGES: Suggest evidence-based clinical guidelines relevant to the presentation.
+
+3. GUIDELINE NUDGES: Suggest evidence-based clinical guidelines relevant to TREATMENT and follow-up (e.g. NICE, Maudsley Prescribing Guide, CANMAT). Cite source. Do not use treatment protocols as the basis for diagnosis—diagnosis comes from ICD/DSM criteria.
+
 4. RED FLAGS: Identify any concerning symptoms or findings that warrant urgent attention.
+
 5. MISSING SCREENINGS: Based on patient demographics and conditions, flag any overdue preventive screenings.
 
 Respond in JSON format:
 {
   "differentials": [{"diagnosis": "...", "icd10": "...", "confidence": 0.0-1.0, "reasoning": "..."}],
   "drug_interactions": [{"drugs": ["...", "..."], "severity": "critical|major|moderate|minor", "description": "...", "recommendation": "..."}],
-  "guideline_nudges": [{"guideline": "...", "source": "...", "relevance": "..."}],
+  "guideline_nudges": [{"guideline": "...", "source": "NICE|Maudsley|CANMAT|other evidence-based source", "relevance": "..."}],
   "red_flags": [{"finding": "...", "urgency": "immediate|urgent|routine", "recommended_action": "..."}],
   "missing_screenings": [{"screening": "...", "reason": "...", "guideline_source": "..."}]
-}`;
+}${getDiagnosticCriteriaPromptBlock()}${countryGuidelinesBlock}`;
 
     const aiResult = await generateWithFallback({
       systemPrompt,

@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
+import { followUpsPostSchema } from "@/lib/validators";
+import { apiError } from "@/lib/api-response";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -64,15 +66,20 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return apiError("Unauthorized", 401);
     }
 
     const body = await request.json();
-    const { patient_id, consultation_id, type, title, description, due_date, priority } = body;
-
-    if (!patient_id || !type || !title || !due_date) {
-      return NextResponse.json({ error: "patient_id, type, title, and due_date are required" }, { status: 400 });
+    const parsed = followUpsPostSchema.safeParse(body);
+    if (!parsed.success) {
+      const msg = parsed.error.flatten().fieldErrors
+        ? Object.entries(parsed.error.flatten().fieldErrors)
+            .map(([k, v]) => `${k}: ${(v as string[])?.[0] ?? "invalid"}`)
+            .join("; ")
+        : "Validation failed";
+      return apiError(msg, 400, "VALIDATION_ERROR");
     }
+    const { patient_id, consultation_id, type, title, description, due_date, priority } = parsed.data;
 
     const { data, error } = await supabase
       .from("follow_ups")
@@ -84,7 +91,7 @@ export async function POST(request: NextRequest) {
         title,
         description: description || null,
         due_date,
-        priority: priority || "medium",
+        priority: priority ?? "medium",
         status: "pending",
       })
       .select()

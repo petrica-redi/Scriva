@@ -39,6 +39,7 @@ import type {
 interface PageState {
   note: ClinicalNote | null;
   transcript: Transcript | null;
+  patientId: string | null;
   loading: boolean;
   error: string | null;
   saving: boolean;
@@ -52,6 +53,7 @@ export default function NoteEditorPage() {
   const [pageState, setPageState] = useState<PageState>({
     note: null,
     transcript: null,
+    patientId: null,
     loading: true,
     error: null,
     saving: false,
@@ -79,6 +81,13 @@ export default function NoteEditorPage() {
     const fetchData = async () => {
       try {
         setPageState((prev) => ({ ...prev, loading: true, error: null }));
+
+        // Fetch consultation for patient_id
+        const { data: consultationData } = await supabase
+          .from("consultations")
+          .select("patient_id")
+          .eq("id", id)
+          .single();
 
         // Fetch transcript
         const { data: transcriptData, error: transcriptError } = await supabase
@@ -119,12 +128,14 @@ export default function NoteEditorPage() {
             ...prev,
             note: typedNote,
             transcript: transcriptData as Transcript,
+            patientId: (consultationData as { patient_id?: string } | null)?.patient_id ?? null,
             loading: false,
           }));
         } else {
           setPageState((prev) => ({
             ...prev,
             transcript: transcriptData as Transcript,
+            patientId: (consultationData as { patient_id?: string } | null)?.patient_id ?? null,
             loading: false,
             error: "No clinical note found for this consultation.",
           }));
@@ -235,6 +246,23 @@ export default function NoteEditorPage() {
         note: prev.note ? { ...prev.note, status: newStatus } : null,
         saving: false,
       }));
+
+      // After finalizing: generate visit summary and surface follow-up CTA
+      if (newStatus === "finalized" && pageState.patientId && id) {
+        const sectionsForSummary = sections.map((s) => ({
+          title: s.title,
+          content: contentRef.current.get(s.title) ?? s.content,
+        }));
+        fetch("/api/visit-summaries", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            consultation_id: id,
+            patient_id: pageState.patientId,
+            clinical_note_sections: sectionsForSummary,
+          }),
+        }).catch(() => {});
+      }
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to update status";
@@ -630,9 +658,21 @@ export default function NoteEditorPage() {
           )}
 
           {isFinalized && (
-            <span className="inline-flex items-center rounded-lg bg-green-50 px-3 py-2 text-xs font-medium text-green-700">
-              Read-only
-            </span>
+            <>
+              <span className="inline-flex items-center rounded-lg bg-green-50 px-3 py-2 text-xs font-medium text-green-700">
+                Read-only
+              </span>
+              {pageState.patientId && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push(`/follow-ups?patient_id=${pageState.patientId}&consultation_id=${id}`)}
+                  title="Add a follow-up for this patient"
+                >
+                  Add follow-up
+                </Button>
+              )}
+            </>
           )}
         </div>
       </div>

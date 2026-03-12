@@ -4,6 +4,8 @@ import { enforceAIRateLimit } from "@/lib/ai/rate-limit";
 import { logAuditEvent } from "@/lib/audit";
 import { pseudonymize, dePseudonymize } from "@/lib/pseudonymize";
 import type { PatientInfo } from "@/lib/pseudonymize";
+import { getCountryGuidelinesPromptBlock } from "@/lib/guidelines-by-country";
+import { getDiagnosticCriteriaPromptBlock } from "@/lib/diagnostic-criteria";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -29,6 +31,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const { data: profile } = await supabase
+      .from("users")
+      .select("practice_country")
+      .eq("id", user.id)
+      .single();
+    const countryGuidelinesBlock = getCountryGuidelinesPromptBlock(profile?.practice_country ?? undefined);
+
     const { transcript, visitType, patientName } = await request.json();
 
     if (!transcript || transcript.trim().length === 0) {
@@ -42,6 +51,13 @@ export async function POST(request: NextRequest) {
 
     const systemPrompt = `You are an expert clinical decision support AI assisting a doctor during a live consultation. Analyze the doctor-patient conversation transcript and provide actionable clinical intelligence.
 
+DIAGNOSIS RULES (critical):
+- Base diagnoses on ICD-10 (and DSM where relevant) classification criteria only. Do NOT use treatment protocols or therapeutic guidelines as the source for diagnosis.
+- For each diagnosis, explicitly consider TIME criteria (e.g. GAD requires ≥6 months; major depression ≥2 weeks; acute psychotic episode vs schizophrenia by duration). State in reasoning if a required duration is not documented in the transcript.
+- For each diagnosis, consider SEVERITY and NUMBER of required symptoms (e.g. for GAD: required number of physical and psychological manifestations). State in reasoning if criteria are not yet met or not documented.
+- In "reasoning", briefly state which criteria appear met and which are missing or unclear (e.g. "6-month duration criterion not documented", "need to clarify number of somatic symptoms").
+- If information is insufficient to meet formal criteria, say so in reasoning and lower confidence; do not guess.
+
 You MUST respond with valid JSON only (no markdown, no code blocks). Use this exact structure:
 
 {
@@ -50,7 +66,7 @@ You MUST respond with valid JSON only (no markdown, no code blocks). Use this ex
       "name": "Diagnosis name",
       "icd10": "ICD-10 code if known",
       "confidence": 0.0 to 1.0,
-      "reasoning": "Brief clinical reasoning (1-2 sentences)"
+      "reasoning": "Brief clinical reasoning: which ICD/DSM criteria appear met or unmet (e.g. time, severity). Note if duration or severity criteria are not documented."
     }
   ],
   "followUpQuestions": [
@@ -93,21 +109,21 @@ You MUST respond with valid JSON only (no markdown, no code blocks). Use this ex
       "recommendation": "Specific recommendation for the doctor (e.g. monitor, adjust dose, avoid combination)"
     }
   ],
-  "differentialNotes": "Brief narrative (2-3 sentences) about the differential diagnosis thought process"
+  "differentialNotes": "Brief narrative (2-3 sentences) about the differential diagnosis thought process, including which criteria are met or still need clarification (duration, severity, somatic symptoms)."
 }
 
 Rules:
 - Base ALL analysis strictly on information in the transcript. Never invent symptoms or findings.
 - Order diagnoses by confidence (highest first). Include 3-6 potential diagnoses.
-- Suggest 5-8 follow-up questions the doctor hasn't asked yet, prioritized by clinical importance.
+- Suggest 5-8 follow-up questions the doctor hasn't asked yet. Always include questions to clarify: (1) DURATION of symptoms (e.g. "How long have these symptoms been present?"), (2) SEVERITY and frequency, (3) SOMATIZATION / physical symptoms (pain, paresthesia, tension, sleep, appetite) where relevant. Prioritize by clinical importance.
 - Red flags should only appear if there are genuinely concerning symptoms or presentations.
-- If information is insufficient, say so in differentialNotes rather than guessing.
+- If information is insufficient, say so in differentialNotes and in diagnosis reasoning rather than guessing.
 - Be specific and actionable.
 
 MEDICATION & DRUG INTERACTION RULES:
 - Extract ALL medications mentioned in the transcript.
 - Analyze clinically significant interactions.
-- If NO medications are mentioned, return empty arrays for medications and drugInteractions.`;
+- If NO medications are mentioned, return empty arrays for medications and drugInteractions.${getDiagnosticCriteriaPromptBlock()}${countryGuidelinesBlock}`;
 
     const userPrompt = `Analyze this live consultation transcript and provide clinical decision support.
 
