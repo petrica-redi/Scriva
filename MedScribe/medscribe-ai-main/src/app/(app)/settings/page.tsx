@@ -738,7 +738,7 @@ function MFASection({ supabase, toast }: { supabase: ReturnType<typeof createCli
     try {
       const { data, error } = await supabase.auth.mfa.enroll({
         factorType: "totp",
-        friendlyName: "MedScribe AI Authenticator",
+        friendlyName: "MedScribe Authenticator",
       });
       if (error) throw error;
       if (data) {
@@ -889,7 +889,7 @@ function DataPrivacySection({ supabase, toast }: { supabase: ReturnType<typeof c
         <CardHeader><CardTitle>Export Your Data</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-medical-muted">
-            Download a copy of all your data stored in MedScribe AI. This includes your profile, patients,
+            Download a copy of all your data stored in MedScribe. This includes your profile, patients,
             consultations, transcripts, clinical notes, and audit logs.
           </p>
           <div className="flex gap-3">
@@ -1157,7 +1157,7 @@ function DataProcessorsSection() {
             <p className="mt-1 text-sm text-amber-800">
               Under GDPR Article 28, a Data Processing Agreement (DPA) must be signed with each third-party processor
               before processing personal data in production. Contact each provider to execute their standard DPA before
-              deploying MedScribe AI with real patient data.
+              deploying MedScribe with real patient data.
             </p>
           </div>
         </div>

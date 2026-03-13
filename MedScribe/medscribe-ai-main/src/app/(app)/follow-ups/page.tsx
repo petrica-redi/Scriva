@@ -1,7 +1,7 @@
 import { FollowUpManager } from "@/components/features/FollowUpManager";
 
 export const metadata = {
-  title: "Follow-Ups - MedScribe AI",
+  title: "Follow-Ups - MedScribe",
   description: "Manage patient follow-ups and reminders",
 };
 

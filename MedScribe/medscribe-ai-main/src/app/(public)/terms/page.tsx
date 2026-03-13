@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Terms of Service — MedScribe AI",
+  title: "Terms of Service — MedScribe",
 };
 
 export default function TermsOfServicePage() {
@@ -19,7 +19,7 @@ export default function TermsOfServicePage() {
           <section>
             <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-3">1. Service Description</h2>
             <p>
-              MedScribe AI is a medical documentation platform that provides AI-powered transcription of medical
+              MedScribe is a medical documentation platform that provides AI-powered transcription of medical
               consultations, automated clinical note generation, patient record management, and clinical decision
               support tools. The Service is designed for licensed healthcare professionals.
             </p>
@@ -46,7 +46,7 @@ export default function TermsOfServicePage() {
                 provided as <strong>decision support tools only</strong> and are <strong>not a substitute for
                 professional clinical judgment</strong>. All AI output must be reviewed, verified, and approved
                 by a qualified healthcare professional before being used for patient care, medical records, or
-                billing purposes. MedScribe AI does not provide medical advice, diagnosis, or treatment.
+                billing purposes. MedScribe does not provide medical advice, diagnosis, or treatment.
               </p>
             </div>
           </section>
@@ -60,7 +60,7 @@ export default function TermsOfServicePage() {
               <li>Audio recordings will be transmitted to secure third-party transcription services</li>
               <li>Transcript data will be processed by AI models for clinical note generation</li>
               <li>All data is stored in encrypted databases (Supabase) with row-level security</li>
-              <li>You are the data controller for patient data; MedScribe AI acts as a data processor</li>
+              <li>You are the data controller for patient data; MedScribe acts as a data processor</li>
               <li>Our processing activities are described in detail in our <Link href="/privacy" className="text-blue-600 hover:underline">Privacy Policy</Link></li>
             </ul>
           </section>

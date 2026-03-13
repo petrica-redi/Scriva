@@ -169,19 +169,7 @@ export default function AIAssistantPage() {
           <p className="mt-1 text-sm text-medical-muted">{t("ai.subtitle")}</p>
           {providerStatus && (
             <p className="mt-2 text-xs text-medical-muted">
-              {t("ai.primary") + ":"} <span className="font-medium text-medical-text">{providerStatus.primary || "none"}</span>
-              {providerStatus.fallback && (
-                <>
-                  {" "}
-                  • {t("ai.fallback") + ":"} <span className="font-medium text-medical-text">{providerStatus.fallback}</span>
-                </>
-              )}
-              {providerStatus.primary === "ollama" && (
-                <>
-                  {" "}
-                  • {t("ai.model") + ":"} <span className="font-medium text-medical-text">{providerStatus.ollamaModel}</span>
-                </>
-              )}
+              Powered by <span className="font-medium text-medical-text">MedScribe</span>
             </p>
           )}
         </div>

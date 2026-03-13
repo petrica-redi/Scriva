@@ -161,7 +161,7 @@ export default function WaitingRoomPage() {
 
         {/* Footer */}
         <p className="text-center text-xs text-gray-400">
-          Powered by MedScribe AI · Secure & Private
+          Powered by MedScribe · Secure & Private
         </p>
       </div>
     </div>

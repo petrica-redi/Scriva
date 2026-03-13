@@ -13,8 +13,8 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "MedScribe AI",
-  description: "AI-powered clinical documentation — real-time transcription and diagnostic guidance",
+  title: "MedScribe",
+  description: "Clinical documentation powered by MedScribe — real-time transcription and diagnostic guidance",
 };
 
 export default function RootLayout({

@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Privacy Policy — MedScribe AI",
+  title: "Privacy Policy — MedScribe",
 };
 
 export default function PrivacyPolicyPage() {
@@ -19,7 +19,7 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-3">1. Introduction</h2>
             <p>
-              MedScribe AI (&quot;we&quot;, &quot;our&quot;, &quot;the Service&quot;) is a medical documentation platform that uses
+              MedScribe (&quot;we&quot;, &quot;our&quot;, &quot;the Service&quot;) is a medical documentation platform that uses
               artificial intelligence to assist healthcare professionals with clinical documentation. We are committed
               to protecting your personal data and complying with the General Data Protection Regulation (GDPR) and
               applicable data protection laws.
@@ -87,7 +87,7 @@ export default function PrivacyPolicyPage() {
           <section id="ai-transparency">
             <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-3">6. AI Transparency</h2>
             <p>
-              MedScribe AI uses artificial intelligence at multiple stages of clinical documentation.
+              MedScribe uses artificial intelligence at multiple stages of clinical documentation.
               We believe in full transparency about how AI is used and its limitations.
             </p>
             <h3 className="text-lg font-medium text-gray-900 mt-4 mb-2">6.1 AI Technologies Used</h3>
@@ -111,7 +111,7 @@ export default function PrivacyPolicyPage() {
             </ul>
             <h3 className="text-lg font-medium text-gray-900 mt-4 mb-2">6.3 Patient Notification</h3>
             <p>
-              Healthcare professionals using MedScribe AI are required to inform patients that AI technology is used
+              Healthcare professionals using MedScribe are required to inform patients that AI technology is used
               during the consultation for transcription and clinical analysis. Patient consent for AI-assisted
               processing is obtained alongside recording consent before each consultation begins.
             </p>

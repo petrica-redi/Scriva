@@ -49,14 +49,24 @@ export default function PrescriptionPage() {
 
   const [patientId, setPatientId] = useState<string | null>(null);
   const [showFollowUpPrompt, setShowFollowUpPrompt] = useState(false);
+  const [transcriptText, setTranscriptText] = useState("");
+  const [transcriptAvailable, setTranscriptAvailable] = useState(false);
 
   const loadConsultation = useCallback(async () => {
     const supabase = createClient();
-    const { data } = await supabase
-      .from("consultations")
-      .select("metadata, patient_id")
-      .eq("id", consultationId)
-      .single();
+    const [{ data }, { data: transcriptData }] = await Promise.all([
+      supabase
+        .from("consultations")
+        .select("metadata, patient_id")
+        .eq("id", consultationId)
+        .single(),
+      supabase
+        .from("transcripts")
+        .select("full_text, segments")
+        .eq("consultation_id", consultationId)
+        .maybeSingle(),
+    ]);
+
     if (data?.patient_id) setPatientId(data.patient_id as string);
     if (data?.metadata) {
       const meta = data.metadata as Record<string, unknown>;
@@ -73,6 +83,24 @@ export default function PrescriptionPage() {
         if (firstIcd?.code && !(meta.diagnosis_code as string)) setDiagnosisCode(firstIcd.code);
       }
     }
+
+    let resolvedTranscript = "";
+    if (typeof transcriptData?.full_text === "string" && transcriptData.full_text.trim()) {
+      resolvedTranscript = transcriptData.full_text;
+    } else if (Array.isArray(transcriptData?.segments) && transcriptData.segments.length > 0) {
+      resolvedTranscript = transcriptData.segments
+        .map((segment) => {
+          if (!segment || typeof segment !== "object") return "";
+          const speaker = typeof segment.speaker === "string" ? segment.speaker : "Unknown";
+          const text = typeof segment.text === "string" ? segment.text : "";
+          return text ? `[${speaker}]: ${text}` : "";
+        })
+        .filter(Boolean)
+        .join("\n");
+    }
+
+    setTranscriptText(resolvedTranscript);
+    setTranscriptAvailable(Boolean(resolvedTranscript.trim()));
   }, [consultationId]);
 
   useEffect(() => { loadConsultation(); }, [loadConsultation]);
@@ -140,6 +168,17 @@ export default function PrescriptionPage() {
     window.open(`/api/prescriptions/pdf?consultation_id=${consultationId}`, "_blank");
   };
 
+  const handleSaveTranscript = () => {
+    if (!transcriptText.trim()) return;
+    const blob = new Blob([transcriptText], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `transcript-${consultationId}-${new Date().toISOString().split("T")[0]}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleCreateSuggestedFollowUp = async () => {
     if (!patientId) return;
     const due = new Date();
@@ -194,6 +233,27 @@ export default function PrescriptionPage() {
           </CardContent>
         </Card>
       )}
+
+      <Card className="border-blue-200 bg-blue-50/30">
+        <CardContent className="pt-4 pb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-medical-text">Consultation Transcript</h2>
+            <p className="text-sm text-medical-muted mt-1">
+              {transcriptAvailable
+                ? "You can save the consultation transcript while preparing the prescription."
+                : "No saved transcript is available for this consultation yet."}
+            </p>
+          </div>
+          <Button
+            onClick={handleSaveTranscript}
+            variant="outline"
+            size="sm"
+            disabled={!transcriptAvailable}
+          >
+            Save Transcript
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Existing Prescriptions */}
       {existingPrescriptions.length > 0 && (

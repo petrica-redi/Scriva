@@ -1,5 +1,5 @@
 export const metadata = {
-  title: "MedScribe AI",
+  title: "MedScribe",
 };
 
 export default function PublicLayout({

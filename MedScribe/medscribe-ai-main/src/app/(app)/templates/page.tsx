@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { TemplatesView } from "@/components/templates/TemplatesView";
 
 export const metadata = {
-  title: "Note Templates - MedScribe AI",
+  title: "Note Templates - MedScribe",
   description: "Manage your clinical note templates",
 };
 

@@ -86,7 +86,7 @@ export function ClinicalDecisionSupport({ consultationId, patientId, transcript,
             </Button>
           </div>
           <p className="text-xs text-medical-muted mt-1">
-            AI-powered analysis for drug interactions, differential diagnoses, and clinical guidelines.
+            Powered by MedScribe for drug interactions, differential diagnoses, and clinical guidelines.
           </p>
         </CardContent>
       </Card>
