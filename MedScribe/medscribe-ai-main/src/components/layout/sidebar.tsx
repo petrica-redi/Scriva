@@ -8,6 +8,7 @@ import {
   ChartNoAxesCombined,
   ClipboardList,
   ClipboardPlus,
+  Database,
   FileText,
   LayoutDashboard,
   LogOut,
@@ -42,6 +43,7 @@ export function Sidebar({ isOpen, onClose, userEmail, onSignOut }: SidebarProps)
     { labelKey: 'nav.templates', href: '/templates', icon: FileText },
     { labelKey: 'nav.portal' as TranslationKey, href: '/portal', icon: MessageSquare },
     { labelKey: 'nav.followUps' as TranslationKey, href: '/follow-ups', icon: ClipboardList },
+    { labelKey: 'nav.admin' as TranslationKey, href: '/admin', icon: Database },
     { labelKey: 'nav.settings', href: '/settings', icon: Settings },
   ];
 

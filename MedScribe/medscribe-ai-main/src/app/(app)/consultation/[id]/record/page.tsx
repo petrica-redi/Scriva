@@ -13,7 +13,8 @@ import { AudioVisualizer } from "@/components/consultation/AudioVisualizer";
 import { AIAssistantPanel } from "@/components/consultation/AIAssistantPanel";
 import { GoogleMeetEmbed } from "@/components/consultation/GoogleMeetEmbed";
 import { ClinicalDecisionSupport, CriteriaTracker } from "@/components/features";
-import type { ConsultationMode, ConsultationWithRelations } from "@/types";
+import { NetworkStatusBanner } from "@/components/ui/NetworkStatusBanner";
+import type { ConsultationMode, ConsultationWithRelations, LiveTranscriptItem } from "@/types";
 
 type RecordingPhase = "pre" | "recording" | "post";
 
@@ -64,6 +65,8 @@ export default function ConsultationRecordPage() {
   const [selectedTemplate, setSelectedTemplate] = useState(TEMPLATES[0].value);
   const [isGeneratingNote, setIsGeneratingNote] = useState(false);
   const [sessionNotes, setSessionNotes] = useState("");
+  const [restoredTranscript, setRestoredTranscript] = useState<LiveTranscriptItem[]>([]);
+  const [savedDuration, setSavedDuration] = useState(0);
 
   const patientName: string | undefined =
     typeof consultationData?.metadata?.patient_name === "string"
@@ -117,6 +120,38 @@ export default function ConsultationRecordPage() {
         if (fetchError) throw new Error(fetchError.message || "Failed to load consultation");
         if (!data) throw new Error("Consultation not found");
         setConsultationData(data);
+
+        const completedStatuses = ["transcribed", "note_generated", "completed", "finalized"];
+        if (completedStatuses.includes(data.status)) {
+          const { data: transcriptData } = await supabase
+            .from("transcripts")
+            .select("segments, full_text")
+            .eq("consultation_id", consultationId)
+            .single();
+
+          if (transcriptData?.segments && Array.isArray(transcriptData.segments)) {
+            const restored: LiveTranscriptItem[] = transcriptData.segments.map(
+              (seg: { speaker?: string; text?: string; timestamp?: number; confidence?: number }) => ({
+                speaker: seg.speaker === "Doctor" ? 0 : 1,
+                text: seg.text || "",
+                timestamp: seg.timestamp || 0,
+                isFinal: true,
+                confidence: seg.confidence || 1,
+              })
+            );
+            setRestoredTranscript(restored);
+            setSavedDuration(data.recording_duration_seconds || 0);
+          }
+
+          if (data.metadata?.session_notes) {
+            setSessionNotes(data.metadata.session_notes);
+          }
+          if (data.metadata?.consultation_mode) {
+            setConsultationMode(data.metadata.consultation_mode);
+          }
+
+          setPhase("post");
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "An unexpected error occurred");
       } finally {
@@ -126,6 +161,22 @@ export default function ConsultationRecordPage() {
 
     loadConsultationAndAuth();
   }, [consultationId, supabase]);
+
+  // Prevent accidental data loss during recording
+  useEffect(() => {
+    if (!isRecording && phase !== "recording") return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "Recording in progress. Are you sure you want to leave?";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isRecording, phase]);
+
+  const displayTranscript = transcript.length > 0 ? transcript : restoredTranscript;
+  const displayDuration = duration > 0 ? duration : savedDuration;
 
   const handleStartRecording = async () => {
     setError("");
@@ -174,7 +225,6 @@ export default function ConsultationRecordPage() {
           updated_at: new Date().toISOString(),
         }, { onConflict: "consultation_id" });
 
-      // Update consultation with duration, status, and metadata
       await supabase
         .from("consultations")
         .update({
@@ -185,6 +235,7 @@ export default function ConsultationRecordPage() {
             consultation_mode: consultationMode,
             transcript_segments_count: finalSegments.length,
             transcript_saved_at: new Date().toISOString(),
+            session_notes: sessionNotes || null,
           },
         })
         .eq("id", consultationId);
@@ -200,7 +251,7 @@ export default function ConsultationRecordPage() {
     setIsGeneratingNote(true);
 
     try {
-      const transcriptText = transcript
+      const transcriptText = displayTranscript
         .filter((item) => item.isFinal)
         .map((item) => {
           const speaker = item.speaker === 0 ? "Doctor" : "Patient";
@@ -325,6 +376,7 @@ export default function ConsultationRecordPage() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 p-6">
+      <NetworkStatusBanner />
       {/* PHASE 1: PRE-RECORDING */}
       {phase === "pre" && (
         <div className="flex flex-col items-center gap-8 py-16">
@@ -522,25 +574,29 @@ export default function ConsultationRecordPage() {
 
           <AudioVisualizer audioLevel={audioLevel} isRecording={isRecording} isPaused={isPaused} duration={duration} />
 
-          {/* ===== Google Meet (remote mode) + Transcript + AI ===== */}
+          {/* ===== Remote mode: compact video call bar + transcript + AI all visible ===== */}
           {consultationMode === "remote" && (
-            <div className="grid gap-4 lg:grid-cols-2">
-              <GoogleMeetEmbed isRecording={isRecording} />
-              <Card className="border-purple-200 bg-purple-50/30">
-                <CardContent className="pt-4 pb-4">
-                  <h3 className="mb-2 text-xs font-semibold uppercase text-purple-700">
-                    🎙️ {t("record.stereoTitle")}
-                  </h3>
-                  <ul className="text-xs text-purple-800 leading-relaxed space-y-1">
-                    <li>• <strong>{t("record.channel1")}</strong>: {t("record.channel1Desc")}</li>
-                    <li>• <strong>{t("record.channel2")}</strong>: {t("record.channel2Desc")}</li>
-                    <li>• {t("record.channelsBoth")}</li>
-                  </ul>
-                  <p className="text-[11px] text-purple-600 mt-2">
-                    {t("record.tabSharingHint")}
-                  </p>
-                </CardContent>
-              </Card>
+            <div className="grid gap-3 lg:grid-cols-5">
+              <div className="lg:col-span-3">
+                <GoogleMeetEmbed isRecording={isRecording} />
+              </div>
+              <div className="lg:col-span-2">
+                <Card className="border-purple-200 bg-purple-50/30">
+                  <CardContent className="pt-4 pb-4">
+                    <h3 className="mb-2 text-xs font-semibold uppercase text-purple-700">
+                      {t("record.stereoTitle")}
+                    </h3>
+                    <ul className="text-xs text-purple-800 leading-relaxed space-y-1">
+                      <li>• <strong>{t("record.channel1")}</strong>: {t("record.channel1Desc")}</li>
+                      <li>• <strong>{t("record.channel2")}</strong>: {t("record.channel2Desc")}</li>
+                      <li>• {t("record.channelsBoth")}</li>
+                    </ul>
+                    <p className="text-[11px] text-purple-600 mt-2">
+                      {t("record.tabSharingHint")}
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           )}
 
@@ -622,14 +678,14 @@ export default function ConsultationRecordPage() {
             <div>
               <h2 className="text-2xl font-bold text-medical-text">{t("record.consultationComplete")}</h2>
               <p className="mt-2 text-medical-muted">
-                {t("record.duration")}: {formatDuration(duration)} &middot; {transcript.filter(t => t.isFinal).length} {t("record.segments")}
+                {t("record.duration")}: {formatDuration(displayDuration)} &middot; {displayTranscript.filter(t => t.isFinal).length} {t("record.segments")}
               </p>
             </div>
             <Button
               variant="outline"
               size="sm"
               onClick={() => {
-                const lines = transcript
+                const lines = displayTranscript
                   .filter((t) => t.isFinal)
                   .map((t) => {
                     const speaker = t.speaker === 0 ? "Doctor" : "Patient";
@@ -657,13 +713,13 @@ export default function ConsultationRecordPage() {
             <Card>
               <CardContent className="space-y-4 pt-6">
                 <h3 className="font-semibold text-medical-text">{t("record.transcriptReview")}</h3>
-                {renderTranscriptBubbles(transcript.filter(t => t.isFinal), "max-h-[500px]")}
+                {renderTranscriptBubbles(displayTranscript.filter(t => t.isFinal), "max-h-[500px]")}
               </CardContent>
             </Card>
 
             <div className="space-y-4">
               <AIAssistantPanel
-                transcript={transcript}
+                transcript={displayTranscript}
                 isRecording={false}
                 visitType={consultationData?.visit_type}
                 patientName={patientName}
@@ -671,11 +727,11 @@ export default function ConsultationRecordPage() {
               <ClinicalDecisionSupport
                 consultationId={consultationId}
                 patientId={consultationData?.patient_id ?? undefined}
-                transcript={transcript.filter((t) => t.isFinal).map((t) => (t.speaker === 0 ? "Doctor" : "Patient") + ": " + t.text).join("\n")}
+                transcript={displayTranscript.filter((t) => t.isFinal).map((t) => (t.speaker === 0 ? "Doctor" : "Patient") + ": " + t.text).join("\n")}
                 medications={[]}
               />
               <CriteriaTracker
-                transcript={transcript.filter((t) => t.isFinal).map((t) => t.text).join(" ")}
+                transcript={displayTranscript.filter((t) => t.isFinal).map((t) => t.text).join(" ")}
               />
             </div>
           </div>
@@ -735,7 +791,7 @@ export default function ConsultationRecordPage() {
               </div>
               <Button
                 onClick={handleGenerateNote}
-                disabled={isGeneratingNote || transcript.length === 0}
+                disabled={isGeneratingNote || displayTranscript.length === 0}
                 variant="primary"
                 size="lg"
                 className="w-full"

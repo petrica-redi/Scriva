@@ -75,7 +75,106 @@ export function useAudioRecorder({
   const chunksSentRef = useRef(0);
   const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
 
+  const reconnectAttemptsRef = useRef(0);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const intentionalCloseRef = useRef(false);
+  const dgKeyRef = useRef<string | null>(null);
+  const wsParamsRef = useRef<string>("");
+  const MAX_RECONNECT_ATTEMPTS = 5;
+
+  const reconnectWebSocket = useCallback(() => {
+    if (
+      intentionalCloseRef.current ||
+      !dgKeyRef.current ||
+      !wsParamsRef.current ||
+      reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS
+    ) {
+      return;
+    }
+
+    const attempt = ++reconnectAttemptsRef.current;
+    const delay = Math.min(1000 * Math.pow(2, attempt - 1), 16000);
+    setStreamingStatus(`reconnecting (attempt ${attempt}/${MAX_RECONNECT_ATTEMPTS})...`);
+
+    reconnectTimeoutRef.current = setTimeout(() => {
+      if (intentionalCloseRef.current) return;
+
+      const wsUrl = `wss://api.deepgram.com/v1/listen?${wsParamsRef.current}`;
+      const ws = new WebSocket(wsUrl, ["token", dgKeyRef.current as string]);
+      ws.binaryType = "arraybuffer";
+
+      const useMultichannel = isMultichannelRef.current;
+      const timeout = setTimeout(() => {
+        ws.close();
+        reconnectWebSocket();
+      }, 8000);
+
+      ws.onopen = () => {
+        clearTimeout(timeout);
+        wsRef.current = ws;
+        streamingRef.current = true;
+        setStreamingActive(true);
+        setStreamingStatus("streaming live (reconnected)");
+        setConnectionStatus("connected");
+        reconnectAttemptsRef.current = 0;
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(
+            typeof event.data === "string"
+              ? event.data
+              : new TextDecoder().decode(event.data)
+          );
+          if (data.type === "Results" && data.channel) {
+            const alt = data.channel.alternatives?.[0];
+            if (!alt || !alt.transcript) return;
+            const speaker = useMultichannel
+              ? (data.channel_index?.[0] ?? 0)
+              : (alt.words?.[0]?.speaker ?? 0);
+            const isFinal = data.is_final === true;
+            const item: LiveTranscriptItem = {
+              speaker,
+              text: alt.transcript,
+              timestamp: data.start ?? 0,
+              isFinal,
+              confidence: alt.confidence ?? 0,
+            };
+            if (isFinal && alt.transcript.trim()) {
+              setTranscript((prev) => {
+                const next = [...prev, item];
+                transcriptRef.current = next;
+                onTranscriptUpdate?.(next);
+                return next;
+              });
+            }
+          }
+        } catch { /* ignore */ }
+      };
+
+      ws.onerror = () => {
+        clearTimeout(timeout);
+      };
+
+      ws.onclose = () => {
+        streamingRef.current = false;
+        setStreamingActive(false);
+        if (!intentionalCloseRef.current) {
+          reconnectWebSocket();
+        }
+      };
+    }, delay);
+  }, [onTranscriptUpdate]);
+
   const cleanup = useCallback(() => {
+    intentionalCloseRef.current = true;
+
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+    reconnectAttemptsRef.current = 0;
+
     if (
       mediaRecorderRef.current &&
       mediaRecorderRef.current.state !== "inactive"
@@ -132,6 +231,7 @@ export function useAudioRecorder({
 
     setAudioLevel(0);
     setStreamingActive(false);
+    dgKeyRef.current = null;
   }, []);
 
   useEffect(() => {
@@ -272,6 +372,8 @@ export function useAudioRecorder({
     transcriptRef.current = [];
     chunksRef.current = [];
     chunksSentRef.current = 0;
+    intentionalCloseRef.current = false;
+    reconnectAttemptsRef.current = 0;
     setStreamingStatus("starting");
 
     try {
@@ -314,6 +416,7 @@ export function useAudioRecorder({
             const keyData = await keyRes.json();
             if (keyData.streaming_available && keyData.key) {
               dgKey = keyData.key.trim();
+              dgKeyRef.current = dgKey;
               setStreamingStatus("key obtained");
             } else {
               setStreamingStatus("key unavailable");
@@ -353,6 +456,7 @@ export function useAudioRecorder({
             : { diarize: "true" }),
         });
 
+        wsParamsRef.current = wsParams.toString();
         const wsUrl = `wss://api.deepgram.com/v1/listen?${wsParams}`;
 
         try {
@@ -432,6 +536,9 @@ export function useAudioRecorder({
                 setStreamingStatus(
                   `WebSocket closed: code=${e.code} reason=${e.reason || "none"}`
                 );
+              } else if (!intentionalCloseRef.current && e.code !== 1000) {
+                setStreamingStatus("connection lost, reconnecting...");
+                reconnectWebSocket();
               }
             };
           });
@@ -523,10 +630,16 @@ export function useAudioRecorder({
     startRemoteRecording,
     onError,
     onTranscriptUpdate,
+    reconnectWebSocket,
   ]);
 
   const stopRecording = useCallback(async () => {
     return new Promise<void>((resolve) => {
+      intentionalCloseRef.current = true;
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
       if (wsRef.current?.readyState === WebSocket.OPEN) {
         try {
           wsRef.current.send(JSON.stringify({ type: "CloseStream" }));

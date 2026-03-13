@@ -68,14 +68,37 @@ export default function NoteEditorPage() {
   const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const contentRef = useRef<Map<string, string>>(new Map());
 
+  const flushPendingSave = useCallback(async () => {
+    if (!saveTimerRef.current) return;
+    clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = null;
+
+    const noteId = pageState.note?.id;
+    if (!noteId || status === "finalized" || contentRef.current.size === 0) return;
+
+    const updatedSections = sections.map((section) => ({
+      ...section,
+      content: contentRef.current.get(section.title) || section.content,
+    }));
+
+    try {
+      await supabase
+        .from("clinical_notes")
+        .update({
+          sections: updatedSections,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", noteId);
+    } catch {
+      /* best-effort flush on unmount */
+    }
+  }, [pageState.note?.id, sections, status, supabase]);
+
   useEffect(() => {
     return () => {
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current);
-        saveTimerRef.current = null;
-      }
+      flushPendingSave();
     };
-  }, []);
+  }, [flushPendingSave]);
 
   useEffect(() => {
     const fetchData = async () => {
