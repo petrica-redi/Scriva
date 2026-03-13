@@ -1,3 +1,5 @@
+import { checkAIRateLimit } from "@/lib/rate-limit";
+
 export type AIProvider = "anthropic" | "ollama";
 
 export interface AICompletionRequest {
@@ -6,6 +8,8 @@ export interface AICompletionRequest {
   maxTokens?: number;
   temperature?: number;
   preferredProvider?: AIProvider | "auto";
+  /** User ID for rate limiting. If omitted, rate limiting is skipped. */
+  userId?: string;
 }
 
 export interface AICompletionResult {
@@ -120,6 +124,15 @@ async function callOllama(req: AICompletionRequest): Promise<{ text: string; mod
 }
 
 export async function generateWithFallback(req: AICompletionRequest): Promise<AICompletionResult> {
+  if (req.userId) {
+    const limit = checkAIRateLimit(req.userId, "anthropic");
+    if (!limit.allowed) {
+      throw new Error(
+        `Rate limit exceeded: maximum 5 AI requests per minute. Try again in ${Math.ceil(limit.resetInMs / 1000)}s.`
+      );
+    }
+  }
+
   const providerOrder = resolveProviderOrder(req.preferredProvider);
 
   if (providerOrder.length === 0) {
