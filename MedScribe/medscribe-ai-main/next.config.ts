@@ -17,6 +17,9 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "2mb",
     },
   },
+  // Unique per-build ID lets Next.js detect stale client bundles and trigger a
+  // full page reload instead of rendering mismatched chunks.
+  deploymentId: process.env.VERCEL_DEPLOYMENT_ID || `local-${Date.now()}`,
   outputFileTracingRoot: path.resolve(__dirname),
   redirects: async () => [
     // Browsers still request /favicon.ico as a fallback regardless of HTML <link>.
@@ -29,6 +32,18 @@ const nextConfig: NextConfig = {
     },
   ],
   headers: async () => [
+    // Prevent HTML pages from being served stale — ensures clients always
+    // fetch the latest deployment's page shell (which references current chunk hashes).
+    {
+      source: "/:path*",
+      has: [{ type: "header", key: "Accept", value: ".*text/html.*" }],
+      headers: [
+        {
+          key: "Cache-Control",
+          value: "no-cache, no-store, must-revalidate",
+        },
+      ],
+    },
     {
       source: "/(.*)",
       headers: [

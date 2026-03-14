@@ -2,6 +2,37 @@
 
 import { Component, type ErrorInfo, type ReactNode } from "react";
 
+const RELOAD_KEY = "scriva_eb_reload";
+const RELOAD_MAX = 2;
+
+function isStaleBundleError(error: Error): boolean {
+  const msg = error.message ?? "";
+  return (
+    msg.includes("Minified React error #310") ||
+    msg.includes("more hooks than during") ||
+    msg.includes("less hooks than during") ||
+    msg.includes("Minified React error #423") ||
+    msg.includes("Minified React error #418") ||
+    msg.includes("Loading chunk") ||
+    msg.includes("ChunkLoadError") ||
+    msg.includes("Failed to fetch dynamically imported module")
+  );
+}
+
+function tryAutoRecover(): boolean {
+  try {
+    const attempts = parseInt(sessionStorage.getItem(RELOAD_KEY) ?? "0", 10);
+    if (attempts >= RELOAD_MAX) return false;
+    sessionStorage.setItem(RELOAD_KEY, String(attempts + 1));
+    const url = new URL(window.location.href);
+    url.searchParams.set("_v", Date.now().toString());
+    window.location.replace(url.toString());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
@@ -23,7 +54,10 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Send to Sentry if available
+    if (isStaleBundleError(error) && tryAutoRecover()) {
+      return; // page is reloading with cache-busting param
+    }
+
     if (typeof window !== "undefined") {
       import("@sentry/nextjs")
         .then((Sentry) => {
@@ -31,9 +65,7 @@ export class ErrorBoundary extends Component<Props, State> {
             extra: { componentStack: errorInfo.componentStack },
           });
         })
-        .catch(() => {
-          // Sentry not available — ignore
-        });
+        .catch(() => {});
     }
   }
 
@@ -62,13 +94,16 @@ export class ErrorBoundary extends Component<Props, State> {
                 Something went wrong
               </h2>
               <p className="text-sm text-gray-600">
-                An unexpected error occurred. Please refresh the page or contact
-                support if the issue persists.
+                A new version of Scriva is available. Please refresh your
+                browser to continue.
               </p>
               <button
                 onClick={() => {
+                  try { sessionStorage.removeItem(RELOAD_KEY); } catch {}
                   this.setState({ hasError: false, error: undefined });
-                  window.location.reload();
+                  const url = new URL(window.location.href);
+                  url.searchParams.set("_v", Date.now().toString());
+                  window.location.replace(url.toString());
                 }}
                 className="inline-flex items-center gap-2 rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-teal-800"
               >
