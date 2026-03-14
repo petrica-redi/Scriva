@@ -35,7 +35,11 @@ export function useGoogleSignIn({
   const router = useRouter();
   const buttonRef = useRef<HTMLDivElement>(null);
   const scriptLoadedRef = useRef(false);
-  const initializedRef = useRef(false);
+  const buttonRenderedRef = useRef(false);
+  // Keep a stable ref so GIS always calls the latest handler (avoids stale closure)
+  const callbackRef = useRef<(response: { credential: string }) => Promise<void>>(
+    async () => undefined,
+  );
 
   const handleCredentialResponse = useCallback(
     async (response: { credential: string }) => {
@@ -60,44 +64,52 @@ export function useGoogleSignIn({
     [router, onError, onLoading],
   );
 
+  // Keep callbackRef current so GIS always calls the latest version
+  useEffect(() => {
+    callbackRef.current = handleCredentialResponse;
+  }, [handleCredentialResponse]);
+
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID) return;
 
-    function renderBtn() {
+    function initAndRender() {
       if (!window.google?.accounts?.id || !buttonRef.current) return;
-      if (initializedRef.current) return;
-      initializedRef.current = true;
 
+      // Always re-initialize so the callback is fresh
       window.google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
-        callback: handleCredentialResponse,
+        // Stable wrapper so GIS always calls the current closure
+        callback: (response: { credential: string }) => callbackRef.current(response),
         ux_mode: "popup",
       });
 
-      // Use a fixed width of 400 as fallback; GIS will cap at container width anyway
-      const width = buttonRef.current.offsetWidth || 400;
+      if (!buttonRenderedRef.current) {
+        buttonRenderedRef.current = true;
+        // Use a fixed width of 400 as fallback; GIS will cap at container width anyway
+        const width = buttonRef.current.offsetWidth || 400;
 
-      window.google.accounts.id.renderButton(buttonRef.current, {
-        theme: "outline",
-        size: "large",
-        width,
-        text: "continue_with",
-        shape: "rectangular",
-        logo_alignment: "left",
-      });
+        window.google.accounts.id.renderButton(buttonRef.current, {
+          theme: "outline",
+          size: "large",
+          width,
+          text: "continue_with",
+          shape: "rectangular",
+          logo_alignment: "left",
+        });
+      }
     }
 
     if (window.google?.accounts?.id) {
-      renderBtn();
+      initAndRender();
       return;
     }
 
-    // Script already added by another instance, poll for readiness
     if (scriptLoadedRef.current) {
+      // Script is loading — poll until ready
       const interval = setInterval(() => {
         if (window.google?.accounts?.id) {
           clearInterval(interval);
-          renderBtn();
+          initAndRender();
         }
       }, 100);
       return () => clearInterval(interval);
@@ -108,9 +120,10 @@ export function useGoogleSignIn({
     script.src = "https://accounts.google.com/gsi/client";
     script.async = true;
     script.defer = true;
-    script.onload = renderBtn;
+    script.onload = initAndRender;
     document.head.appendChild(script);
-  }, [handleCredentialResponse]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run once — callbackRef stays current via the effect above
 
   return { buttonRef };
 }
