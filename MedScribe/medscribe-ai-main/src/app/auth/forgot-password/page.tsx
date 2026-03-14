@@ -40,7 +40,7 @@ function ForgotPasswordForm() {
           <div className="mb-6 text-center">
             <h1 className="text-4xl font-bold text-slate-900">
               <span className="bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
-                MedScribe
+                Scriva
               </span>
             </h1>
           </div>
@@ -83,7 +83,7 @@ function ForgotPasswordForm() {
         <div className="mb-8 text-center">
           <h1 className="text-4xl font-bold text-slate-900">
             <span className="bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
-              MedScribe
+              Scriva
             </span>
           </h1>
           <p className="mt-2 text-slate-500">{t("auth.resetYourPassword")}</p>

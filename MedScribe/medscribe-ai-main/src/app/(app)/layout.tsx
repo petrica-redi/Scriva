@@ -5,7 +5,7 @@ import { ToastProvider } from '@/components/ui/toast';
 import { AppShell } from '@/components/layout/app-shell';
 
 export const metadata = {
-  title: 'MedScribe',
+  title: 'Scriva',
   description: 'Medical transcription and documentation AI',
 };
 

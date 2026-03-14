@@ -449,13 +449,13 @@ export default function ConsultationRecordPage() {
   // structurally but briefly overwrites the stored preference on each mount.
   const langLoadedRef = useRef(false);
   useEffect(() => {
-    const saved = localStorage.getItem("medscribe-last-language");
+    const saved = localStorage.getItem("scriva-last-language");
     if (saved && LANGUAGES.some((l) => l.value === saved)) setSelectedLanguage(saved);
     langLoadedRef.current = true;
   }, []);
   useEffect(() => {
     if (!langLoadedRef.current) return;
-    localStorage.setItem("medscribe-last-language", selectedLanguage);
+    localStorage.setItem("scriva-last-language", selectedLanguage);
   }, [selectedLanguage]);
 
   // Keyboard shortcuts during recording (Space = pause/resume)

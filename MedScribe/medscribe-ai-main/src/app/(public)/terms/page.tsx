@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Terms of Service — MedScribe",
+  title: "Terms of Service — Scriva",
 };
 
 export default function TermsOfServicePage() {
@@ -9,7 +9,7 @@ export default function TermsOfServicePage() {
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-3xl px-6 py-12">
         <Link href="/dashboard" className="text-sm text-blue-600 hover:underline mb-6 inline-block">
-          ← Back to MedScribe
+          ← Back to Scriva
         </Link>
 
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Terms of Service</h1>
@@ -19,7 +19,7 @@ export default function TermsOfServicePage() {
           <section>
             <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-3">1. Service Description</h2>
             <p>
-              MedScribe is a medical documentation platform that provides AI-powered transcription of medical
+              Scriva is a medical documentation platform that provides AI-powered transcription of medical
               consultations, automated clinical note generation, patient record management, and clinical decision
               support tools. The Service is designed for licensed healthcare professionals.
             </p>
@@ -46,7 +46,7 @@ export default function TermsOfServicePage() {
                 provided as <strong>decision support tools only</strong> and are <strong>not a substitute for
                 professional clinical judgment</strong>. All AI output must be reviewed, verified, and approved
                 by a qualified healthcare professional before being used for patient care, medical records, or
-                billing purposes. MedScribe does not provide medical advice, diagnosis, or treatment.
+                billing purposes. Scriva does not provide medical advice, diagnosis, or treatment.
               </p>
             </div>
           </section>
@@ -60,7 +60,7 @@ export default function TermsOfServicePage() {
               <li>Audio recordings will be transmitted to secure third-party transcription services</li>
               <li>Transcript data will be processed by AI models for clinical note generation</li>
               <li>All data is stored in encrypted databases (Supabase) with row-level security</li>
-              <li>You are the data controller for patient data; MedScribe acts as a data processor</li>
+              <li>You are the data controller for patient data; Scriva acts as a data processor</li>
               <li>Our processing activities are described in detail in our <Link href="/privacy" className="text-blue-600 hover:underline">Privacy Policy</Link></li>
             </ul>
           </section>
@@ -116,7 +116,7 @@ export default function TermsOfServicePage() {
         <div className="mt-12 pt-6 border-t border-gray-200 text-sm text-gray-500 flex gap-4">
           <Link href="/privacy" className="text-blue-600 hover:underline">Privacy Policy</Link>
           <span>·</span>
-          <Link href="/dashboard" className="text-blue-600 hover:underline">Back to MedScribe</Link>
+          <Link href="/dashboard" className="text-blue-600 hover:underline">Back to Scriva</Link>
         </div>
       </div>
     </div>

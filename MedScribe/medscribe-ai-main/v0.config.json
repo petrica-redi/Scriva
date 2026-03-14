@@ -74,7 +74,7 @@
     "src/components/ui/language-switcher.tsx"
   ],
   "notes": [
-    "This is a medical scribe SaaS — MedScribe. Clean, professional, clinical aesthetic.",
+    "This is a medical scribe SaaS — Scriva. Clean, professional, clinical aesthetic.",
     "Primary blue is brand-600 (#2563eb). Avoid bright or saturated accent colors.",
     "All tables use the same header/row pattern: bg-gray-50 header, hover:bg-gray-50 rows.",
     "Status badges use the custom StatusBadge component, not standard shadcn Badge.",

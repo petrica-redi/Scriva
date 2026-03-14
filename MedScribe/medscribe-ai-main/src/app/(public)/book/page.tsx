@@ -335,7 +335,7 @@ export default function BookingPage() {
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/" className="text-xl font-bold text-blue-600">MedScribe</Link>
+            <Link href="/" className="text-xl font-bold text-blue-600">Scriva</Link>
             {view !== "search" && (
               <button
                 onClick={() => setView("search")}

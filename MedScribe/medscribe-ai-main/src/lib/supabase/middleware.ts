@@ -6,7 +6,7 @@ import { NextResponse, type NextRequest } from "next/server";
  * to route handlers.  Middleware always strips any client-supplied value of this
  * header before the route handler runs, so handlers can safely trust it.
  */
-export const ROLE_HEADER = "x-medscribe-role";
+export const ROLE_HEADER = "x-scriva-role";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -74,9 +74,9 @@ export async function updateSession(request: NextRequest) {
   // ── Admin guard ────────────────────────────────────────────────────────────
   // Covers both the admin panel page (/admin/*) and admin API routes (/api/admin/*).
   //
-  // Security note: we always strip any client-supplied x-medscribe-role header
+  // Security note: we always strip any client-supplied x-scriva-role header
   // BEFORE the check, then inject it only after a successful DB verification.
-  // This prevents spoofing: a client cannot pass "x-medscribe-role: admin" and
+  // This prevents spoofing: a client cannot pass "x-scriva-role: admin" and
   // bypass the DB check because middleware removes it unconditionally first.
   const isAdminPage = pathname.startsWith("/admin");
   const isAdminApi  = pathname.startsWith("/api/admin");

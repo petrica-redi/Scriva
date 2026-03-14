@@ -147,7 +147,7 @@ export function useAudioBackup(): UseAudioBackupReturn {
     a.href = url;
     // Format: medscribe-<consultationId-short>-<date>.webm
     const dateStr = new Date(record.startedAt).toISOString().slice(0, 10);
-    a.download = `medscribe-${record.consultationId.slice(0, 8)}-${dateStr}.webm`;
+    a.download = `scriva-${record.consultationId.slice(0, 8)}-${dateStr}.webm`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

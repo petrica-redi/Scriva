@@ -320,7 +320,7 @@ export default function AnalyticsPage() {
   // Report generation
   const generateReport = () => {
     const lines: string[] = [];
-    lines.push("ANALYTICS REPORT — MedScribe");
+    lines.push("ANALYTICS REPORT — Scriva");
     lines.push(`Generated: ${new Date().toLocaleString()}`);
     lines.push("=".repeat(60));
     if (filterGender || filterVisitType || filterICD || filterPatientId || filterDateFrom || filterDateTo) {

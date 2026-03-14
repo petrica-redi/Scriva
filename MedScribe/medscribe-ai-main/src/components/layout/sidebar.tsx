@@ -69,7 +69,7 @@ export function Sidebar({ isOpen, onClose, userEmail, onSignOut }: SidebarProps)
             <ShieldAlert className="h-5 w-5" />
           </div>
           <div>
-            <p className="font-display text-xl leading-none text-medical-text">MedScribe</p>
+            <p className="font-display text-xl leading-none text-medical-text">Scriva</p>
             <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-brand-700">{t('sidebar.aiDocumentation')}</p>
           </div>
         </Link>

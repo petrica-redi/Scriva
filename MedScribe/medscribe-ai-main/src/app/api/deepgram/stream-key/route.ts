@@ -30,7 +30,7 @@ export async function POST() {
           Authorization: `Token ${apiKey}`,
         },
         body: JSON.stringify({
-          comment: `medscribe-session-${user.id.substring(0, 8)}`,
+          comment: `scriva-session-${user.id.substring(0, 8)}`,
           scopes: ["usage:write"],
           time_to_live_in_seconds: 300,
         }),

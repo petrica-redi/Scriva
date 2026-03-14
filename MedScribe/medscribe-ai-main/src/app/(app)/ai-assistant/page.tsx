@@ -170,7 +170,7 @@ export default function AIAssistantPage() {
           <p className="mt-1 text-sm text-medical-muted">{t("ai.subtitle")}</p>
           {providerStatus && (
             <p className="mt-2 text-xs text-medical-muted">
-              Powered by <span className="font-medium text-medical-text">MedScribe</span>
+              Powered by <span className="font-medium text-medical-text">Scriva</span>
             </p>
           )}
         </div>

@@ -561,12 +561,12 @@ export function AIAssistantPanel({
             {/* Last analyzed timestamp */}
             {/* AI Transparency disclaimer */}
             <div className="rounded-md bg-indigo-50 border border-indigo-100 px-3 py-2 text-[11px] text-indigo-700 leading-relaxed">
-              ⚡ Powered by MedScribe — always verify with clinical judgment. MedScribe suggestions are not a substitute for professional medical decisions.
+              ⚡ Powered by Scriva — always verify with clinical judgment. Scriva suggestions are not a substitute for professional medical decisions.
             </div>
 
             <p className="text-[10px] text-medical-muted text-right">
               Last analyzed: {new Date(analysis.analyzedAt).toLocaleTimeString()}
-              {" · "}MedScribe
+              {" · "}Scriva
             </p>
           </div>
         ) : loading ? (

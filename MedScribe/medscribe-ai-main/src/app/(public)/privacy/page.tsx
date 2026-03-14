@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Privacy Policy — MedScribe",
+  title: "Privacy Policy — Scriva",
 };
 
 export default function PrivacyPolicyPage() {
@@ -9,7 +9,7 @@ export default function PrivacyPolicyPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-3xl px-6 py-12">
         <Link href="/dashboard" className="text-sm text-blue-600 hover:underline mb-6 inline-block">
-          ← Back to MedScribe
+          ← Back to Scriva
         </Link>
 
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Privacy Policy</h1>
@@ -19,7 +19,7 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-3">1. Introduction</h2>
             <p>
-              MedScribe (&quot;we&quot;, &quot;our&quot;, &quot;the Service&quot;) is a medical documentation platform that uses
+              Scriva (&quot;we&quot;, &quot;our&quot;, &quot;the Service&quot;) is a medical documentation platform that uses
               artificial intelligence to assist healthcare professionals with clinical documentation. We are committed
               to protecting your personal data and complying with the General Data Protection Regulation (GDPR) and
               applicable data protection laws.
@@ -87,7 +87,7 @@ export default function PrivacyPolicyPage() {
           <section id="ai-transparency">
             <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-3">6. AI Transparency</h2>
             <p>
-              MedScribe uses artificial intelligence at multiple stages of clinical documentation.
+              Scriva uses artificial intelligence at multiple stages of clinical documentation.
               We believe in full transparency about how AI is used and its limitations.
             </p>
             <h3 className="text-lg font-medium text-gray-900 mt-4 mb-2">6.1 AI Technologies Used</h3>
@@ -111,7 +111,7 @@ export default function PrivacyPolicyPage() {
             </ul>
             <h3 className="text-lg font-medium text-gray-900 mt-4 mb-2">6.3 Patient Notification</h3>
             <p>
-              Healthcare professionals using MedScribe are required to inform patients that AI technology is used
+              Healthcare professionals using Scriva are required to inform patients that AI technology is used
               during the consultation for transcription and clinical analysis. Patient consent for AI-assisted
               processing is obtained alongside recording consent before each consultation begins.
             </p>
@@ -168,7 +168,7 @@ export default function PrivacyPolicyPage() {
         <div className="mt-12 pt-6 border-t border-gray-200 text-sm text-gray-500 flex gap-4">
           <Link href="/terms" className="text-blue-600 hover:underline">Terms of Service</Link>
           <span>·</span>
-          <Link href="/dashboard" className="text-blue-600 hover:underline">Back to MedScribe</Link>
+          <Link href="/dashboard" className="text-blue-600 hover:underline">Back to Scriva</Link>
         </div>
       </div>
     </div>

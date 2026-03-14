@@ -115,7 +115,7 @@ export function GoogleMeetEmbed({
       const top = window.screenY + 60;
       const win = window.open(
         url,
-        `MedScribe-Meet-${consultationId.substring(0, 8)}`,
+        `Scriva-Meet-${consultationId.substring(0, 8)}`,
         `width=${POPUP_W},height=${POPUP_H},left=${left},top=${top},resizable=yes,scrollbars=no,toolbar=no,menubar=no,location=yes,status=no`
       );
       if (win) {

@@ -20,8 +20,8 @@ interface UseOfflineSyncResult {
   clearQueue: () => void;
 }
 
-const STORAGE_KEY = "medscribe_offline_queue";
-const LAST_SYNC_KEY = "medscribe_last_sync";
+const STORAGE_KEY = "scriva_offline_queue";
+const LAST_SYNC_KEY = "scriva_last_sync";
 
 function getQueue(): OfflineQueueItem[] {
   if (typeof window === "undefined") return [];

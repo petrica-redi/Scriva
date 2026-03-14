@@ -10,7 +10,7 @@ import { TodaySchedule } from "@/components/dashboard/TodaySchedule";
 import { RecentConsultations } from "@/components/dashboard/RecentConsultations";
 
 export const metadata = {
-  title: "Dashboard - MedScribe",
+  title: "Dashboard - Scriva",
   description: "Clinical operations dashboard",
 };
 

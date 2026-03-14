@@ -13,8 +13,8 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "MedScribe",
-  description: "Clinical documentation powered by MedScribe — real-time transcription and diagnostic guidance",
+  title: "Scriva",
+  description: "Clinical documentation powered by Scriva — real-time transcription and diagnostic guidance",
 };
 
 export default function RootLayout({

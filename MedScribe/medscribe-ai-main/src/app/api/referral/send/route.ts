@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
 <head><meta charset="utf-8"><title>${escapeHtml(documentTitle)}</title></head>
 <body style="font-family: system-ui, -apple-system, sans-serif; line-height: 1.6; color: #1a1a1a; max-width: 700px; margin: 0 auto; padding: 24px;">
   <div style="border-bottom: 2px solid #2563eb; padding-bottom: 16px; margin-bottom: 24px;">
-    <h1 style="font-size: 20px; color: #1e40af; margin: 0 0 8px 0;">MedScribe — Referral</h1>
+    <h1 style="font-size: 20px; color: #1e40af; margin: 0 0 8px 0;">Scriva — Referral</h1>
     <p style="margin: 0; font-size: 13px; color: #6b7280;">
       ${referralContext.length > 0 ? referralContext.join(" &nbsp;|&nbsp; ") : "Clinical referral document"}
     </p>
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
   <h2 style="font-size: 16px; color: #1e40af; margin-bottom: 12px;">${escapeHtml(documentTitle)}</h2>
   <div style="white-space: pre-wrap; font-size: 14px;">${escapeHtml(documentContent).replace(/\n/g, "<br/>")}</div>
   <p style="margin-top: 32px; padding-top: 16px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #9ca3af;">
-    Sent via MedScribe Documentation — ${new Date().toISOString().slice(0, 10)}
+    Sent via Scriva Documentation — ${new Date().toISOString().slice(0, 10)}
   </p>
 </body>
 </html>`;

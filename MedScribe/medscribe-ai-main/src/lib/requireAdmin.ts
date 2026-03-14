@@ -4,7 +4,7 @@ import { ROLE_HEADER } from "@/lib/supabase/middleware";
  * Guard for admin-only API route handlers.
  *
  * The middleware in src/lib/supabase/middleware.ts already verifies the
- * caller's role against the database and injects `x-medscribe-role: admin`
+ * caller's role against the database and injects `x-scriva-role: admin`
  * into the forwarded request before the handler ever runs.  It also strips
  * any client-supplied value of that header, so trusting it here is safe.
  *

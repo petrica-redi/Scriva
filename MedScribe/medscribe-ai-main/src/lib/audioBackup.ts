@@ -30,7 +30,7 @@ export interface AudioBackupRecord {
   savedAt: number;
 }
 
-const DB_NAME = "medscribe-audio-backups";
+const DB_NAME = "scriva-audio-backups";
 const DB_VERSION = 1;
 const STORE = "recordings";
 const TTL_MS = 7 * 24 * 60 * 60 * 1_000; // 7 days
