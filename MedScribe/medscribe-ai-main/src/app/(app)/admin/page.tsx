@@ -378,10 +378,10 @@ export default function AdminPanel() {
                 {[
                   { standard: "SOAP Notes", status: "Active", desc: "Subjective, Objective, Assessment, Plan — structured note generation" },
                   { standard: "ICD-10 Coding", status: "Active", desc: "AI-suggested diagnostic codes with confidence scoring" },
-                  { standard: "CPT Coding", status: "Active", desc: "Procedure codes for billing — accept/reject workflow" },
+                  { standard: "ICD-10 Procedure Coding", status: "Active", desc: "Procedure codes for billing — accept/reject workflow" },
                   { standard: "HL7 FHIR R4", status: "Ready", desc: "FHIR export endpoint available — Composition, Patient, Encounter" },
-                  { standard: "ICD-10 / SNOMED", status: "Active", desc: "EU-standard diagnostic coding — ICD-10-CM codes with AI confidence scoring" },
-                  { standard: "GDPR / HIPAA", status: "Active", desc: "RLS, auth, audit log, data export/deletion, consent tracking (GDPR Art. 17 & 20)" },
+                  { standard: "EU Health Data Space (EHDS)", status: "Planned", desc: "EU regulation for cross-border health data sharing and secondary use" },
+                  { standard: "GDPR Compliance", status: "Active", desc: "RLS, auth, audit log, data export/deletion, consent tracking (Art. 17 & 20)" },
                   { standard: "NHS GP Connect", status: "Planned", desc: "CareConnect FHIR profiles for UK interoperability" },
                   { standard: "eHealth DSI (EU)", status: "Planned", desc: "EU cross-border patient summary and ePrescription interoperability" },
                 ].map((item) => (
