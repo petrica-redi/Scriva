@@ -254,9 +254,6 @@ export default function PatientsPage() {
           <p className="text-sm text-medical-muted mt-1">{t("patients.subtitle")}</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={() => window.open("/api/export/json", "_blank")}>
-            Export JSON
-          </Button>
           <Button variant="outline" size="sm" onClick={() => window.open("/api/export/pdf", "_blank")}>
             Export PDF
           </Button>

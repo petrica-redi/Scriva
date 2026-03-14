@@ -380,10 +380,10 @@ export default function AdminPanel() {
                   { standard: "ICD-10 Coding", status: "Active", desc: "AI-suggested diagnostic codes with confidence scoring" },
                   { standard: "CPT Coding", status: "Active", desc: "Procedure codes for billing — accept/reject workflow" },
                   { standard: "HL7 FHIR R4", status: "Ready", desc: "FHIR export endpoint available — Composition, Patient, Encounter" },
-                  { standard: "USCDI v5", status: "Partial", desc: "Clinical notes, medications, allergies, problems covered" },
-                  { standard: "HIPAA / GDPR", status: "Active", desc: "RLS, auth, audit log, data export/deletion, consent tracking" },
+                  { standard: "ICD-10 / SNOMED", status: "Active", desc: "EU-standard diagnostic coding — ICD-10-CM codes with AI confidence scoring" },
+                  { standard: "GDPR / HIPAA", status: "Active", desc: "RLS, auth, audit log, data export/deletion, consent tracking (GDPR Art. 17 & 20)" },
                   { standard: "NHS GP Connect", status: "Planned", desc: "CareConnect FHIR profiles for UK interoperability" },
-                  { standard: "SNOMED CT", status: "Planned", desc: "Standardized clinical terminology for diagnoses" },
+                  { standard: "eHealth DSI (EU)", status: "Planned", desc: "EU cross-border patient summary and ePrescription interoperability" },
                 ].map((item) => (
                   <div key={item.standard} className="rounded-lg border border-indigo-200 bg-white p-3">
                     <div className="flex items-center justify-between mb-1">
@@ -935,7 +935,7 @@ export default function AdminPanel() {
                     { label: "Audio Transcripts", count: stats.totalTranscripts, retention: "10 years (clinical record)", icon: "📝" },
                     { label: "Clinical Notes (SOAP)", count: stats.totalNotes, retention: "10 years minimum", icon: "📋" },
                     { label: "Prescriptions", count: stats.totalPrescriptions, retention: "10 years (pharmacy requirement)", icon: "💊" },
-                    { label: "Audit Trail", count: stats.totalAuditEntries, retention: "6 years (HIPAA/GDPR)", icon: "🔍" },
+                    { label: "Audit Trail", count: stats.totalAuditEntries, retention: "10 years (GDPR / EU medical law)", icon: "🔍" },
                   ].map((item) => (
                     <div key={item.label} className="flex items-center justify-between rounded-lg border border-medical-border p-3">
                       <div className="flex items-center gap-3">

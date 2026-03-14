@@ -161,9 +161,9 @@ export function DashboardStats({
               className="text-left"
             >
               <Card
-                className={`elev-card stagger-item border-white/70 transition-all duration-200 cursor-pointer hover:shadow-md ${
+                className={`surface-elevated stagger-item transition-all duration-200 cursor-pointer hover:shadow-lift ${
                   isActive
-                    ? "ring-2 ring-offset-1 ring-brand-400 shadow-lg"
+                    ? "ring-2 ring-offset-1 ring-brand-400"
                     : ""
                 }`}
                 style={{ animationDelay: `${idx * 70}ms` }}
