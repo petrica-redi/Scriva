@@ -204,6 +204,8 @@ export function AIAssistantPanel({
             <label className="flex items-center gap-1.5 text-xs text-medical-muted cursor-pointer">
               <input
                 type="checkbox"
+                id="auto-analyze"
+                name="auto-analyze"
                 checked={autoAnalyze}
                 onChange={(e) => setAutoAnalyze(e.target.checked)}
                 className="h-3 w-3 rounded border-gray-300 text-indigo-600"

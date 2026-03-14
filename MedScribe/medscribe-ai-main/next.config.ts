@@ -4,9 +4,11 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 const isDev = process.env.NODE_ENV !== "production";
 
-const scriptSrc = isDev
-  ? "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://accounts.google.com"
-  : "script-src 'self' 'unsafe-inline' https://accounts.google.com";
+// Sentry SDK uses eval() at runtime for source-map resolution.
+// 'unsafe-eval' is required for Sentry to work in production.
+// All other XSS protections remain active (no 'unsafe-inline' on scripts
+// would be ideal but Google Sign-In also needs inline scripts).
+const scriptSrc = "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://accounts.google.com";
 
 const nextConfig: NextConfig = {
   eslint: {
@@ -63,7 +65,7 @@ const nextConfig: NextConfig = {
             "style-src 'self' 'unsafe-inline'",
             "img-src 'self' data: blob: https://*.googleusercontent.com https://lh3.googleusercontent.com",
             "font-src 'self' https://fonts.gstatic.com",
-            "connect-src 'self' wss://*.supabase.co https://*.supabase.co wss://api.deepgram.com https://api.deepgram.com https://api.anthropic.com https://*.ingest.sentry.io wss://localhost:* http://localhost:* ws://10.211.55.3:* wss://10.211.55.3:* http://10.211.55.3:* https://10.211.55.3:* https://accounts.google.com https://oauth2.googleapis.com https://openidconnect.googleapis.com",
+            `connect-src 'self' wss://*.supabase.co https://*.supabase.co wss://api.deepgram.com https://api.deepgram.com https://api.anthropic.com https://*.ingest.sentry.io https://accounts.google.com https://oauth2.googleapis.com https://openidconnect.googleapis.com${isDev ? " wss://localhost:* http://localhost:* ws://10.211.55.3:* wss://10.211.55.3:* http://10.211.55.3:* https://10.211.55.3:*" : ""}`,
             "frame-src https://accounts.google.com",
             "media-src 'self' blob:",
           ].join("; "),

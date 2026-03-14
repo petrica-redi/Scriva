@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scriva — Brand &amp; Design Strategy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════ RESET & BASE ═══════════════════════ */
+:root {
+  --teal-50:#f0fdfa;--teal-100:#ccfbf1;--teal-200:#99f6e4;--teal-300:#5eead4;
+  --teal-400:#2dd4bf;--teal-500:#14b8a6;--teal-600:#0d9488;--teal-700:#0f766e;
+  --teal-800:#115e59;--teal-900:#134e4a;--teal-950:#042f2e;
+  --text:#0f172a;--text-secondary:#475569;--text-muted:#94a3b8;
+  --surface:#ffffff;--bg:#f8fafc;--border:#e2e8f0;
+  --success:#059669;--warning:#d97706;--danger:#dc2626;
+  --nav-h:64px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:80px}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;color:var(--text);background:#fff;
+  line-height:1.6;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+::selection{background:var(--teal-200);color:var(--teal-900)}
+
+/* ═══════════════════════ NAV ═══════════════════════ */
+.nav{position:fixed;top:0;left:0;right:0;height:var(--nav-h);background:rgba(255,255,255,0.85);
+  backdrop-filter:blur(20px) saturate(1.8);-webkit-backdrop-filter:blur(20px) saturate(1.8);
+  border-bottom:1px solid rgba(0,0,0,0.06);z-index:100;display:flex;align-items:center;padding:0 40px}
+.nav-brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;letter-spacing:-0.02em}
+.nav-links{display:flex;gap:4px;margin-left:auto}
+.nav-links a{font-size:13px;font-weight:500;color:var(--text-secondary);text-decoration:none;
+  padding:6px 14px;border-radius:8px;transition:all 0.2s}
+.nav-links a:hover{color:var(--text);background:var(--teal-50)}
+.nav-links a.active{color:var(--teal-700);background:var(--teal-50)}
+.nav-tag{font-size:10px;font-weight:600;color:var(--teal-700);background:var(--teal-50);
+  padding:3px 8px;border-radius:5px;margin-left:8px;letter-spacing:0.04em}
+
+/* ═══════════════════════ HERO ═══════════════════════ */
+.hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;
+  text-align:center;position:relative;overflow:hidden;
+  background:linear-gradient(165deg,var(--teal-950) 0%,#0c3a36 40%,var(--teal-800) 100%)}
+.hero::before{content:'';position:absolute;top:-200px;right:-200px;width:800px;height:800px;
+  background:radial-gradient(circle,rgba(20,184,166,0.15) 0%,transparent 70%);pointer-events:none}
+.hero::after{content:'';position:absolute;bottom:-300px;left:-200px;width:900px;height:900px;
+  background:radial-gradient(circle,rgba(13,148,136,0.1) 0%,transparent 70%);pointer-events:none}
+.hero-content{position:relative;z-index:2;padding:0 40px;max-width:800px}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.08);
+  border:1px solid rgba(255,255,255,0.1);border-radius:100px;padding:8px 20px;
+  font-size:12px;font-weight:500;color:var(--teal-300);letter-spacing:0.06em;margin-bottom:40px;
+  backdrop-filter:blur(10px)}
+.hero-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--teal-400);animation:pulse-dot 2s ease-in-out infinite}
+@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:0.4}}
+.hero-logo{margin-bottom:32px}
+.hero h1{font-size:clamp(56px,8vw,96px);font-weight:800;letter-spacing:-0.04em;color:#fff;
+  line-height:0.95;margin-bottom:24px}
+.hero h1 .accent{background:linear-gradient(135deg,var(--teal-300),var(--teal-400));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-sub{font-size:clamp(18px,2.5vw,22px);color:var(--teal-300);font-weight:400;
+  line-height:1.5;max-width:560px;margin:0 auto 56px}
+.hero-meta{display:flex;gap:32px;justify-content:center;flex-wrap:wrap}
+.hero-meta-item{text-align:center}
+.hero-meta-item .val{font-size:11px;font-weight:600;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.12em}
+.hero-meta-item .label{font-size:13px;color:var(--teal-300);font-weight:500;margin-top:4px}
+.scroll-hint{position:absolute;bottom:40px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;opacity:0.5}
+.scroll-hint span{font-size:11px;color:var(--teal-400);text-transform:uppercase;letter-spacing:0.15em;font-weight:500}
+.scroll-line{width:1px;height:40px;background:linear-gradient(to bottom,var(--teal-400),transparent);animation:scroll-pulse 2s ease-in-out infinite}
+@keyframes scroll-pulse{0%{opacity:0;transform:scaleY(0.3)}50%{opacity:1;transform:scaleY(1)}100%{opacity:0;transform:scaleY(0.3)}}
+
+/* ═══════════════════════ SECTIONS ═══════════════════════ */
+.section{padding:120px 0;position:relative}
+.section-alt{background:var(--bg)}
+.section-dark{background:var(--teal-950);color:white}
+.wrap{max-width:1120px;margin:0 auto;padding:0 40px}
+.sh{margin-bottom:64px}
+.sh-num{font-size:12px;font-weight:600;color:var(--teal-600);letter-spacing:0.1em;
+  text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:10px}
+.sh-num::after{content:'';flex:1;height:1px;background:var(--border);max-width:80px}
+.section-dark .sh-num{color:var(--teal-400)}
+.section-dark .sh-num::after{background:rgba(255,255,255,0.1)}
+.sh h2{font-size:clamp(32px,4vw,48px);font-weight:800;letter-spacing:-0.03em;line-height:1.1;margin-bottom:16px}
+.sh p{font-size:18px;color:var(--text-secondary);max-width:560px;line-height:1.6}
+.section-dark .sh p{color:var(--teal-300)}
+
+/* ═══════════════════════ STORY ═══════════════════════ */
+.story-grid{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center}
+.story-visual{position:relative;aspect-ratio:4/3;background:linear-gradient(135deg,var(--teal-50),var(--teal-100));
+  border-radius:24px;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.story-text h3{font-size:28px;font-weight:700;letter-spacing:-0.02em;margin-bottom:20px}
+.story-text p{font-size:16px;color:var(--text-secondary);margin-bottom:16px;line-height:1.7}
+.story-text .highlight{font-size:15px;color:var(--teal-700);font-weight:600;font-style:italic;
+  border-left:3px solid var(--teal-500);padding-left:16px;margin:24px 0}
+
+/* ═══════════════════════ LOGO ═══════════════════════ */
+.logo-showcase{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:48px}
+.logo-box{border-radius:20px;padding:56px 40px;display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;min-height:220px}
+.logo-box.light{background:var(--surface);border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+.logo-box.dark{background:var(--teal-950)}
+.logo-box .corner-label{position:absolute;top:16px;left:20px;font-size:10px;font-weight:600;
+  text-transform:uppercase;letter-spacing:0.12em;color:var(--text-muted)}
+.logo-box.dark .corner-label{color:var(--teal-400)}
+.logo-unit{display:flex;align-items:center;gap:16px}
+.logo-unit .brand-name{font-size:28px;font-weight:700;letter-spacing:-0.02em}
+.logo-unit .brand-sub{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.16em;margin-top:2px}
+
+.favicon-strip{display:flex;align-items:end;gap:32px;padding:40px;background:var(--surface);
+  border:1px solid var(--border);border-radius:20px;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+.fav-item{display:flex;flex-direction:column;align-items:center;gap:10px}
+.fav-label{font-size:11px;color:var(--text-muted);font-weight:500}
+
+.clearspace{margin-top:48px;padding:40px;background:var(--surface);border:1px solid var(--border);border-radius:20px}
+.clearspace h4{font-size:14px;font-weight:600;margin-bottom:8px}
+.clearspace p{font-size:14px;color:var(--text-secondary);margin-bottom:24px}
+.clearspace-demo{display:flex;align-items:center;justify-content:center;padding:48px;
+  background:var(--bg);border-radius:12px;position:relative}
+.clearspace-demo .guide{position:absolute;border:1px dashed var(--teal-300);border-radius:4px;
+  top:24px;right:24%;bottom:24px;left:24%}
+
+/* ═══════════════════════ COLORS ═══════════════════════ */
+.color-hero{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:48px}
+.color-hero-card{border-radius:20px;padding:32px;min-height:200px;display:flex;flex-direction:column;
+  justify-content:flex-end;position:relative;cursor:pointer;transition:transform 0.2s}
+.color-hero-card:hover{transform:translateY(-2px)}
+.color-hero-card .name{font-size:16px;font-weight:700}
+.color-hero-card .hex{font-size:13px;font-family:'JetBrains Mono',monospace;opacity:0.8;margin-top:4px}
+.color-hero-card .role{font-size:12px;opacity:0.7;margin-top:8px;line-height:1.5}
+
+.color-scale{display:flex;gap:4px;border-radius:16px;overflow:hidden;margin-bottom:48px;height:80px}
+.color-scale div{flex:1;position:relative;cursor:pointer;transition:flex 0.3s}
+.color-scale div:hover{flex:1.8}
+.color-scale div .tip{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);
+  font-size:9px;font-weight:600;white-space:nowrap;opacity:0;transition:opacity 0.2s;
+  font-family:'JetBrains Mono',monospace}
+.color-scale div:hover .tip{opacity:1}
+
+.semantic-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.semantic-chip{padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  display:flex;align-items:center;gap:12px;cursor:pointer;transition:all 0.2s}
+.semantic-chip:hover{border-color:var(--teal-300);box-shadow:0 2px 8px rgba(0,0,0,0.04)}
+.semantic-chip .dot{width:20px;height:20px;border-radius:6px;flex-shrink:0}
+.semantic-chip .info .name{font-size:12px;font-weight:600}
+.semantic-chip .info .val{font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text-muted)}
+
+/* ═══════════════════════ TYPOGRAPHY ═══════════════════════ */
+.type-hero{margin-bottom:64px}
+.type-hero .big-sample{font-size:clamp(48px,6vw,80px);font-weight:800;letter-spacing:-0.04em;
+  line-height:1;color:var(--teal-900);margin-bottom:24px}
+.type-hero .big-sample span{color:var(--teal-500)}
+.type-hero p{font-size:17px;color:var(--text-secondary);max-width:520px;line-height:1.7}
+.type-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.type-card{padding:28px;background:var(--surface);border:1px solid var(--border);border-radius:16px}
+.type-card .meta{display:flex;align-items:center;gap:8px;margin-bottom:16px}
+.type-card .tag{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;
+  color:var(--teal-700);background:var(--teal-50);padding:4px 10px;border-radius:6px}
+.type-card .spec{font-size:11px;color:var(--text-muted);font-family:'JetBrains Mono',monospace}
+
+/* ═══════════════════════ COMPONENTS ═══════════════════════ */
+.comp-block{padding:32px;background:var(--surface);border:1px solid var(--border);border-radius:20px;margin-bottom:24px}
+.comp-block h4{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:20px}
+.btn-row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:11px 22px;border-radius:12px;font-size:14px;font-weight:600;
+  border:none;cursor:pointer;transition:all 0.15s;font-family:'Inter',sans-serif}
+.btn-primary{background:var(--teal-700);color:#fff}
+.btn-primary:hover{background:var(--teal-800);box-shadow:0 4px 12px rgba(15,118,110,0.25)}
+.btn-outline{background:transparent;color:var(--text);border:1.5px solid var(--border)}
+.btn-outline:hover{border-color:var(--teal-500);color:var(--teal-700)}
+.btn-ghost{background:transparent;color:var(--text-secondary);padding:11px 16px}
+.btn-ghost:hover{background:var(--bg);color:var(--text)}
+.btn-danger{background:#fef2f2;color:#dc2626;border:1px solid #fecaca}
+.btn-sm{padding:7px 14px;font-size:13px;border-radius:9px}
+.btn-lg{padding:14px 28px;font-size:15px;border-radius:14px}
+
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.stat-card{padding:24px;background:var(--surface);border:1px solid var(--border);border-radius:16px;transition:all 0.2s}
+.stat-card:hover{box-shadow:0 8px 24px rgba(0,0,0,0.06);transform:translateY(-2px)}
+.stat-card .icon{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;font-size:18px}
+.stat-card .label{font-size:12px;font-weight:500;color:var(--text-muted);margin-bottom:4px}
+.stat-card .value{font-size:32px;font-weight:800;letter-spacing:-0.03em}
+
+.badge-grid{display:flex;gap:10px;flex-wrap:wrap}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:100px;font-size:12px;font-weight:600;border:1px solid transparent}
+.badge-gdpr{background:#f0fdf4;color:#166534;border-color:#bbf7d0}
+.badge-eu{background:#eff6ff;color:#1e40af;border-color:#bfdbfe}
+.badge-iso{background:#faf5ff;color:#6b21a8;border-color:#e9d5ff}
+.badge-fhir{background:var(--teal-50);color:var(--teal-800);border-color:var(--teal-200)}
+.status-row{display:flex;gap:8px;margin-top:16px}
+.status{padding:4px 12px;border-radius:8px;font-size:11px;font-weight:600}
+.status-active{background:#ecfdf5;color:#065f46}
+.status-pending{background:#fffbeb;color:#92400e}
+.status-draft{background:#f1f5f9;color:#475569}
+.input-demo{display:flex;gap:12px;align-items:center}
+.input-demo input{flex:1;padding:11px 16px;border:1.5px solid var(--border);border-radius:12px;
+  font-size:14px;font-family:'Inter',sans-serif;outline:none;transition:border-color 0.2s;background:var(--bg)}
+.input-demo input:focus{border-color:var(--teal-500);box-shadow:0 0 0 3px var(--teal-100)}
+
+/* ═══════════════════════ MOCKUP ═══════════════════════ */
+.mockup-wrapper{background:var(--bg);border-radius:20px;padding:24px;border:1px solid var(--border);
+  box-shadow:0 20px 60px rgba(0,0,0,0.08)}
+.mockup-bar{display:flex;gap:8px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.mockup-dot{width:10px;height:10px;border-radius:50%}
+.mockup-dot.red{background:#fca5a5}.mockup-dot.yellow{background:#fde68a}.mockup-dot.green{background:#86efac}
+.mockup-body{display:grid;grid-template-columns:220px 1fr;gap:20px;min-height:420px}
+.mockup-sidebar{background:var(--surface);border-radius:14px;padding:20px;border:1px solid var(--border)}
+.ms-brand{display:flex;align-items:center;gap:10px;margin-bottom:24px}
+.ms-name{font-size:15px;font-weight:700;letter-spacing:-0.01em}
+.ms-sub{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.14em;color:var(--teal-600)}
+.ms-nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;
+  font-size:13px;font-weight:500;color:var(--text-secondary);margin-bottom:4px}
+.ms-nav-item.active{background:var(--teal-50);color:var(--teal-700);font-weight:600}
+.ms-nav-icon{width:18px;height:18px;background:var(--bg);border-radius:5px}
+.ms-nav-item.active .ms-nav-icon{background:var(--teal-200)}
+.mockup-main{background:var(--surface);border-radius:14px;padding:24px;border:1px solid var(--border)}
+.mm-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+.mm-title{font-size:18px;font-weight:700;letter-spacing:-0.02em}
+.mm-btn{padding:8px 16px;background:var(--teal-700);color:#fff;border:none;border-radius:10px;
+  font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif}
+.mm-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px}
+.mm-stat{padding:16px;background:var(--bg);border-radius:12px}
+.mm-stat .ms-val{font-size:24px;font-weight:800;letter-spacing:-0.02em;color:var(--teal-700)}
+.mm-stat .ms-lab{font-size:11px;color:var(--text-muted);font-weight:500}
+.mm-table{width:100%;border-collapse:collapse}
+.mm-table th{text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;
+  letter-spacing:0.08em;color:var(--text-muted);padding:8px 12px;border-bottom:1px solid var(--border)}
+.mm-table td{font-size:13px;padding:10px 12px;border-bottom:1px solid var(--border);color:var(--text-secondary)}
+.mm-table .name-col{font-weight:600;color:var(--text)}
+
+/* ═══════════════════════ VOICE ═══════════════════════ */
+.voice-pair{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
+.voice-box{padding:28px;border-radius:16px;border:1px solid}
+.voice-do{background:#f0fdf4;border-color:#bbf7d0}
+.voice-dont{background:#fef2f2;border-color:#fecaca}
+.voice-box .voice-label{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:16px}
+.voice-do .voice-label{color:#166534}
+.voice-dont .voice-label{color:#991b1b}
+.voice-box p{font-size:14px;color:var(--text);margin-bottom:10px;line-height:1.6;padding-left:14px;border-left:2px solid rgba(0,0,0,0.06)}
+
+/* ═══════════════════════ POSITIONING ═══════════════════════ */
+.position-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.pos-card{padding:32px;border-radius:20px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08)}
+.pos-card .pos-icon{font-size:28px;margin-bottom:16px}
+.pos-card h4{font-size:17px;font-weight:700;margin-bottom:8px;color:#fff}
+.pos-card p{font-size:14px;color:var(--teal-300);line-height:1.6}
+.standards{padding:32px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;margin-top:48px}
+.standards h4{font-size:14px;font-weight:600;color:var(--teal-400);margin-bottom:16px;text-transform:uppercase;letter-spacing:0.06em}
+.standards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.std-item{display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(255,255,255,0.04);
+  border-radius:10px;font-size:13px;color:var(--teal-200);font-weight:500}
+.std-item .std-dot{width:8px;height:8px;border-radius:50%;background:var(--teal-500);flex-shrink:0}
+
+/* ═══════════════════════ MARKET ═══════════════════════ */
+.market-stat{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-bottom:64px}
+.m-stat{text-align:center;padding:32px 20px;background:var(--surface);border:1px solid var(--border);border-radius:20px}
+.m-stat .m-val{font-size:clamp(28px,3vw,40px);font-weight:800;letter-spacing:-0.03em;color:var(--teal-700)}
+.m-stat .m-label{font-size:13px;color:var(--text-secondary);margin-top:4px;line-height:1.4}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:40px}
+.timeline{position:relative;padding-left:32px}
+.timeline::before{content:'';position:absolute;left:7px;top:0;bottom:0;width:2px;background:var(--border)}
+.tl-item{position:relative;margin-bottom:32px}
+.tl-item::before{content:'';position:absolute;left:-28px;top:6px;width:12px;height:12px;
+  border-radius:50%;background:var(--teal-500);border:3px solid var(--teal-100)}
+.tl-item h4{font-size:14px;font-weight:700;margin-bottom:4px}
+.tl-item .tl-date{font-size:12px;color:var(--text-muted);font-weight:500;margin-bottom:4px}
+.tl-item p{font-size:14px;color:var(--text-secondary);line-height:1.6}
+
+/* ═══════════════════════ VALUES ═══════════════════════ */
+.values-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+.val-card{padding:32px 24px;background:var(--surface);border:1px solid var(--border);border-radius:20px;
+  text-align:center;transition:all 0.3s}
+.val-card:hover{transform:translateY(-4px);box-shadow:0 12px 32px rgba(0,0,0,0.06)}
+.val-card .val-icon{width:56px;height:56px;border-radius:16px;display:flex;align-items:center;
+  justify-content:center;margin:0 auto 20px;font-size:24px}
+.val-card h4{font-size:16px;font-weight:700;margin-bottom:8px}
+.val-card p{font-size:13px;color:var(--text-secondary);line-height:1.6}
+
+/* ═══════════════════════ SPACING ═══════════════════════ */
+.spacing-table{width:100%;border-collapse:collapse;background:var(--surface);border-radius:16px;
+  overflow:hidden;border:1px solid var(--border)}
+.spacing-table th{text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;
+  letter-spacing:0.08em;color:var(--text-muted);padding:14px 20px;background:var(--bg);border-bottom:1px solid var(--border)}
+.spacing-table td{padding:14px 20px;border-bottom:1px solid var(--border);font-size:14px}
+.spacing-table td:first-child{font-weight:600;font-size:13px}
+.spacing-table td:nth-child(2){font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--teal-700)}
+.sp-bar{height:8px;background:var(--teal-200);border-radius:4px;display:inline-block}
+.radius-row{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-top:40px}
+.radius-demo{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;text-align:center}
+.radius-demo .r-shape{width:64px;height:64px;background:var(--teal-100);border:2px solid var(--teal-400);margin:0 auto 12px}
+.radius-demo .r-val{font-size:14px;font-weight:700}
+.radius-demo .r-use{font-size:12px;color:var(--text-muted)}
+
+/* ═══════════════════════ FOOTER ═══════════════════════ */
+.footer{background:var(--teal-950);padding:80px 0;text-align:center;color:white}
+.footer p{font-size:14px;color:var(--teal-300);margin-bottom:8px}
+.footer .copy{font-size:12px;color:var(--teal-400);margin-top:24px}
+
+/* ═══════════════════════ ANIMATIONS ═══════════════════════ */
+.reveal{opacity:0;transform:translateY(24px);transition:opacity 0.6s ease,transform 0.6s ease}
+.reveal.visible{opacity:1;transform:translateY(0)}
+.copied-tooltip{position:fixed;top:20px;right:20px;background:var(--teal-900);color:#fff;
+  padding:10px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:200;
+  animation:toast-in 0.3s ease,toast-out 0.3s ease 1.2s forwards}
+@keyframes toast-in{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes toast-out{to{opacity:0;transform:translateY(-10px)}}
+
+/* ═══════════════════════ RESPONSIVE ═══════════════════════ */
+@media(max-width:900px){
+  .story-grid,.logo-showcase,.voice-pair,.type-grid,.grid-2{grid-template-columns:1fr}
+  .color-hero,.position-cards,.stat-grid,.mm-stats{grid-template-columns:1fr 1fr}
+  .values-grid,.market-stat{grid-template-columns:1fr 1fr}
+  .semantic-row,.standards-grid{grid-template-columns:1fr 1fr}
+  .mockup-body{grid-template-columns:1fr}.mockup-sidebar{display:none}
+  .nav-links{display:none}.radius-row{grid-template-columns:repeat(3,1fr)}
+}
+@media(max-width:600px){
+  .color-hero,.position-cards,.stat-grid,.values-grid,.market-stat{grid-template-columns:1fr}
+  .semantic-row,.standards-grid{grid-template-columns:1fr}
+  .wrap{padding:0 20px}.section{padding:80px 0}.nav{padding:0 20px}
+}
+@media print{.nav{display:none}.hero{min-height:auto;padding:80px 0}.section{padding:48px 0}
+  .reveal{opacity:1!important;transform:none!important}}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════ NAV ═══════════════════════ -->
+<nav class="nav">
+  <div class="nav-brand">
+    <svg width="28" height="28" viewBox="0 0 72 72" fill="none">
+      <rect x="4" y="4" width="64" height="64" rx="16" fill="var(--teal-700)"/>
+      <rect x="12" y="18" width="22" height="28" rx="3" fill="#fff" opacity="0.95"/>
+      <line x1="16" y1="26" x2="30" y2="26" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+      <line x1="16" y1="30" x2="27" y2="30" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+      <line x1="16" y1="34" x2="24" y2="34" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+      <line x1="16" y1="38" x2="28" y2="38" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+      <rect x="42" y="14" width="12" height="18" rx="6" fill="#fff" opacity="0.95"/>
+      <path d="M42 27 Q42 35 48 35 Q54 35 54 27" stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.7"/>
+      <line x1="48" y1="35" x2="48" y2="40" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+      <line x1="44" y1="40" x2="52" y2="40" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+      <circle cx="48" cy="54" r="9" fill="#fff" opacity="0.95"/>
+      <circle cx="48" cy="54" r="5.5" fill="#0f766e"/>
+      <circle cx="48" cy="54" r="2.5" fill="#fff" opacity="0.8"/>
+    </svg>
+    Scriva
+    <span class="nav-tag">v1.0</span>
+  </div>
+  <div class="nav-links">
+    <a href="#story">Story</a><a href="#logo">Logo</a><a href="#color">Color</a>
+    <a href="#type">Type</a><a href="#components">UI</a><a href="#voice">Voice</a>
+    <a href="#positioning">Compliance</a><a href="#market">Market</a>
+  </div>
+</nav>
+
+<!-- ═══════════════════════ HERO ═══════════════════════ -->
+<section class="hero" id="top">
+  <div class="hero-content">
+    <div class="hero-badge"><span class="dot"></span> BRAND &amp; DESIGN STRATEGY</div>
+    <div class="hero-logo">
+      <svg width="120" height="120" viewBox="0 0 72 72" fill="none">
+        <rect x="4" y="4" width="64" height="64" rx="16" fill="rgba(255,255,255,0.1)"/>
+        <rect x="12" y="18" width="22" height="28" rx="3" fill="#fff" opacity="0.9"/>
+        <line x1="16" y1="26" x2="30" y2="26" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+        <line x1="16" y1="30" x2="27" y2="30" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+        <line x1="16" y1="34" x2="24" y2="34" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+        <line x1="16" y1="38" x2="28" y2="38" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+        <rect x="42" y="14" width="12" height="18" rx="6" fill="#fff" opacity="0.9"/>
+        <path d="M42 27 Q42 35 48 35 Q54 35 54 27" stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.6"/>
+        <line x1="48" y1="35" x2="48" y2="40" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+        <line x1="44" y1="40" x2="52" y2="40" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+        <circle cx="48" cy="54" r="9" fill="#fff" opacity="0.9"/>
+        <circle cx="48" cy="54" r="5.5" fill="var(--teal-700)"/>
+        <circle cx="48" cy="54" r="2.5" fill="#fff" opacity="0.8"/>
+      </svg>
+    </div>
+    <h1>Scriva<br><span class="accent">Clinical AI</span></h1>
+    <p class="hero-sub">Identity system and design strategy for Europe's clinical AI documentation platform.</p>
+    <div class="hero-meta">
+      <div class="hero-meta-item"><div class="val">Domain</div><div class="label">scriva.doctor</div></div>
+      <div class="hero-meta-item"><div class="val">Market</div><div class="label">European Union</div></div>
+      <div class="hero-meta-item"><div class="val">Version</div><div class="label">1.0 — March 2026</div></div>
+      <div class="hero-meta-item"><div class="val">Regulation</div><div class="label">GDPR · EHDS</div></div>
+    </div>
+  </div>
+  <div class="scroll-hint"><span>Scroll</span><div class="scroll-line"></div></div>
+</section>
+
+<!-- ═══════════════════════ 01 · BRAND STORY ═══════════════════════ -->
+<section class="section" id="story">
+  <div class="wrap">
+    <div class="story-grid reveal">
+      <div class="story-visual">
+        <div style="display:flex;align-items:center;gap:20px">
+          <svg width="72" height="72" viewBox="0 0 72 72" fill="none">
+            <rect x="4" y="4" width="64" height="64" rx="16" fill="var(--teal-700)"/>
+            <rect x="12" y="18" width="22" height="28" rx="3" fill="#fff" opacity="0.95"/>
+            <line x1="16" y1="26" x2="30" y2="26" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+            <line x1="16" y1="30" x2="27" y2="30" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+            <line x1="16" y1="34" x2="24" y2="34" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+            <line x1="16" y1="38" x2="28" y2="38" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+            <rect x="42" y="14" width="12" height="18" rx="6" fill="#fff" opacity="0.95"/>
+            <path d="M42 27 Q42 35 48 35 Q54 35 54 27" stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.7"/>
+            <line x1="48" y1="35" x2="48" y2="40" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+            <line x1="44" y1="40" x2="52" y2="40" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+            <circle cx="48" cy="54" r="9" fill="#fff" opacity="0.95"/>
+            <circle cx="48" cy="54" r="5.5" fill="#0f766e"/>
+            <circle cx="48" cy="54" r="2.5" fill="#fff" opacity="0.8"/>
+          </svg>
+          <div style="font-size:48px;font-weight:800;letter-spacing:-0.03em;color:var(--teal-900)">Scriva</div>
+        </div>
+      </div>
+      <div class="story-text">
+        <div class="sh">
+          <div class="sh-num">01 &mdash; Brand Story</div>
+          <h2>Voice becomes<br>documentation.</h2>
+        </div>
+        <p><strong>Scriva</strong> comes from the Latin <em>scriba</em> — the trusted scribe who recorded proceedings with precision and discretion. Across Europe the root resonates: <em>scrivere</em> (IT), <em>escrever</em> (PT), <em>escribir</em> (ES).</p>
+        <div class="highlight">"The doctor speaks. Scriva writes."</div>
+        <p>We exist to give European clinicians their time back. Every consultation recorded, every clinical note generated — with AI that's GDPR-native, not US-first with EU compliance bolted on.</p>
+        <p>The mark combines three elements of the workflow: a <strong>document</strong> (the output), a <strong>microphone</strong> (the input), and a <strong>stethoscope disc</strong> (the medical context).</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ 01b · VALUES ═══════════════════════ -->
+<section class="section section-alt">
+  <div class="wrap">
+    <div class="sh reveal">
+      <div class="sh-num">01b &mdash; Brand Values</div>
+      <h2>Four principles.</h2>
+      <p>Every design and product decision flows from these.</p>
+    </div>
+    <div class="values-grid reveal">
+      <div class="val-card">
+        <div class="val-icon" style="background:var(--teal-50)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--teal-700)" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <h4>Trust</h4>
+        <p>GDPR-native. EU data residency. Doctors trust us with their most sensitive data.</p>
+      </div>
+      <div class="val-card">
+        <div class="val-icon" style="background:#eff6ff">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        </div>
+        <h4>Clarity</h4>
+        <p>No jargon. No clutter. Every screen understood in two seconds.</p>
+      </div>
+      <div class="val-card">
+        <div class="val-icon" style="background:#faf5ff">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        </div>
+        <h4>Precision</h4>
+        <p>Medical-grade accuracy. Every word matters. Every transcript is verifiable.</p>
+      </div>
+      <div class="val-card">
+        <div class="val-icon" style="background:#fefce8">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ca8a04" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+        </div>
+        <h4>European</h4>
+        <p>Built for EU regulations, languages, and healthcare workflows from day one.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ 02 · LOGO ═══════════════════════ -->
+<section class="section" id="logo">
+  <div class="wrap">
+    <div class="sh reveal">
+      <div class="sh-num">02 &mdash; Logo System</div>
+      <h2>The mark.</h2>
+      <p>Three elements of clinical AI transcription — document, microphone, stethoscope — unified in a rounded square. Paired with the Scriva wordmark in Inter 700.</p>
+    </div>
+
+    <div class="logo-showcase reveal">
+      <div class="logo-box light">
+        <span class="corner-label">Light</span>
+        <div class="logo-unit">
+          <svg width="52" height="52" viewBox="0 0 72 72" fill="none">
+            <rect x="4" y="4" width="64" height="64" rx="16" fill="var(--teal-700)"/>
+            <rect x="12" y="18" width="22" height="28" rx="3" fill="#fff" opacity="0.95"/>
+            <line x1="16" y1="26" x2="30" y2="26" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+            <line x1="16" y1="30" x2="27" y2="30" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+            <line x1="16" y1="34" x2="24" y2="34" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+            <line x1="16" y1="38" x2="28" y2="38" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+            <rect x="42" y="14" width="12" height="18" rx="6" fill="#fff" opacity="0.95"/>
+            <path d="M42 27 Q42 35 48 35 Q54 35 54 27" stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.7"/>
+            <line x1="48" y1="35" x2="48" y2="40" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+            <line x1="44" y1="40" x2="52" y2="40" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+            <circle cx="48" cy="54" r="9" fill="#fff" opacity="0.95"/>
+            <circle cx="48" cy="54" r="5.5" fill="#0f766e"/>
+            <circle cx="48" cy="54" r="2.5" fill="#fff" opacity="0.8"/>
+          </svg>
+          <div>
+            <div class="brand-name" style="color:var(--teal-900)">Scriva</div>
+            <div class="brand-sub" style="color:var(--teal-600)">Clinical AI</div>
+          </div>
+        </div>
+      </div>
+      <div class="logo-box dark">
+        <span class="corner-label">Dark</span>
+        <div class="logo-unit">
+          <svg width="52" height="52" viewBox="0 0 72 72" fill="none">
+            <rect x="4" y="4" width="64" height="64" rx="16" fill="var(--teal-500)"/>
+            <rect x="12" y="18" width="22" height="28" rx="3" fill="#042f2e" opacity="0.85"/>
+            <line x1="16" y1="26" x2="30" y2="26" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+            <line x1="16" y1="30" x2="27" y2="30" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+            <line x1="16" y1="34" x2="24" y2="34" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+            <line x1="16" y1="38" x2="28" y2="38" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+            <rect x="42" y="14" width="12" height="18" rx="6" fill="#042f2e" opacity="0.85"/>
+            <path d="M42 27 Q42 35 48 35 Q54 35 54 27" stroke="#042f2e" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.6"/>
+            <line x1="48" y1="35" x2="48" y2="40" stroke="#042f2e" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+            <line x1="44" y1="40" x2="52" y2="40" stroke="#042f2e" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+            <circle cx="48" cy="54" r="9" fill="#042f2e" opacity="0.85"/>
+            <circle cx="48" cy="54" r="5.5" fill="var(--teal-500)"/>
+            <circle cx="48" cy="54" r="2.5" fill="#042f2e" opacity="0.7"/>
+          </svg>
+          <div>
+            <div class="brand-name" style="color:#fff">Scriva</div>
+            <div class="brand-sub" style="color:var(--teal-400)">Clinical AI</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Favicon -->
+    <div class="favicon-strip reveal">
+      <div style="margin-right:auto"><h4 style="font-size:13px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em">Favicon &amp; App Icon</h4></div>
+      <div class="fav-item">
+        <svg width="16" height="16" viewBox="0 0 72 72" fill="none"><rect x="4" y="4" width="64" height="64" rx="16" fill="var(--teal-700)"/><rect x="12" y="18" width="22" height="28" rx="3" fill="#fff" opacity="0.95"/><rect x="42" y="14" width="12" height="18" rx="6" fill="#fff" opacity="0.95"/><circle cx="48" cy="54" r="9" fill="#fff" opacity="0.95"/><circle cx="48" cy="54" r="5.5" fill="#0f766e"/></svg>
+        <span class="fav-label">16</span>
+      </div>
+      <div class="fav-item">
+        <svg width="32" height="32" viewBox="0 0 72 72" fill="none"><rect x="4" y="4" width="64" height="64" rx="16" fill="var(--teal-700)"/><rect x="12" y="18" width="22" height="28" rx="3" fill="#fff" opacity="0.95"/><line x1="16" y1="26" x2="30" y2="26" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/><line x1="16" y1="30" x2="27" y2="30" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/><rect x="42" y="14" width="12" height="18" rx="6" fill="#fff" opacity="0.95"/><path d="M42 27 Q42 35 48 35 Q54 35 54 27" stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.7"/><line x1="48" y1="35" x2="48" y2="40" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.7"/><circle cx="48" cy="54" r="9" fill="#fff" opacity="0.95"/><circle cx="48" cy="54" r="5.5" fill="#0f766e"/><circle cx="48" cy="54" r="2.5" fill="#fff" opacity="0.8"/></svg>
+        <span class="fav-label">32</span>
+      </div>
+      <div class="fav-item">
+        <svg width="64" height="64" viewBox="0 0 72 72" fill="none"><rect x="4" y="4" width="64" height="64" rx="16" fill="var(--teal-700)"/><rect x="12" y="18" width="22" height="28" rx="3" fill="#fff" opacity="0.95"/><line x1="16" y1="26" x2="30" y2="26" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/><line x1="16" y1="30" x2="27" y2="30" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/><line x1="16" y1="34" x2="24" y2="34" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/><line x1="16" y1="38" x2="28" y2="38" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/><rect x="42" y="14" width="12" height="18" rx="6" fill="#fff" opacity="0.95"/><path d="M42 27 Q42 35 48 35 Q54 35 54 27" stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.7"/><line x1="48" y1="35" x2="48" y2="40" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.7"/><line x1="44" y1="40" x2="52" y2="40" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.7"/><circle cx="48" cy="54" r="9" fill="#fff" opacity="0.95"/><circle cx="48" cy="54" r="5.5" fill="#0f766e"/><circle cx="48" cy="54" r="2.5" fill="#fff" opacity="0.8"/></svg>
+        <span class="fav-label">64</span>
+      </div>
+      <div class="fav-item">
+        <svg width="128" height="128" viewBox="0 0 72 72" fill="none"><rect x="4" y="4" width="64" height="64" rx="16" fill="var(--teal-700)"/><rect x="12" y="18" width="22" height="28" rx="3" fill="#fff" opacity="0.95"/><line x1="16" y1="26" x2="30" y2="26" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/><line x1="16" y1="30" x2="27" y2="30" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/><line x1="16" y1="34" x2="24" y2="34" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/><line x1="16" y1="38" x2="28" y2="38" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/><rect x="42" y="14" width="12" height="18" rx="6" fill="#fff" opacity="0.95"/><path d="M42 27 Q42 35 48 35 Q54 35 54 27" stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.7"/><line x1="48" y1="35" x2="48" y2="40" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.7"/><line x1="44" y1="40" x2="52" y2="40" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.7"/><circle cx="48" cy="54" r="9" fill="#fff" opacity="0.95"/><circle cx="48" cy="54" r="5.5" fill="#0f766e"/><circle cx="48" cy="54" r="2.5" fill="#fff" opacity="0.8"/></svg>
+        <span class="fav-label">128</span>
+      </div>
+    </div>
+
+    <!-- Clear space -->
+    <div class="clearspace reveal" style="margin-top:48px">
+      <h4>Clear Space</h4>
+      <p>Minimum clear space around the logo equals the width of the stethoscope disc element. Never crowd the logo with other elements.</p>
+      <div class="clearspace-demo">
+        <div class="guide"></div>
+        <div class="logo-unit">
+          <svg width="44" height="44" viewBox="0 0 72 72" fill="none">
+            <rect x="4" y="4" width="64" height="64" rx="16" fill="var(--teal-700)"/>
+            <rect x="12" y="18" width="22" height="28" rx="3" fill="#fff" opacity="0.95"/>
+            <line x1="16" y1="26" x2="30" y2="26" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+            <line x1="16" y1="30" x2="27" y2="30" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+            <rect x="42" y="14" width="12" height="18" rx="6" fill="#fff" opacity="0.95"/>
+            <circle cx="48" cy="54" r="9" fill="#fff" opacity="0.95"/>
+            <circle cx="48" cy="54" r="5.5" fill="#0f766e"/>
+          </svg>
+          <div>
+            <div style="font-size:22px;font-weight:700;letter-spacing:-0.02em;color:var(--teal-900)">Scriva</div>
+            <div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.14em;color:var(--teal-600)">Clinical AI</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ 03 · COLOR ═══════════════════════ -->
+<section class="section section-alt" id="color">
+  <div class="wrap">
+    <div class="sh reveal">
+      <div class="sh-num">03 &mdash; Color Palette</div>
+      <h2>Teal. The colour<br>of medical trust.</h2>
+      <p>Used by the NHS, EU Health Commission, and Europe's leading health platforms. Teal communicates competence without coldness.</p>
+    </div>
+    <div class="color-hero reveal">
+      <div class="color-hero-card" style="background:var(--teal-700);color:#fff" onclick="copyColor('#0f766e')">
+        <div class="name">Brand Primary</div><div class="hex">#0f766e</div><div class="role">Buttons, nav active, primary actions</div>
+      </div>
+      <div class="color-hero-card" style="background:var(--teal-950);color:#fff" onclick="copyColor('#042f2e')">
+        <div class="name">Brand Dark</div><div class="hex">#042f2e</div><div class="role">Hero sections, footer, dark surfaces</div>
+      </div>
+      <div class="color-hero-card" style="background:var(--teal-50);color:var(--teal-900)" onclick="copyColor('#f0fdfa')">
+        <div class="name">Brand Light</div><div class="hex">#f0fdfa</div><div class="role">Backgrounds, active states, highlights</div>
+      </div>
+    </div>
+    <h4 style="font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:12px" class="reveal">FULL TEAL SCALE <span style="font-weight:400">&mdash; click to copy</span></h4>
+    <div class="color-scale reveal">
+      <div style="background:var(--teal-50)" onclick="copyColor('#f0fdfa')"><span class="tip" style="color:var(--teal-800)">#f0fdfa</span></div>
+      <div style="background:var(--teal-100)" onclick="copyColor('#ccfbf1')"><span class="tip" style="color:var(--teal-800)">#ccfbf1</span></div>
+      <div style="background:var(--teal-200)" onclick="copyColor('#99f6e4')"><span class="tip" style="color:var(--teal-800)">#99f6e4</span></div>
+      <div style="background:var(--teal-300)" onclick="copyColor('#5eead4')"><span class="tip" style="color:var(--teal-900)">#5eead4</span></div>
+      <div style="background:var(--teal-400)" onclick="copyColor('#2dd4bf')"><span class="tip" style="color:#fff">#2dd4bf</span></div>
+      <div style="background:var(--teal-500)" onclick="copyColor('#14b8a6')"><span class="tip" style="color:#fff">#14b8a6</span></div>
+      <div style="background:var(--teal-600)" onclick="copyColor('#0d9488')"><span class="tip" style="color:#fff">#0d9488</span></div>
+      <div style="background:var(--teal-700)" onclick="copyColor('#0f766e')"><span class="tip" style="color:#fff">#0f766e</span></div>
+      <div style="background:var(--teal-800)" onclick="copyColor('#115e59')"><span class="tip" style="color:#fff">#115e59</span></div>
+      <div style="background:var(--teal-900)" onclick="copyColor('#134e4a')"><span class="tip" style="color:#fff">#134e4a</span></div>
+      <div style="background:var(--teal-950)" onclick="copyColor('#042f2e')"><span class="tip" style="color:#fff">#042f2e</span></div>
+    </div>
+    <h4 style="font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:12px;margin-top:40px" class="reveal">SEMANTIC COLOURS</h4>
+    <div class="semantic-row reveal">
+      <div class="semantic-chip" onclick="copyColor('#0f172a')"><div class="dot" style="background:#0f172a"></div><div class="info"><div class="name">Text</div><div class="val">#0f172a</div></div></div>
+      <div class="semantic-chip" onclick="copyColor('#059669')"><div class="dot" style="background:#059669"></div><div class="info"><div class="name">Success</div><div class="val">#059669</div></div></div>
+      <div class="semantic-chip" onclick="copyColor('#d97706')"><div class="dot" style="background:#d97706"></div><div class="info"><div class="name">Warning</div><div class="val">#d97706</div></div></div>
+      <div class="semantic-chip" onclick="copyColor('#dc2626')"><div class="dot" style="background:#dc2626"></div><div class="info"><div class="name">Danger</div><div class="val">#dc2626</div></div></div>
+      <div class="semantic-chip" onclick="copyColor('#e2e8f0')"><div class="dot" style="background:#e2e8f0;border:1px solid #cbd5e1"></div><div class="info"><div class="name">Border</div><div class="val">#e2e8f0</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ 04 · TYPOGRAPHY ═══════════════════════ -->
+<section class="section" id="type">
+  <div class="wrap">
+    <div class="sh reveal">
+      <div class="sh-num">04 &mdash; Typography</div>
+      <h2>Inter. One typeface,<br>every EU language.</h2>
+      <p>Designed for screens. Supports 200+ languages including all 24 official EU languages. Paired with JetBrains Mono for clinical codes.</p>
+    </div>
+    <div class="type-hero reveal">
+      <div class="big-sample">Patient<br>Consul<span>tation</span></div>
+      <p>Inter at large sizes delivers the confidence and precision expected in clinical software. Tight letter-spacing at display sizes, generous at body text.</p>
+    </div>
+    <div class="type-grid reveal">
+      <div class="type-card"><div class="meta"><span class="tag">Heading</span><span class="spec">Inter 800 · 32px · -0.03em</span></div><div style="font-size:32px;font-weight:800;letter-spacing:-0.03em">Dr. Ana Popescu</div></div>
+      <div class="type-card"><div class="meta"><span class="tag">Subheading</span><span class="spec">Inter 700 · 22px · -0.02em</span></div><div style="font-size:22px;font-weight:700;letter-spacing:-0.02em">Follow-up Assessment</div></div>
+      <div class="type-card"><div class="meta"><span class="tag">Body</span><span class="spec">Inter 400 · 15px / 1.7</span></div><div style="font-size:15px;line-height:1.7;color:var(--text-secondary)">Patient presents with recurring lower back pain. Physical examination reveals limited range of motion in the lumbar spine. No neurological deficits noted.</div></div>
+      <div class="type-card"><div class="meta"><span class="tag">Label</span><span class="spec">Inter 600 · 11px · Uppercase · 0.12em</span></div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.14em;color:var(--text-muted)">Consultation Status</div></div>
+      <div class="type-card"><div class="meta"><span class="tag">Code</span><span class="spec">JetBrains Mono 400 · 14px</span></div><div style="font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--teal-700)">ICD-10: M54.5 · SNOMED: 279039007</div></div>
+      <div class="type-card"><div class="meta"><span class="tag">Caption</span><span class="spec">Inter 400 · 13px / 1.6</span></div><div style="font-size:13px;color:var(--text-secondary);line-height:1.6">Last updated 14/03/2026 at 09:42 by Dr. Popescu. Auto-generated by Scriva Clinical AI. Verified.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ 05 · COMPONENTS ═══════════════════════ -->
+<section class="section section-alt" id="components">
+  <div class="wrap">
+    <div class="sh reveal">
+      <div class="sh-num">05 &mdash; UI Components</div>
+      <h2>Component library.</h2>
+      <p>Minimal, functional, premium. Built on Shadcn UI with Tailwind — every component earns its place.</p>
+    </div>
+    <div class="comp-block reveal">
+      <h4>Buttons</h4>
+      <div class="btn-row" style="margin-bottom:16px">
+        <button class="btn btn-primary">New Consultation</button>
+        <button class="btn btn-outline">Export PDF</button>
+        <button class="btn btn-ghost">Cancel</button>
+        <button class="btn btn-danger">Stop Recording</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary btn-sm">Small</button>
+        <button class="btn btn-primary">Default</button>
+        <button class="btn btn-primary btn-lg">Large</button>
+        <button class="btn btn-primary" disabled style="opacity:0.4;cursor:not-allowed">Disabled</button>
+      </div>
+    </div>
+    <div class="comp-block reveal">
+      <h4>Stat Cards</h4>
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="icon" style="background:var(--teal-50);color:var(--teal-700)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg></div>
+          <div class="label">Today's Consultations</div><div class="value" style="color:var(--teal-700)">12</div>
+        </div>
+        <div class="stat-card">
+          <div class="icon" style="background:#fffbeb;color:#d97706"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+          <div class="label">Pending Review</div><div class="value" style="color:#d97706">4</div>
+        </div>
+        <div class="stat-card">
+          <div class="icon" style="background:#ecfdf5;color:#059669"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg></div>
+          <div class="label">Notes Finalised</div><div class="value" style="color:#059669">8</div>
+        </div>
+      </div>
+    </div>
+    <div class="comp-block reveal">
+      <h4>Badges &amp; Status</h4>
+      <div class="badge-grid">
+        <span class="badge badge-gdpr"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> GDPR Compliant</span>
+        <span class="badge badge-eu"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg> EU Data Residency</span>
+        <span class="badge badge-iso"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg> ISO 27001</span>
+        <span class="badge badge-fhir"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg> HL7 FHIR R4</span>
+      </div>
+      <div class="status-row">
+        <span class="status status-active">Completed</span>
+        <span class="status status-pending">In Progress</span>
+        <span class="status status-draft">Scheduled</span>
+      </div>
+    </div>
+    <div class="comp-block reveal">
+      <h4>Inputs</h4>
+      <div class="input-demo"><input type="text" placeholder="Search patients..." /><button class="btn btn-primary">Search</button></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ 05b · APP MOCKUP ═══════════════════════ -->
+<section class="section">
+  <div class="wrap">
+    <div class="sh reveal">
+      <div class="sh-num">05b &mdash; Application Preview</div>
+      <h2>In context.</h2>
+      <p>How the brand system comes together in the actual product.</p>
+    </div>
+    <div class="mockup-wrapper reveal">
+      <div class="mockup-bar"><div class="mockup-dot red"></div><div class="mockup-dot yellow"></div><div class="mockup-dot green"></div></div>
+      <div class="mockup-body">
+        <div class="mockup-sidebar">
+          <div class="ms-brand">
+            <svg width="32" height="32" viewBox="0 0 72 72" fill="none">
+              <rect x="4" y="4" width="64" height="64" rx="16" fill="var(--teal-700)"/>
+              <rect x="12" y="18" width="22" height="28" rx="3" fill="#fff" opacity="0.95"/>
+              <rect x="42" y="14" width="12" height="18" rx="6" fill="#fff" opacity="0.95"/>
+              <circle cx="48" cy="54" r="9" fill="#fff" opacity="0.95"/>
+              <circle cx="48" cy="54" r="5.5" fill="#0f766e"/>
+            </svg>
+            <div><div class="ms-name">Scriva</div><div class="ms-sub">Clinical AI</div></div>
+          </div>
+          <div class="ms-nav-item active"><div class="ms-nav-icon"></div>Dashboard</div>
+          <div class="ms-nav-item"><div class="ms-nav-icon"></div>Patients</div>
+          <div class="ms-nav-item"><div class="ms-nav-icon"></div>Consultations</div>
+          <div class="ms-nav-item"><div class="ms-nav-icon"></div>Transcripts</div>
+          <div class="ms-nav-item"><div class="ms-nav-icon"></div>Clinical Notes</div>
+          <div class="ms-nav-item" style="margin-top:auto"><div class="ms-nav-icon"></div>Settings</div>
+        </div>
+        <div class="mockup-main">
+          <div class="mm-header"><div class="mm-title">Good morning, Dr. Popescu</div><button class="mm-btn">+ New Consultation</button></div>
+          <div class="mm-stats">
+            <div class="mm-stat"><div class="ms-val">12</div><div class="ms-lab">Today</div></div>
+            <div class="mm-stat"><div class="ms-val">4</div><div class="ms-lab">Pending</div></div>
+            <div class="mm-stat"><div class="ms-val">89%</div><div class="ms-lab">AI Accuracy</div></div>
+          </div>
+          <table class="mm-table">
+            <thead><tr><th>Patient</th><th>Time</th><th>Status</th><th>Type</th></tr></thead>
+            <tbody>
+              <tr><td class="name-col">Maria Ionescu</td><td>09:30</td><td><span class="status status-active">Completed</span></td><td>Follow-up</td></tr>
+              <tr><td class="name-col">Stefan Marinescu</td><td>10:15</td><td><span class="status status-active">Completed</span></td><td>Initial</td></tr>
+              <tr><td class="name-col">Elena Dumitrescu</td><td>11:00</td><td><span class="status status-pending">In Progress</span></td><td>Follow-up</td></tr>
+              <tr><td class="name-col">Alexandru Popa</td><td>14:00</td><td><span class="status status-draft">Scheduled</span></td><td>Initial</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ 06 · SPACING ═══════════════════════ -->
+<section class="section section-alt" id="spacing">
+  <div class="wrap">
+    <div class="sh reveal"><div class="sh-num">06 &mdash; Spacing &amp; Radius</div><h2>Layout foundations.</h2><p>Consistent spacing and radii create a cohesive, premium feel across every screen.</p></div>
+    <table class="spacing-table reveal">
+      <thead><tr><th>Token</th><th>Value</th><th>Usage</th><th style="width:200px">Scale</th></tr></thead>
+      <tbody>
+        <tr><td>xs</td><td>4px</td><td>Icon gaps, inline spacing</td><td><div class="sp-bar" style="width:4px"></div></td></tr>
+        <tr><td>sm</td><td>8px</td><td>Tight padding, badge gaps</td><td><div class="sp-bar" style="width:16px"></div></td></tr>
+        <tr><td>md</td><td>16px</td><td>Card padding, form gaps</td><td><div class="sp-bar" style="width:48px"></div></td></tr>
+        <tr><td>lg</td><td>24px</td><td>Section padding, card gaps</td><td><div class="sp-bar" style="width:80px"></div></td></tr>
+        <tr><td>xl</td><td>32px</td><td>Page margins, major gaps</td><td><div class="sp-bar" style="width:112px"></div></td></tr>
+        <tr><td>2xl</td><td>48px</td><td>Section spacing</td><td><div class="sp-bar" style="width:160px"></div></td></tr>
+      </tbody>
+    </table>
+    <div class="radius-row reveal" style="margin-top:40px">
+      <div class="radius-demo"><div class="r-shape" style="border-radius:6px"></div><div class="r-val">6px</div><div class="r-use">Tags, chips</div></div>
+      <div class="radius-demo"><div class="r-shape" style="border-radius:10px"></div><div class="r-val">10px</div><div class="r-use">Inputs</div></div>
+      <div class="radius-demo"><div class="r-shape" style="border-radius:12px"></div><div class="r-val">12px</div><div class="r-use">Buttons</div></div>
+      <div class="radius-demo"><div class="r-shape" style="border-radius:16px"></div><div class="r-val">16px</div><div class="r-use">Cards</div></div>
+      <div class="radius-demo"><div class="r-shape" style="border-radius:20px"></div><div class="r-val">20px</div><div class="r-use">Panels</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ 07 · VOICE ═══════════════════════ -->
+<section class="section" id="voice">
+  <div class="wrap">
+    <div class="sh reveal"><div class="sh-num">07 &mdash; Voice &amp; Tone</div><h2>How Scriva speaks.</h2><p>Professional, calm, clear. We speak like a trusted colleague — not a Silicon Valley startup.</p></div>
+    <div class="voice-pair reveal">
+      <div class="voice-box voice-do"><div class="voice-label">Do</div>
+        <p>"Your consultation note is ready for review."</p>
+        <p>"Recording saved. Transcript available shortly."</p>
+        <p>"3 consultations need your attention today."</p>
+      </div>
+      <div class="voice-box voice-dont"><div class="voice-label">Don't</div>
+        <p>"Your AI-powered note has been generated by our engine!"</p>
+        <p>"Awesome! We've captured your audio stream!"</p>
+        <p>"DAILY COMMAND CENTER: 3 items in attention queue."</p>
+      </div>
+    </div>
+    <div class="voice-pair reveal">
+      <div class="voice-box voice-do"><div class="voice-label">European Conventions</div>
+        <p>14:30 (24-hour time)</p><p>14/03/2026 (DD/MM/YYYY)</p><p>GDPR, EHDS, CE Marking</p><p>ICD-10, SNOMED CT, HL7 FHIR</p>
+      </div>
+      <div class="voice-box voice-dont"><div class="voice-label">American Conventions</div>
+        <p>2:30 PM (12-hour time)</p><p>03/14/2026 (MM/DD/YYYY)</p><p>HIPAA, FDA 510(k)</p><p>CPT Coding, USCDI v5</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ 08 · POSITIONING ═══════════════════════ -->
+<section class="section section-dark" id="positioning">
+  <div class="wrap">
+    <div class="sh reveal"><div class="sh-num">08 &mdash; EU Regulatory Positioning</div><h2 style="color:#fff">Built GDPR-native.<br>Not retrofitted.</h2><p>This is the core brand differentiator. Every US competitor bolted on EU compliance. Scriva was born compliant.</p></div>
+    <div class="position-cards reveal">
+      <div class="pos-card">
+        <div class="pos-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--teal-400)" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+        <h4>GDPR Native</h4><p>Data protection by design and by default. Consent management, right to erasure, data portability — built in from day one.</p>
+      </div>
+      <div class="pos-card">
+        <div class="pos-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--teal-400)" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div>
+        <h4>EHDS Ready</h4><p>Aligned with the European Health Data Space regulation (entered force March 2025). Primary and secondary use of health data.</p>
+      </div>
+      <div class="pos-card">
+        <div class="pos-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--teal-400)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg></div>
+        <h4>EU Data Residency</h4><p>All patient data processed and stored within EU borders. No transatlantic data transfers. No Schrems III risk.</p>
+      </div>
+    </div>
+    <div class="standards reveal">
+      <h4>Supported Standards</h4>
+      <div class="standards-grid">
+        <div class="std-item"><div class="std-dot"></div>ICD-10 Diagnostic Coding</div>
+        <div class="std-item"><div class="std-dot"></div>SNOMED CT Clinical Terms</div>
+        <div class="std-item"><div class="std-dot"></div>HL7 FHIR R4 Interop</div>
+        <div class="std-item"><div class="std-dot"></div>openEHR Data Models</div>
+        <div class="std-item"><div class="std-dot"></div>EU AI Act Compliant</div>
+        <div class="std-item"><div class="std-dot"></div>ISO 27001 InfoSec</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ 09 · MARKET ═══════════════════════ -->
+<section class="section" id="market">
+  <div class="wrap">
+    <div class="sh reveal"><div class="sh-num">09 &mdash; Market Context</div><h2>The opportunity.</h2><p>EU health-tech AI is projected to reach $143B by 2033, and EHDS creates a regulatory moat for EU-native platforms.</p></div>
+    <div class="market-stat reveal">
+      <div class="m-stat"><div class="m-val">$143B</div><div class="m-label">EU Health-Tech AI<br>by 2033</div></div>
+      <div class="m-stat"><div class="m-val">37.9%</div><div class="m-label">CAGR<br>2024–2033</div></div>
+      <div class="m-stat"><div class="m-val">27</div><div class="m-label">EU Member<br>States</div></div>
+      <div class="m-stat"><div class="m-val">2031</div><div class="m-label">EHDS Full<br>Implementation</div></div>
+    </div>
+    <div class="grid-2 reveal">
+      <div>
+        <h3 style="font-size:22px;font-weight:700;margin-bottom:24px;letter-spacing:-0.02em">EHDS Timeline</h3>
+        <div class="timeline">
+          <div class="tl-item"><div class="tl-date">March 2025</div><h4>EHDS Regulation Enters Force</h4><p>Official publication in the EU Official Journal. Member states begin national transposition.</p></div>
+          <div class="tl-item"><div class="tl-date">2026–2027</div><h4>Primary Use Implementation</h4><p>Patient access to health data across borders. EHR interoperability standards mandated.</p></div>
+          <div class="tl-item"><div class="tl-date">2028–2029</div><h4>Secondary Use Framework</h4><p>Health data access bodies established. Research and innovation data sharing enabled.</p></div>
+          <div class="tl-item"><div class="tl-date">2031</div><h4>Full Implementation</h4><p>Complete cross-border health data infrastructure operational across all member states.</p></div>
+        </div>
+      </div>
+      <div>
+        <h3 style="font-size:22px;font-weight:700;margin-bottom:24px;letter-spacing:-0.02em">Competitive Positioning</h3>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead><tr>
+              <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);border-bottom:2px solid var(--border)">Feature</th>
+              <th style="text-align:center;padding:8px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--teal-700);border-bottom:2px solid var(--teal-200)">Scriva</th>
+              <th style="text-align:center;padding:8px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);border-bottom:2px solid var(--border)">US Competitors</th>
+            </tr></thead>
+            <tbody>
+              <tr><td style="padding:10px 12px;border-bottom:1px solid var(--border)">GDPR Native</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:var(--teal-600);font-weight:600">Built-in</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:var(--text-muted)">Retrofitted</td></tr>
+              <tr><td style="padding:10px 12px;border-bottom:1px solid var(--border)">EHDS Ready</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:var(--teal-600);font-weight:600">Yes</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:var(--text-muted)">No</td></tr>
+              <tr><td style="padding:10px 12px;border-bottom:1px solid var(--border)">EU Data Residency</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:var(--teal-600);font-weight:600">Guaranteed</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:var(--text-muted)">Optional</td></tr>
+              <tr><td style="padding:10px 12px;border-bottom:1px solid var(--border)">EU Languages</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:var(--teal-600);font-weight:600">24 official</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:var(--text-muted)">English first</td></tr>
+              <tr><td style="padding:10px 12px;border-bottom:1px solid var(--border)">AI Fallback</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:var(--teal-600);font-weight:600">Triple redundancy</td><td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:var(--text-muted)">Single provider</td></tr>
+              <tr><td style="padding:10px 12px">Pricing Model</td><td style="text-align:center;padding:10px;color:var(--teal-600);font-weight:600">Per-clinician</td><td style="text-align:center;padding:10px;color:var(--text-muted)">Per-encounter</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ FOOTER ═══════════════════════ -->
+<footer class="footer">
+  <div class="wrap">
+    <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:32px">
+      <svg width="40" height="40" viewBox="0 0 72 72" fill="none">
+        <rect x="4" y="4" width="64" height="64" rx="16" fill="var(--teal-600)"/>
+        <rect x="12" y="18" width="22" height="28" rx="3" fill="#fff" opacity="0.9"/>
+        <rect x="42" y="14" width="12" height="18" rx="6" fill="#fff" opacity="0.9"/>
+        <circle cx="48" cy="54" r="9" fill="#fff" opacity="0.9"/>
+        <circle cx="48" cy="54" r="5.5" fill="var(--teal-600)"/>
+      </svg>
+      <div style="font-size:22px;font-weight:700;letter-spacing:-0.02em">Scriva</div>
+    </div>
+    <p>Clinical AI for European Healthcare</p>
+    <p style="font-size:13px;color:var(--teal-400)">scriva.doctor &middot; GDPR Compliant &middot; EU Data Residency</p>
+    <div class="copy">&copy; 2026 Scriva. All rights reserved. &middot; Brand Guidelines v1.0</div>
+  </div>
+</footer>
+
+<!-- ═══════════════════════ SCRIPTS ═══════════════════════ -->
+<script>
+const observer=new IntersectionObserver(e=>{e.forEach(el=>{if(el.isIntersecting){el.target.classList.add('visible');observer.unobserve(el.target)}})},{threshold:0.08,rootMargin:'0px 0px -40px 0px'});
+document.querySelectorAll('.reveal').forEach(el=>observer.observe(el));
+const sections=document.querySelectorAll('section[id]'),navLinks=document.querySelectorAll('.nav-links a');
+window.addEventListener('scroll',()=>{let c='';sections.forEach(s=>{if(window.scrollY>=s.offsetTop-120)c=s.getAttribute('id')});navLinks.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+c))});
+function copyColor(hex){navigator.clipboard.writeText(hex).then(()=>{const t=document.createElement('div');t.className='copied-tooltip';t.textContent='Copied '+hex;document.body.appendChild(t);setTimeout(()=>t.remove(),1600)})}
+</script>
+</body>
+</html>
