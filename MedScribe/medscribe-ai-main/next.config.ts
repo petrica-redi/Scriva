@@ -86,4 +86,16 @@ export default withSentryConfig(nextConfig, {
   tunnelRoute: "/monitoring",
 
   silent: !process.env.CI,
+
+  // ─── Fix React Error #310 ─────────────────────────────────────────
+  // Sentry wraps every page/layout/route with a re-export template that
+  // creates an extra module boundary. In React 19 + Next.js 15, this
+  // extra wrapping breaks the hook dispatcher — useRef/useState/etc.
+  // fail with "Invalid hook call" (Error #310).
+  //
+  // Disabling automatic wrapping fixes #310. Error tracking still works
+  // via the ErrorBoundary component + instrumentation-client.ts init.
+  autoInstrumentServerFunctions: false,
+  autoInstrumentMiddleware: false,
+  autoInstrumentAppDirectory: false,
 });
