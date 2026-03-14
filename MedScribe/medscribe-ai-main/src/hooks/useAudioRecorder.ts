@@ -142,14 +142,20 @@ export function useAudioRecorder({
               isFinal,
               confidence: alt.confidence ?? 0,
             };
-            if (isFinal && alt.transcript.trim()) {
-              setTranscript((prev) => {
-                const next = [...prev, item];
-                transcriptRef.current = next;
-                onTranscriptUpdate?.(next);
-                return next;
-              });
-            }
+            if (!alt.transcript.trim()) return;
+            setTranscript((prev) => {
+              const last = prev[prev.length - 1];
+              const lastIsInterim = last && !last.isFinal;
+              let next: LiveTranscriptItem[];
+              if (isFinal) {
+                next = lastIsInterim ? [...prev.slice(0, -1), item] : [...prev, item];
+              } else {
+                next = lastIsInterim ? [...prev.slice(0, -1), item] : [...prev, item];
+              }
+              transcriptRef.current = next;
+              onTranscriptUpdate?.(next);
+              return next;
+            });
           }
         } catch { /* ignore */ }
       };
@@ -526,14 +532,15 @@ export function useAudioRecorder({
                     confidence: alt.confidence ?? 0,
                   };
 
-                  if (isFinal && alt.transcript.trim()) {
-                    setTranscript((prev) => {
-                      const next = [...prev, item];
-                      transcriptRef.current = next;
-                      onTranscriptUpdate?.(next);
-                      return next;
-                    });
-                  }
+                  if (!alt.transcript.trim()) return;
+                  setTranscript((prev) => {
+                    const last = prev[prev.length - 1];
+                    const lastIsInterim = last && !last.isFinal;
+                    const next = lastIsInterim ? [...prev.slice(0, -1), item] : [...prev, item];
+                    transcriptRef.current = next;
+                    onTranscriptUpdate?.(next);
+                    return next;
+                  });
                 }
               } catch {
                 /* ignore parse errors */

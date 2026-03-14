@@ -370,6 +370,11 @@ export default function ConsultationRecordPage() {
               <p className="text-sm font-medium text-medical-muted">
                 {streamingActive ? t("record.listeningStreaming") : t("record.listeningSpeaking")}
               </p>
+              {consultationMode === "remote" && (
+                <p className="mt-2 text-xs text-amber-600 max-w-xs">
+                  No words yet? Share the <strong>Google Meet</strong> tab (not MedScribe) and turn on &quot;Also share tab audio&quot;.
+                </p>
+              )}
             </>
           ) : (
             <p className="text-sm text-medical-muted">{t("record.noTranscript")}</p>
@@ -496,12 +501,9 @@ export default function ConsultationRecordPage() {
             </CardContent>
           </Card>
 
-          {/* Remote mode: Embedded video call — join with patient before recording */}
+          {/* Remote mode: minimal Meet launcher */}
           {consultationMode === "remote" && consultationId && (
-            <div className="w-full max-w-3xl">
-              <p className="text-xs text-medical-muted mb-2 text-center">
-                Join the video call below with your patient. When ready, start recording to capture the transcript.
-              </p>
+            <div className="w-full max-w-2xl">
               <GoogleMeetEmbed consultationId={consultationId} />
             </div>
           )}
@@ -573,20 +575,9 @@ export default function ConsultationRecordPage() {
             </div>
           )}
 
-          {/* ===== REMOTE MODE: Floating Meet panel + full-width transcript + AI ===== */}
+          {/* ===== REMOTE MODE: Meet slot + transcript + AI ===== */}
           {consultationMode === "remote" ? (
             <>
-              {/* Draggable floating Google Meet control panel */}
-              <GoogleMeetEmbed
-                consultationId={consultationId!}
-                floating
-                isRecording={isRecording}
-                duration={formatDuration(duration)}
-                streamingActive={streamingActive}
-                isMultichannel={isMultichannel}
-                remoteStream={remoteVideoStream}
-              />
-
               {/* Recording status bar */}
               <div className="flex items-center justify-between rounded-lg bg-gray-50 p-3">
                 <div className="flex items-center gap-3">
@@ -602,9 +593,23 @@ export default function ConsultationRecordPage() {
                 </div>
               </div>
 
-              {/* Transcript + AI side by side */}
+              {/* Meet PiP slot + Transcript + AI */}
               <div className="grid gap-3 lg:grid-cols-5">
                 <div className="lg:col-span-3 space-y-3">
+                  <div className="flex flex-col sm:flex-row gap-3 items-start">
+                    <div className="flex flex-col gap-1.5 shrink-0">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Video call</span>
+                      <GoogleMeetEmbed
+                      consultationId={consultationId!}
+                      slot
+                      isRecording={isRecording}
+                      duration={formatDuration(duration)}
+                      streamingActive={streamingActive}
+                      isMultichannel={isMultichannel}
+                      remoteStream={remoteVideoStream}
+                    />
+                    </div>
+                    <div className="flex-1 min-w-0 w-full">
                   <Card>
                     <CardContent className="pt-3 pb-3">
                       <div className="flex items-center justify-between mb-2">
@@ -621,6 +626,8 @@ export default function ConsultationRecordPage() {
                       {renderTranscriptBubbles(transcript, "max-h-[500px]")}
                     </CardContent>
                   </Card>
+                    </div>
+                  </div>
 
                   <Card>
                     <CardContent className="pt-3 pb-3">

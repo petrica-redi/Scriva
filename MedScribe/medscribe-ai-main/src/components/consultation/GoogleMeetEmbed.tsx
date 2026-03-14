@@ -6,6 +6,8 @@ interface GoogleMeetEmbedProps {
   consultationId: string;
   /** When true, shows compact draggable overlay instead of the inline launcher. */
   floating?: boolean;
+  /** When true, renders inside a square embedded slot (draggable, integrated into layout). */
+  slot?: boolean;
   isRecording?: boolean;
   duration?: string;
   streamingActive?: boolean;
@@ -17,9 +19,12 @@ interface GoogleMeetEmbedProps {
 const POPUP_W = 700;
 const POPUP_H = 500;
 
+const SLOT_SIZE = 320;
+
 export function GoogleMeetEmbed({
   consultationId,
   floating = false,
+  slot = false,
   isRecording = false,
   duration,
   streamingActive,
@@ -75,7 +80,10 @@ export function GoogleMeetEmbed({
       if (win) {
         popupRef.current = win;
         setPopupAlive(true);
-        setMeetUrl(url);
+        // Only store real meet links (abc-defg-hij), not meet.google.com/new
+        if (!url.includes("/new")) {
+          setMeetUrl(url);
+        }
       }
     },
     [consultationId]
@@ -125,8 +133,63 @@ export function GoogleMeetEmbed({
   }, [dragging]);
 
   // =====================================================================
+  // SLOT MODE — dedicated video call PiP placeholder, fixed in layout
+  // =====================================================================
+  if (slot) {
+    return (
+      <div
+        ref={panelRef}
+        style={{ width: SLOT_SIZE, height: SLOT_SIZE }}
+        className="shrink-0 overflow-hidden rounded-xl border-2 border-gray-200 bg-white shadow-md ring-1 ring-black/5"
+      >
+        <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
+          <div className="flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100">
+              <svg className="h-4 w-4 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M15 10.5c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5.67-1.5 1.5-1.5 1.5.67 1.5 1.5z" />
+                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z" />
+                <path d="M14.5 8.5v7l4.5 2.5V6l-4.5 2.5z" />
+              </svg>
+            </div>
+            <span className="text-xs font-semibold text-slate-700">Video call PiP</span>
+          </div>
+          {isRecording && (
+            <div className="flex items-center gap-1.5 rounded-full bg-red-500/20 px-2.5 py-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-[10px] font-semibold text-red-600">REC</span>
+            </div>
+          )}
+        </div>
+        <div className="relative flex h-[calc(100%-40px)] w-full items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200">
+          {hasRemoteVideo ? (
+            <video
+              ref={remoteVideoRef}
+              autoPlay
+              playsInline
+              muted
+              className="h-full w-full object-contain bg-black"
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center px-6 py-8 text-center">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/80 shadow-inner ring-1 ring-slate-200/50">
+                <svg className="h-8 w-8 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
+                </svg>
+              </div>
+              <p className="text-sm font-semibold text-slate-600">Patient video will appear here</p>
+              <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                Share the <strong>Google Meet</strong> tab and enable &quot;Also share tab audio&quot; for live transcription.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // =====================================================================
   // FLOATING MODE — during recording: shows live Google Meet tab capture
-  // or compact bar if no tab video
+  // or compact bar if no tab video (fallback if slot not used)
   // =====================================================================
   if (floating) {
     // If we have the captured tab video, show it as a resizable floating panel
@@ -259,94 +322,59 @@ export function GoogleMeetEmbed({
   }
 
   // =====================================================================
-  // INLINE MODE — pre-recording setup
+  // INLINE MODE — step-by-step setup with Meet link
   // =====================================================================
   return (
-    <div className="w-full rounded-xl border border-blue-200 bg-gradient-to-b from-blue-50/60 to-white overflow-hidden shadow-sm">
-      <div className="relative aspect-video bg-gradient-to-br from-gray-800 to-gray-900 flex flex-col items-center justify-center gap-5 px-6">
-        {popupAlive ? (
-          <>
-            <div className="h-16 w-16 rounded-full bg-green-500/20 flex items-center justify-center">
-              <svg className="h-8 w-8 text-green-400" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M14.5 8.5v7l4.5 2.5V6l-4.5 2.5zM2 6.5v11c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2v-11c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2z" />
-              </svg>
-            </div>
-            <div className="text-center space-y-2">
-              <p className="text-base font-semibold text-white flex items-center gap-2 justify-center">
-                <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
-                Google Meet is running
-              </p>
-              <p className="text-xs text-gray-400 max-w-sm">
-                Your meeting is open in a separate window. When you click
-                <strong className="text-gray-300"> Start Recording</strong>, the browser will ask you to
-                share the Google Meet tab — select it and check
-                <strong className="text-gray-300"> &quot;Also share tab audio&quot;</strong> so
-                the patient&apos;s voice is captured on a separate channel.
-              </p>
-            </div>
+    <div className="w-full rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
+      <div className="px-4 py-4 flex flex-col gap-4">
+        <div className="space-y-3">
+          <h4 className="text-sm font-semibold text-gray-800">How to record a remote consultation</h4>
+          <ol className="text-xs text-gray-600 space-y-2 list-decimal list-inside">
+            <li><strong>Open Google Meet</strong> in a new tab (button below). Create a meeting or join with a link.</li>
+            <li><strong>Share the Meet link</strong> with your patient so they can join the call.</li>
+            <li><strong>Stay on this MedScribe page.</strong> When you&apos;re ready, click the red Start Recording button.</li>
+            <li><strong>When the browser asks &quot;Choose what to share&quot;</strong> — select the <strong>Google Meet</strong> tab (the one with your patient), <em>not</em> MedScribe.</li>
+            <li><strong>Turn ON &quot;Also share tab audio&quot;</strong> — this captures your patient&apos;s voice for the transcript.</li>
+            <li><strong>Done.</strong> The patient&apos;s video will appear in the box below. You&apos;ll see the live transcript here.</li>
+          </ol>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleNewMeeting}
+            className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 transition-colors"
+          >
+            Open Google Meet
+          </button>
+          <button
+            type="button"
+            onClick={handleJoinMeeting}
+            className="rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-sm font-medium px-4 py-2 transition-colors"
+          >
+            Join with link
+          </button>
+          {popupAlive && (
             <button
               type="button"
               onClick={focusPopup}
-              className="rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-5 py-2 transition-colors"
+              className="rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-600 text-sm font-medium px-3 py-2 transition-colors"
             >
-              Focus Google Meet window
+              Focus Meet window
             </button>
-          </>
-        ) : (
-          <>
-            <div className="h-16 w-16 rounded-full bg-gray-700/60 flex items-center justify-center">
-              <svg className="h-8 w-8 text-gray-400" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M14.5 8.5v7l4.5 2.5V6l-4.5 2.5zM2 6.5v11c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2v-11c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2z" />
-              </svg>
-            </div>
-            <div className="text-center space-y-1.5">
-              <p className="text-sm font-semibold text-gray-200">Start a video call with your patient</p>
-              <p className="text-xs text-gray-500 max-w-xs">
-                Google Meet opens in a separate window. When you start recording, the browser asks you to share that tab — the patient&apos;s video and audio will appear directly in MedScribe.
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={handleNewMeeting}
-                className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-5 py-2.5 transition-colors shadow-lg shadow-blue-600/30"
-              >
-                New meeting
-              </button>
-              <button
-                type="button"
-                onClick={handleJoinMeeting}
-                className="rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-5 py-2.5 transition-colors border border-white/10"
-              >
-                Join with link
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-
-      {meetUrl && (
-        <div className="flex items-center justify-between px-4 py-2.5 border-t border-blue-100 bg-white">
-          <div className="flex items-center gap-2 text-xs text-gray-500 min-w-0">
-            <span className={`h-2 w-2 rounded-full shrink-0 ${popupAlive ? "bg-green-500" : "bg-gray-300"}`} />
-            <span className="truncate font-mono">{meetUrl}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => navigator.clipboard.writeText(meetUrl)}
-            className="shrink-0 ml-3 rounded-md bg-gray-100 hover:bg-gray-200 px-3 py-1 text-[11px] font-medium text-gray-600 transition-colors"
-          >
-            Copy link
-          </button>
+          )}
         </div>
-      )}
-
-      <div className="px-4 py-2 bg-amber-50 border-t border-amber-100">
-        <p className="text-[11px] text-amber-700 leading-relaxed">
-          <strong>How it works:</strong> Open your Google Meet call first. When you click Record, the browser
-          asks which tab to share — pick the Google Meet tab and check <strong>&quot;Also share tab audio&quot;</strong>.
-          Your mic captures your voice (Channel 1) and the tab captures the patient&apos;s voice (Channel 2) for accurate transcription.
-        </p>
+        {meetUrl && (
+          <div className="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2">
+            <span className="text-xs text-gray-500 truncate flex-1 font-mono">{meetUrl}</span>
+            <button
+              type="button"
+              onClick={() => navigator.clipboard.writeText(meetUrl)}
+              className="shrink-0 rounded-md bg-white border border-gray-200 hover:bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600"
+            >
+              Copy link
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
