@@ -262,53 +262,90 @@ DO $$ BEGIN
   END IF;
 END $$;
 
-CREATE POLICY "drug_interactions_read" ON public.drug_interactions FOR SELECT TO authenticated USING (true);
-CREATE POLICY "clinical_alerts_select" ON public.clinical_alerts FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "clinical_alerts_insert" ON public.clinical_alerts FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "clinical_alerts_update" ON public.clinical_alerts FOR UPDATE USING (auth.uid() = user_id);
-
-CREATE POLICY "organizations_select" ON public.organizations FOR SELECT USING (
-  EXISTS (SELECT 1 FROM public.team_members tm WHERE tm.organization_id = id AND tm.user_id = auth.uid())
-);
-CREATE POLICY "team_members_select" ON public.team_members FOR SELECT USING (
-  EXISTS (SELECT 1 FROM public.team_members tm WHERE tm.organization_id = organization_id AND tm.user_id = auth.uid())
-);
-CREATE POLICY "team_members_insert" ON public.team_members FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "cosigns_select" ON public.note_cosigns FOR SELECT USING (
-  auth.uid() = requested_by OR auth.uid() = assigned_to
-);
-CREATE POLICY "cosigns_insert" ON public.note_cosigns FOR INSERT WITH CHECK (auth.uid() = requested_by);
-CREATE POLICY "cosigns_update" ON public.note_cosigns FOR UPDATE USING (auth.uid() = assigned_to);
-
-CREATE POLICY "patient_shares_select" ON public.patient_shares FOR SELECT USING (
-  auth.uid() = owner_id OR auth.uid() = shared_with
-);
-CREATE POLICY "patient_shares_insert" ON public.patient_shares FOR INSERT WITH CHECK (auth.uid() = owner_id);
-CREATE POLICY "patient_shares_delete" ON public.patient_shares FOR DELETE USING (auth.uid() = owner_id);
-
-CREATE POLICY "visit_summaries_select" ON public.visit_summaries FOR SELECT USING (
-  EXISTS (SELECT 1 FROM public.patients p WHERE p.id = patient_id AND p.user_id = auth.uid())
-);
-CREATE POLICY "visit_summaries_insert" ON public.visit_summaries FOR INSERT WITH CHECK (
-  EXISTS (SELECT 1 FROM public.patients p WHERE p.id = patient_id AND p.user_id = auth.uid())
-);
-
-CREATE POLICY "scheduling_prefs_all" ON public.scheduling_preferences FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "visit_stats_all" ON public.visit_duration_stats FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "vitals_all" ON public.vital_readings FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "intake_forms_all" ON public.intake_forms FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "intake_responses_select" ON public.intake_responses FOR SELECT USING (
-  EXISTS (SELECT 1 FROM public.intake_forms f WHERE f.id = form_id AND f.user_id = auth.uid())
-);
-CREATE POLICY "intake_responses_insert" ON public.intake_responses FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "fhir_sync_all" ON public.fhir_sync_log FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "offline_queue_all" ON public.offline_queue FOR ALL USING (auth.uid() = user_id);
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'audit_log' AND policyname = 'audit_log_select') THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname='drug_interactions_read' AND tablename='drug_interactions') THEN
+    CREATE POLICY "drug_interactions_read" ON public.drug_interactions FOR SELECT TO authenticated USING (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname='clinical_alerts_select' AND tablename='clinical_alerts') THEN
+    CREATE POLICY "clinical_alerts_select" ON public.clinical_alerts FOR SELECT USING (auth.uid() = user_id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname='clinical_alerts_insert' AND tablename='clinical_alerts') THEN
+    CREATE POLICY "clinical_alerts_insert" ON public.clinical_alerts FOR INSERT WITH CHECK (auth.uid() = user_id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname='clinical_alerts_update' AND tablename='clinical_alerts') THEN
+    CREATE POLICY "clinical_alerts_update" ON public.clinical_alerts FOR UPDATE USING (auth.uid() = user_id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname='organizations_select' AND tablename='organizations') THEN
+    CREATE POLICY "organizations_select" ON public.organizations FOR SELECT USING (
+      EXISTS (SELECT 1 FROM public.team_members tm WHERE tm.organization_id = id AND tm.user_id = auth.uid())
+    );
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname='team_members_select' AND tablename='team_members') THEN
+    CREATE POLICY "team_members_select" ON public.team_members FOR SELECT USING (
+      EXISTS (SELECT 1 FROM public.team_members tm WHERE tm.organization_id = organization_id AND tm.user_id = auth.uid())
+    );
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname='team_members_insert' AND tablename='team_members') THEN
+    CREATE POLICY "team_members_insert" ON public.team_members FOR INSERT WITH CHECK (auth.uid() = user_id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname='cosigns_select' AND tablename='note_cosigns') THEN
+    CREATE POLICY "cosigns_select" ON public.note_cosigns FOR SELECT USING (auth.uid() = requested_by OR auth.uid() = assigned_to);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname='cosigns_insert' AND tablename='note_cosigns') THEN
+    CREATE POLICY "cosigns_insert" ON public.note_cosigns FOR INSERT WITH CHECK (auth.uid() = requested_by);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname='cosigns_update' AND tablename='note_cosigns') THEN
+    CREATE POLICY "cosigns_update" ON public.note_cosigns FOR UPDATE USING (auth.uid() = assigned_to);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname='patient_shares_select' AND tablename='patient_shares') THEN
+    CREATE POLICY "patient_shares_select" ON public.patient_shares FOR SELECT USING (auth.uid() = owner_id OR auth.uid() = shared_with);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname='patient_shares_insert' AND tablename='patient_shares') THEN
+    CREATE POLICY "patient_shares_insert" ON public.patient_shares FOR INSERT WITH CHECK (auth.uid() = owner_id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname='patient_shares_delete' AND tablename='patient_shares') THEN
+    CREATE POLICY "patient_shares_delete" ON public.patient_shares FOR DELETE USING (auth.uid() = owner_id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname='visit_summaries_select' AND tablename='visit_summaries') THEN
+    CREATE POLICY "visit_summaries_select" ON public.visit_summaries FOR SELECT USING (
+      EXISTS (SELECT 1 FROM public.patients p WHERE p.id = patient_id AND p.user_id = auth.uid())
+    );
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname='visit_summaries_insert' AND tablename='visit_summaries') THEN
+    CREATE POLICY "visit_summaries_insert" ON public.visit_summaries FOR INSERT WITH CHECK (
+      EXISTS (SELECT 1 FROM public.patients p WHERE p.id = patient_id AND p.user_id = auth.uid())
+    );
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname='scheduling_prefs_all' AND tablename='scheduling_preferences') THEN
+    CREATE POLICY "scheduling_prefs_all" ON public.scheduling_preferences FOR ALL USING (auth.uid() = user_id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname='visit_stats_all' AND tablename='visit_duration_stats') THEN
+    CREATE POLICY "visit_stats_all" ON public.visit_duration_stats FOR ALL USING (auth.uid() = user_id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname='vitals_all' AND tablename='vital_readings') THEN
+    CREATE POLICY "vitals_all" ON public.vital_readings FOR ALL USING (auth.uid() = user_id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname='intake_forms_all' AND tablename='intake_forms') THEN
+    CREATE POLICY "intake_forms_all" ON public.intake_forms FOR ALL USING (auth.uid() = user_id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname='intake_responses_select' AND tablename='intake_responses') THEN
+    CREATE POLICY "intake_responses_select" ON public.intake_responses FOR SELECT USING (
+      EXISTS (SELECT 1 FROM public.intake_forms f WHERE f.id = form_id AND f.user_id = auth.uid())
+    );
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname='intake_responses_insert' AND tablename='intake_responses') THEN
+    CREATE POLICY "intake_responses_insert" ON public.intake_responses FOR INSERT TO authenticated WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname='fhir_sync_all' AND tablename='fhir_sync_log') THEN
+    CREATE POLICY "fhir_sync_all" ON public.fhir_sync_log FOR ALL USING (auth.uid() = user_id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname='offline_queue_all' AND tablename='offline_queue') THEN
+    CREATE POLICY "offline_queue_all" ON public.offline_queue FOR ALL USING (auth.uid() = user_id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname='audit_log_select' AND tablename='audit_log') THEN
     CREATE POLICY "audit_log_select" ON public.audit_log FOR SELECT USING (auth.uid() = user_id);
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'audit_log' AND policyname = 'audit_log_insert') THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname='audit_log_insert' AND tablename='audit_log') THEN
     CREATE POLICY "audit_log_insert" ON public.audit_log FOR INSERT WITH CHECK (auth.uid() = user_id);
   END IF;
 END $$;

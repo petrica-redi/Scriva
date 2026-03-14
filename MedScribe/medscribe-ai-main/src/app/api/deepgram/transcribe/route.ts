@@ -1,6 +1,233 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
+/** Normalized transcript shape returned by this API (any STT provider). */
+interface NormalizedTranscript {
+  segments: Array<{ speaker: number; text: string; start_time: number; end_time: number; confidence?: number }>;
+  full_text: string;
+  model: string;
+  multichannel?: boolean;
+  duration?: number;
+}
+
+// ---------------------------------------------------------------------------
+// STT Fallback 1: OpenAI gpt-4o-mini-transcribe
+// ---------------------------------------------------------------------------
+// IMPORTANT: gpt-4o-mini-transcribe only supports response_format=json or text.
+// verbose_json (which provides word timestamps) is NOT available.
+// The response is { text: string } — we produce one segment covering the full audio.
+// ---------------------------------------------------------------------------
+async function transcribeWithOpenAI(
+  audioBlob: Blob,
+  language: string,
+  _isMultichannel: boolean
+): Promise<NormalizedTranscript | null> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return null;
+
+  const langCode = language.startsWith("en") ? "en" : language.slice(0, 2);
+
+  const formData = new FormData();
+  formData.append("file", audioBlob, "audio.webm");
+  formData.append("model", "gpt-4o-mini-transcribe");
+  formData.append("response_format", "json");
+  formData.append("language", langCode);
+
+  const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}` },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`OpenAI gpt-4o-mini-transcribe failed (${response.status}): ${err.slice(0, 200)}`);
+  }
+
+  const data = (await response.json()) as { text?: string };
+  const fullText = data.text?.trim() ?? "";
+
+  if (!fullText) {
+    throw new Error("OpenAI gpt-4o-mini-transcribe returned empty transcript");
+  }
+
+  // No timestamp data available from this model — single segment, speaker 0.
+  return {
+    segments: [{ speaker: 0, text: fullText, start_time: 0, end_time: 0, confidence: 1 }],
+    full_text: fullText,
+    model: "gpt-4o-mini-transcribe",
+    multichannel: false,
+    duration: 0,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// STT Fallback 2: Google Cloud Speech-to-Text v1
+// ---------------------------------------------------------------------------
+// Uses medical_conversation model for English (supports 2-speaker diarization
+// with speakerTag) and latest_long for other languages (no medical model).
+//
+// KNOWN LIMIT: The v1 synchronous endpoint accepts a maximum of 60 seconds of
+// audio in the inline content field. Recordings longer than ~60s will be
+// rejected by the API. We skip rather than attempt when audio > 7 MB to avoid
+// sending a request that will fail with a confusing error.
+//
+// Requires env: GOOGLE_CLOUD_STT_API_KEY (enable Speech-to-Text API in GCP).
+// ---------------------------------------------------------------------------
+const GOOGLE_STT_MAX_BYTES = 7 * 1024 * 1024; // ~7 MB — proxy for ≤60s audio
+
+async function transcribeWithGoogleSTT(
+  audioBlob: Blob,
+  language: string,
+  _isMultichannel: boolean
+): Promise<NormalizedTranscript | null> {
+  const apiKey = process.env.GOOGLE_CLOUD_STT_API_KEY;
+  if (!apiKey) return null;
+
+  if (audioBlob.size > GOOGLE_STT_MAX_BYTES) {
+    console.warn(
+      `[Google STT] Skipping — audio (${(audioBlob.size / 1024 / 1024).toFixed(1)} MB) exceeds the 60s/7MB sync limit.`
+    );
+    return null;
+  }
+
+  const isEnglish = language === "en" || language.startsWith("en-");
+
+  // Normalise to a BCP-47 tag with region (Google STT requires region codes).
+  const langCode = isEnglish
+    ? "en-US"
+    : language.includes("-")
+      ? language
+      : `${language.slice(0, 2)}-${language.slice(0, 2).toUpperCase()}`;
+
+  // medical_conversation: English-only, 2-speaker diarization.
+  // latest_long: all other languages, no diarization.
+  const model = isEnglish ? "medical_conversation" : "latest_long";
+
+  const arrayBuffer = await audioBlob.arrayBuffer();
+  const base64Audio = Buffer.from(arrayBuffer).toString("base64");
+
+  const requestBody = {
+    config: {
+      // WEBM_OPUS is detected from the container header; omit sampleRateHertz.
+      encoding: "WEBM_OPUS",
+      languageCode: langCode,
+      model,
+      enableWordTimeOffsets: true,
+      enableAutomaticPunctuation: true,
+      ...(isEnglish
+        ? { enableSpeakerDiarization: true, diarizationSpeakerCount: 2 }
+        : {}),
+    },
+    audio: { content: base64Audio },
+  };
+
+  const response = await fetch(
+    `https://speech.googleapis.com/v1/speech:recognize?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestBody),
+    }
+  );
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Google STT (${model}) failed (${response.status}): ${err.slice(0, 200)}`);
+  }
+
+  type GWord = { word?: string; startTime?: string; endTime?: string; speakerTag?: number };
+  type GResult = { alternatives?: Array<{ transcript?: string; confidence?: number; words?: GWord[] }> };
+  const data = (await response.json()) as { results?: GResult[] };
+
+  const allResults = data.results ?? [];
+  const fullText = allResults
+    .map((r) => r.alternatives?.[0]?.transcript ?? "")
+    .join(" ")
+    .trim();
+
+  if (!fullText) {
+    throw new Error("Google STT returned empty transcript");
+  }
+
+  function parseTimeSec(s?: string): number {
+    if (!s) return 0;
+    return parseFloat(s.replace("s", "")) || 0;
+  }
+
+  // Build segments by grouping consecutive words with the same speakerTag.
+  const segments: NormalizedTranscript["segments"] = [];
+
+  for (const result of allResults) {
+    const alt = result.alternatives?.[0];
+    if (!alt) continue;
+
+    const words = alt.words ?? [];
+
+    if (words.length === 0) {
+      if (alt.transcript?.trim()) {
+        segments.push({
+          speaker: 0,
+          text: alt.transcript.trim(),
+          start_time: 0,
+          end_time: 0,
+          confidence: alt.confidence ?? 1,
+        });
+      }
+      continue;
+    }
+
+    let curSpeaker = words[0].speakerTag ?? 0;
+    let curWords: string[] = [];
+    let segStart = parseTimeSec(words[0].startTime);
+    let segEnd = 0;
+
+    for (const w of words) {
+      const spk = w.speakerTag ?? 0;
+      const wordEnd = parseTimeSec(w.endTime);
+
+      if (spk !== curSpeaker && curWords.length > 0) {
+        segments.push({
+          // Google uses 1-indexed speakerTag; map to 0-indexed.
+          speaker: Math.max(0, curSpeaker - 1),
+          text: curWords.join(" "),
+          start_time: segStart,
+          end_time: segEnd,
+          confidence: alt.confidence ?? 1,
+        });
+        curSpeaker = spk;
+        curWords = [];
+        segStart = parseTimeSec(w.startTime);
+      }
+
+      curWords.push(w.word ?? "");
+      segEnd = wordEnd;
+    }
+
+    if (curWords.length > 0) {
+      segments.push({
+        speaker: Math.max(0, curSpeaker - 1),
+        text: curWords.join(" "),
+        start_time: segStart,
+        end_time: segEnd,
+        confidence: alt.confidence ?? 1,
+      });
+    }
+  }
+
+  if (segments.length === 0) {
+    segments.push({ speaker: 0, text: fullText, start_time: 0, end_time: 0, confidence: 1 });
+  }
+
+  return {
+    segments,
+    full_text: fullText,
+    model: `google-stt-${model}`,
+    multichannel: false,
+    duration: 0,
+  };
+}
+
 /**
  * POST /api/deepgram/transcribe
  * Receives audio from the browser, sends it to Deepgram's REST API for transcription.
@@ -26,14 +253,6 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const apiKey = process.env.DEEPGRAM_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: "Deepgram API key not configured" },
-        { status: 500 }
-      );
     }
 
     // Get the audio data from the request
@@ -63,54 +282,59 @@ export async function POST(request: NextRequest) {
     const isEnglish = language === "en" || language.startsWith("en-");
     const primaryModel = isEnglish ? "nova-3-medical" : "nova-3";
 
-    console.log(
-      `[Deepgram] Transcribing: ${(audioBlob.size / 1024).toFixed(1)}KB, mode: ${isMultichannel ? "multichannel" : "diarize"}, model: ${primaryModel}`
-    );
+    const apiKey = process.env.DEEPGRAM_API_KEY;
 
-    // Build Deepgram API parameters based on mode and language
-    const params = new URLSearchParams({
-      model: primaryModel,
-      language,
-      smart_format: "true",
-      detect_language: "false",
-    });
-
-    if (isMultichannel) {
-      // Multichannel mode: each channel transcribed independently
-      // Ch0 = Doctor (mic), Ch1 = Patient (tab audio)
-      params.set("multichannel", "true");
-      params.set("channels", "2");
-      // Do NOT use diarize with multichannel — they are mutually exclusive
-    } else {
-      // Single-channel mode: rely on diarization for speaker separation
-      params.set("diarize", "true");
-      params.set("utterances", "true");
-    }
-
-    const deepgramResponse = await fetch(
-      `https://api.deepgram.com/v1/listen?${params.toString()}`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Token ${apiKey}`,
-          "Content-Type": audioBlob.type || "audio/webm",
-        },
-        body: audioBlob,
-      }
-    );
-
-    if (!deepgramResponse.ok) {
-      const errText = await deepgramResponse.text();
-      console.error(
-        `[Deepgram] API error (${deepgramResponse.status}):`,
-        errText
+    // ── Deepgram primary + nova-2 fallback ────────────────────────────────────
+    // Only attempted when DEEPGRAM_API_KEY is configured.  If the key is absent
+    // or all Deepgram attempts fail, execution falls through to the STT fallback
+    // chain below (OpenAI → Google STT).  Previously an early return here
+    // prevented the fallbacks from ever running when the key was missing.
+    if (apiKey) {
+      console.log(
+        `[Deepgram] Transcribing: ${(audioBlob.size / 1024).toFixed(1)}KB, mode: ${isMultichannel ? "multichannel" : "diarize"}, model: ${primaryModel}`
       );
 
-      // If primary model fails, fall back to nova-2
-      if (
-        deepgramResponse.status === 402 ||
-        deepgramResponse.status === 400
-      ) {
+      const params = new URLSearchParams({
+        model: primaryModel,
+        language,
+        smart_format: "true",
+        detect_language: "false",
+      });
+
+      if (isMultichannel) {
+        params.set("multichannel", "true");
+        params.set("channels", "2");
+      } else {
+        params.set("diarize", "true");
+        params.set("utterances", "true");
+      }
+
+      const deepgramResponse = await fetch(
+        `https://api.deepgram.com/v1/listen?${params.toString()}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Token ${apiKey}`,
+            "Content-Type": audioBlob.type || "audio/webm",
+          },
+          body: audioBlob,
+        }
+      );
+
+      if (deepgramResponse.ok) {
+        const data = await deepgramResponse.json();
+        return NextResponse.json(
+          isMultichannel
+            ? formatMultichannelResponse(data, primaryModel)
+            : formatDiarizeResponse(data, primaryModel)
+        );
+      }
+
+      const errText = await deepgramResponse.text();
+      console.error(`[Deepgram] API error (${deepgramResponse.status}):`, errText);
+
+      // If primary model fails with a model-specific error, retry with nova-2
+      if (deepgramResponse.status === 402 || deepgramResponse.status === 400) {
         console.log(`[Deepgram] Retrying with nova-2 model (language: ${language})...`);
         const fallbackParams = new URLSearchParams({
           model: "nova-2",
@@ -138,33 +362,52 @@ export async function POST(request: NextRequest) {
           }
         );
 
-        if (!fallbackResponse.ok) {
-          console.error("[Deepgram] Fallback also failed:", await fallbackResponse.text());
+        if (fallbackResponse.ok) {
+          const fallbackData = await fallbackResponse.json();
           return NextResponse.json(
-            { error: "Transcription failed. Please try again." },
-            { status: 500 }
+            isMultichannel
+              ? formatMultichannelResponse(fallbackData, "nova-2")
+              : formatDiarizeResponse(fallbackData, "nova-2")
           );
         }
-
-        const fallbackData = await fallbackResponse.json();
-        return NextResponse.json(
-          isMultichannel
-            ? formatMultichannelResponse(fallbackData, "nova-2")
-            : formatDiarizeResponse(fallbackData, "nova-2")
-        );
       }
-
-      return NextResponse.json(
-        { error: "Transcription service error. Please try again." },
-        { status: 502 }
-      );
+    } else {
+      console.warn("[STT] DEEPGRAM_API_KEY not configured — skipping Deepgram, trying fallbacks.");
     }
 
-    const data = await deepgramResponse.json();
+    // ── STT fallback chain ────────────────────────────────────────────────────
+    // Reached when: (a) Deepgram key is missing, or (b) all Deepgram attempts failed.
+    const sttFallbacks: Array<{
+      name: string;
+      fn: () => Promise<NormalizedTranscript | null>;
+    }> = [
+      {
+        name: "OpenAI gpt-4o-mini-transcribe",
+        fn: () => transcribeWithOpenAI(audioBlob, language, isMultichannel),
+      },
+      {
+        name: "Google STT",
+        fn: () => transcribeWithGoogleSTT(audioBlob, language, isMultichannel),
+      },
+    ];
+
+    for (const { name, fn } of sttFallbacks) {
+      try {
+        console.log(`[STT] Falling back to ${name}...`);
+        const result = await fn();
+        if (result) {
+          console.log(`[STT] ${name} succeeded.`);
+          return NextResponse.json(result);
+        }
+        console.log(`[STT] ${name} skipped (not configured or audio too large).`);
+      } catch (fallbackErr) {
+        console.error(`[STT] ${name} failed:`, fallbackErr);
+      }
+    }
+
     return NextResponse.json(
-      isMultichannel
-        ? formatMultichannelResponse(data, primaryModel)
-        : formatDiarizeResponse(data, primaryModel)
+      { error: "Transcription service error. Please try again." },
+      { status: 502 }
     );
   } catch (err) {
     console.error("[Deepgram] Transcribe error:", err);

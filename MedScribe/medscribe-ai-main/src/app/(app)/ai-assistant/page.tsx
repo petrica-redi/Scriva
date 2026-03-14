@@ -16,12 +16,13 @@ interface ChatMessage {
 
 interface ProviderStatus {
   anthropicConfigured: boolean;
-  ollamaConfigured: boolean;
+  openaiConfigured: boolean;
+  geminiConfigured: boolean;
   anthropicReachable: boolean;
-  ollamaReachable: boolean;
-  primary: "anthropic" | "ollama" | null;
-  fallback: "anthropic" | "ollama" | null;
-  ollamaModel: string;
+  openaiReachable: boolean;
+  geminiReachable: boolean;
+  primary: "anthropic" | "openai" | "gemini" | null;
+  fallbacks: ("anthropic" | "openai" | "gemini")[];
 }
 
 function getEmptyConversations(): Record<ScopeKey, ChatMessage[]> {

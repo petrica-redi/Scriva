@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
+import { useAudioBackup } from "@/hooks/useAudioBackup";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDuration } from "@/lib/utils";
@@ -72,7 +73,6 @@ export default function ConsultationRecordPage() {
   const [savedDuration, setSavedDuration] = useState(0);
   const [identityVerified, setIdentityVerified] = useState(false);
   const [trackedProblems, setTrackedProblems] = useState<TrackedProblem[]>([]);
-  const [shouldCloseMeet, setShouldCloseMeet] = useState(false);
 
   const patientName: string | undefined =
     typeof consultationData?.metadata?.patient_name === "string"
@@ -100,8 +100,30 @@ export default function ConsultationRecordPage() {
     mode: consultationMode,
     language: selectedLanguage,
     streaming: true,
+    consultationId: consultationId ?? undefined,
     onError: (err) => setError(err),
   });
+
+  const {
+    pendingBackups,
+    retranscribe,
+    dismiss: dismissBackup,
+    downloadAudio: downloadBackupAudio,
+    refresh: refreshBackups,
+  } = useAudioBackup();
+
+  const [retranscribeStatus, setRetranscribeStatus] = useState<Record<string, string>>({});
+
+  // ── UX: simplified recording view state ──────────────────────────────────
+  /** Advanced settings drawer (mode selector, remote extras) */
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  /** AI/clinical sidebar panel during recording */
+  const [showSidebar, setShowSidebar] = useState(false);
+  const [shouldCloseMeet, setShouldCloseMeet] = useState(false);
+  /** Microphone test: idle → recording (3 s) → playing → idle */
+  const [micTestState, setMicTestState] = useState<"idle" | "recording" | "playing">("idle");
+  const [micTestUrl, setMicTestUrl] = useState<string | null>(null);
+  const micTestAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     if (transcriptEndRef.current) {
@@ -224,10 +246,14 @@ export default function ConsultationRecordPage() {
   const handleEndRecording = async () => {
     try {
       setShouldCloseMeet(true);
-      await stopRecording();
+      // stopRecording() resolves with the final transcript items.  Reading the
+      // React `transcript` state here would give a stale closure value because
+      // React batches state updates — the setTranscript() call inside the hook
+      // hasn't caused a re-render yet by the time this line resumes.
+      const finalItems = await stopRecording();
 
       // Save transcript to database
-      const finalSegments = transcript.filter(t => t.isFinal);
+      const finalSegments = finalItems.filter(t => t.isFinal);
       const fullText = finalSegments
         .map(item => {
           const speaker = item.speaker === 0 ? "Doctor" : "Patient";
@@ -372,11 +398,6 @@ export default function ConsultationRecordPage() {
               <p className="text-sm font-medium text-medical-muted">
                 {streamingActive ? t("record.listeningStreaming") : t("record.listeningSpeaking")}
               </p>
-              {consultationMode === "remote" && (
-                <p className="mt-2 text-xs text-amber-600 max-w-xs">
-                  No words yet? Share the <strong>Google Meet</strong> tab (not MedScribe) and turn on &quot;Also share tab audio&quot;.
-                </p>
-              )}
             </>
           ) : (
             <p className="text-sm text-medical-muted">{t("record.noTranscript")}</p>
@@ -421,324 +442,581 @@ export default function ConsultationRecordPage() {
     </div>
   );
 
+  // Persist language selection across sessions.
+  // langLoadedRef prevents the write effect from firing on the very first render
+  // (with the default "en" value) before the read effect has had a chance to
+  // restore the saved value — without the guard the read wins the race
+  // structurally but briefly overwrites the stored preference on each mount.
+  const langLoadedRef = useRef(false);
+  useEffect(() => {
+    const saved = localStorage.getItem("medscribe-last-language");
+    if (saved && LANGUAGES.some((l) => l.value === saved)) setSelectedLanguage(saved);
+    langLoadedRef.current = true;
+  }, []);
+  useEffect(() => {
+    if (!langLoadedRef.current) return;
+    localStorage.setItem("medscribe-last-language", selectedLanguage);
+  }, [selectedLanguage]);
+
+  // Keyboard shortcuts during recording (Space = pause/resume)
+  useEffect(() => {
+    if (!isRecording) return;
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.tagName === "SELECT"
+      )
+        return;
+      if (e.key === " ") {
+        e.preventDefault();
+        isPaused ? resumeRecording() : pauseRecording();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [isRecording, isPaused, pauseRecording, resumeRecording]);
+
+  const handleMicTest = useCallback(async () => {
+    if (micTestState !== "idle") return;
+    try {
+      setMicTestState("recording");
+      if (micTestUrl) {
+        URL.revokeObjectURL(micTestUrl);
+        setMicTestUrl(null);
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const chunks: Blob[] = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+      recorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(chunks, { type: recorder.mimeType });
+        const url = URL.createObjectURL(blob);
+        setMicTestUrl(url);
+        setMicTestState("playing");
+        if (micTestAudioRef.current) {
+          micTestAudioRef.current.src = url;
+          void micTestAudioRef.current.play();
+          micTestAudioRef.current.onended = () => setMicTestState("idle");
+        }
+      };
+      recorder.start();
+      setTimeout(() => recorder.stop(), 3000);
+    } catch {
+      setMicTestState("idle");
+      setError("Microphone access denied. Please allow microphone access in your browser.");
+    }
+  }, [micTestState, micTestUrl]);
+
+  const handleRetranscribe = useCallback(
+    async (backupId: string) => {
+      setRetranscribeStatus((s) => ({ ...s, [backupId]: "Retranscribing…" }));
+      const items = await retranscribe(backupId, (msg) => {
+        setRetranscribeStatus((s) => ({ ...s, [backupId]: msg }));
+      });
+      if (items && items.length > 0) {
+        await refreshBackups();
+        setRetranscribeStatus((s) => {
+          const next = { ...s };
+          delete next[backupId];
+          return next;
+        });
+      }
+    },
+    [retranscribe, refreshBackups]
+  );
+
   return (
     <div className="mx-auto max-w-7xl space-y-6 p-6">
       <NetworkStatusBanner />
+
+      {/* ── Local audio recovery banner ─────────────────────────────────── */}
+      {pendingBackups.length > 0 && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <div className="flex items-start gap-3">
+            <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+            </svg>
+            <div className="flex-1 space-y-3">
+              <div>
+                <p className="text-sm font-semibold text-amber-900">
+                  {pendingBackups.length === 1
+                    ? "1 recording was not fully transcribed"
+                    : `${pendingBackups.length} recordings were not fully transcribed`}
+                </p>
+                <p className="mt-0.5 text-xs text-amber-700">
+                  Audio was saved locally. You can retry transcription or download the raw file.
+                </p>
+              </div>
+              <div className="space-y-2">
+                {pendingBackups.map((backup) => {
+                  const date = new Date(backup.startedAt).toLocaleString();
+                  const mins = Math.round(backup.durationSeconds / 60);
+                  const status = retranscribeStatus[backup.id];
+                  const isRetrying = !!status && status !== "Transcription complete.";
+                  return (
+                    <div
+                      key={backup.id}
+                      className="flex flex-wrap items-center gap-2 rounded-md border border-amber-200 bg-white px-3 py-2"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-gray-800 truncate">
+                          {backup.consultationId === consultationId
+                            ? "This consultation"
+                            : `Consultation ${backup.consultationId.slice(0, 8)}…`}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {date} · {mins > 0 ? `${mins} min` : `${backup.durationSeconds}s`} · {backup.language.toUpperCase()}
+                        </p>
+                        {status && (
+                          <p className={`mt-0.5 text-xs ${status.startsWith("Retry failed") ? "text-red-600" : "text-amber-700"}`}>
+                            {status}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex gap-1.5">
+                        <button
+                          type="button"
+                          disabled={isRetrying}
+                          onClick={() => handleRetranscribe(backup.id)}
+                          className="rounded px-2.5 py-1 text-xs font-medium bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          {isRetrying ? "Retrying…" : "Retry"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => downloadBackupAudio(backup.id)}
+                          title="Download raw audio"
+                          className="rounded px-2 py-1 text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => dismissBackup(backup.id)}
+                          title="Dismiss"
+                          className="rounded px-2 py-1 text-xs font-medium border border-gray-300 text-gray-500 hover:bg-gray-50 transition-colors"
+                        >
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* PHASE 1: PRE-RECORDING */}
       {phase === "pre" && (
-        <div className="flex flex-col items-center gap-8 py-16">
+        <div className="flex flex-col items-center gap-6 py-10">
+          {/* Hidden audio element for mic test playback */}
+          <audio ref={micTestAudioRef} className="hidden" />
+
+          {/* Header */}
           <div className="text-center">
             <h1 className="text-3xl font-bold text-medical-text">{t("record.startConsultation")}</h1>
-            <p className="mt-2 text-medical-muted">{t("record.ensureConsent")}</p>
+            {patientName && (
+              <p className="mt-1 text-lg text-medical-muted">
+                {patientName}
+                {consultationData?.visit_type && (
+                  <span className="ml-2 text-base font-normal">
+                    · {translateVisitType(consultationData.visit_type, t)}
+                  </span>
+                )}
+              </p>
+            )}
           </div>
 
-          {patientName && (
-            <Card className="w-full max-w-md">
-              <CardContent className="space-y-2 pt-6">
-                <p className="text-sm font-medium text-medical-muted">{t("record.patient")}</p>
-                <p className="text-lg font-semibold text-medical-text">{patientName}</p>
-                <p className="text-sm text-medical-muted">{t("record.visitType")}: {consultationData?.visit_type ? translateVisitType(consultationData.visit_type, t) : t("visit.generalVisit")}</p>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Stage 1: Pre-Visit Intelligence Brief */}
+          {/* Pre-Visit Intelligence Brief */}
           {consultationData?.patient_id && (
             <div className="w-full max-w-2xl">
               <PreVisitBrief patientId={consultationData.patient_id} />
             </div>
           )}
 
-          <Card className="w-full max-w-md">
-            <CardContent className="space-y-3 pt-6">
-              <p className="text-sm font-medium text-medical-text">{t("record.consultationMode")}</p>
-              <p className="text-xs text-medical-muted">{t("record.modeDescription")}</p>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setConsultationMode("in-person")}
-                  className={`flex flex-col items-center gap-2 rounded-lg border-2 p-4 text-sm transition-colors ${
-                    consultationMode === "in-person"
-                      ? "border-brand-500 bg-brand-50 text-brand-700"
-                      : "border-medical-border bg-white text-medical-muted hover:border-gray-300"
-                  }`}
-                >
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-                  </svg>
-                  <span className="font-medium">{t("record.inPerson")}</span>
-                  <span className="text-xs text-center leading-tight">{t("record.singleMic")}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConsultationMode("remote")}
-                  className={`flex flex-col items-center gap-2 rounded-lg border-2 p-4 text-sm transition-colors ${
-                    consultationMode === "remote"
-                      ? "border-brand-500 bg-brand-50 text-brand-700"
-                      : "border-medical-border bg-white text-medical-muted hover:border-gray-300"
-                  }`}
-                >
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
-                  </svg>
-                  <span className="font-medium">{t("record.remoteCall")}</span>
-                  <span className="text-xs text-center leading-tight">{t("record.micTab")}</span>
-                </button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="w-full max-w-md">
-            <CardContent className="space-y-3 pt-6">
-              <p className="text-sm font-medium text-medical-text">{t("record.consultationLanguage")}</p>
+          {/* ── Settings row ─────────────────────────────────────────────── */}
+          <div className="w-full max-w-md space-y-3">
+            {/* Language + mic test */}
+            <div className="flex items-center gap-2">
               <select
                 value={selectedLanguage}
                 onChange={(e) => setSelectedLanguage(e.target.value)}
-                className="block w-full rounded-lg border border-medical-border px-4 py-2.5 text-sm text-medical-text focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                className="flex-1 rounded-lg border border-medical-border px-3 py-2 text-sm text-medical-text focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
               >
                 {LANGUAGES.map((lang) => (
                   <option key={lang.value} value={lang.value}>{lang.label}</option>
                 ))}
               </select>
-            </CardContent>
-          </Card>
 
-          {/* Remote mode: minimal Meet launcher */}
-          {consultationMode === "remote" && consultationId && (
-            <div className="w-full max-w-2xl">
-              <GoogleMeetEmbed consultationId={consultationId} />
+              {/* Microphone test button */}
+              <button
+                type="button"
+                onClick={() => void handleMicTest()}
+                disabled={micTestState === "recording"}
+                title="Test microphone (records 3 s and plays back)"
+                className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                  micTestState === "recording"
+                    ? "border-red-300 bg-red-50 text-red-700 animate-pulse"
+                    : micTestState === "playing"
+                    ? "border-green-300 bg-green-50 text-green-700"
+                    : "border-medical-border bg-white text-medical-muted hover:border-gray-400 hover:text-medical-text"
+                }`}
+              >
+                {micTestState === "recording" ? (
+                  <>
+                    <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+                    3 s…
+                  </>
+                ) : micTestState === "playing" ? (
+                  <>
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" />
+                    </svg>
+                    Playing…
+                  </>
+                ) : (
+                  <>
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
+                    </svg>
+                    Test mic
+                  </>
+                )}
+              </button>
+
+              {/* Settings gear — reveals mode selector and remote extras */}
+              <button
+                type="button"
+                onClick={() => setShowAdvancedSettings((v) => !v)}
+                title="Recording settings"
+                className={`rounded-lg border p-2 transition-colors ${
+                  showAdvancedSettings
+                    ? "border-brand-400 bg-brand-50 text-brand-600"
+                    : "border-medical-border bg-white text-medical-muted hover:border-gray-400 hover:text-medical-text"
+                }`}
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                </svg>
+              </button>
             </div>
-          )}
 
-          {/* Stage 2: Identity & Tech Verification (telemedicine only) */}
-          {consultationMode === "remote" && !identityVerified && (
-            <IdentityVerification
-              patientName={patientName}
-              patientDOB={consultationData?.patient?.date_of_birth}
-              consultationId={consultationId}
-              onVerified={handleIdentityVerified}
-            />
-          )}
-          {consultationMode === "remote" && identityVerified && (
-            <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 px-4 py-2 w-full max-w-md">
-              <svg className="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
-              </svg>
-              <span className="text-sm text-green-700 font-medium">Identity & tech check verified</span>
-            </div>
-          )}
+            {/* Advanced settings panel */}
+            {showAdvancedSettings && (
+              <div className="rounded-lg border border-medical-border bg-gray-50 p-4 space-y-3">
+                {/* Mode selector */}
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-medical-muted">{t("record.consultationMode")}</p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setConsultationMode("in-person")}
+                      className={`flex flex-1 items-center justify-center gap-2 rounded-lg border-2 py-2.5 text-sm font-medium transition-colors ${
+                        consultationMode === "in-person"
+                          ? "border-brand-500 bg-brand-50 text-brand-700"
+                          : "border-gray-200 bg-white text-medical-muted hover:border-gray-300"
+                      }`}
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                      </svg>
+                      {t("record.inPerson")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConsultationMode("remote")}
+                      className={`flex flex-1 items-center justify-center gap-2 rounded-lg border-2 py-2.5 text-sm font-medium transition-colors ${
+                        consultationMode === "remote"
+                          ? "border-brand-500 bg-brand-50 text-brand-700"
+                          : "border-gray-200 bg-white text-medical-muted hover:border-gray-300"
+                      }`}
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
+                      </svg>
+                      {t("record.remoteCall")}
+                    </button>
+                  </div>
+                </div>
 
-          {/* AI Transparency Notice — compact */}
-          <div className="w-full max-w-md rounded-lg border border-indigo-200 bg-indigo-50/30 px-4 py-3">
+                {/* Remote-only: video embed + identity */}
+                {consultationMode === "remote" && consultationId && (
+                  <div className="space-y-3 pt-1">
+                    <p className="text-xs text-medical-muted">
+                      Join the call below, then start recording.
+                    </p>
+                    <GoogleMeetEmbed consultationId={consultationId} />
+                    {!identityVerified ? (
+                      <IdentityVerification
+                        patientName={patientName}
+                        patientDOB={consultationData?.patient?.date_of_birth}
+                        consultationId={consultationId}
+                        onVerified={handleIdentityVerified}
+                      />
+                    ) : (
+                      <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 px-3 py-2">
+                        <svg className="h-4 w-4 text-green-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
+                        </svg>
+                        <span className="text-sm text-green-700 font-medium">Identity & tech check verified</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* AI transparency notice */}
+          <div className="w-full max-w-md rounded-lg border border-indigo-100 bg-indigo-50/40 px-4 py-3">
             <p className="text-xs text-indigo-800">
               <strong>{t("record.aiNotice")}</strong> — {t("record.aiNotice1")} {t("record.aiNotice1Desc")}{" "}
               <a href="/privacy#ai-transparency" target="_blank" className="text-indigo-600 underline">{t("record.aiPolicyLink")}</a>
             </p>
           </div>
 
-          <label className="flex max-w-2xl items-start gap-4 rounded-xl border border-medical-border bg-white p-6">
+          {/* Consent */}
+          <label className="flex max-w-md cursor-pointer items-start gap-4 rounded-xl border-2 border-medical-border bg-white p-5 transition-colors hover:border-brand-300">
             <input
               type="checkbox"
               checked={consentGiven}
               onChange={(e) => setConsentGiven(e.target.checked)}
-              className="mt-1 h-5 w-5 rounded border-gray-300 text-brand-600"
+              className="mt-0.5 h-5 w-5 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
             />
             <span className="text-sm leading-relaxed text-medical-text">
               {t("record.consentText")}
             </span>
           </label>
 
-          <div className="flex items-center gap-2 rounded-lg bg-gray-50 px-4 py-2">
-            <div className={`h-2 w-2 rounded-full ${connectionStatus === "connecting" ? "bg-yellow-500 animate-pulse" : connectionStatus === "error" ? "bg-red-500" : "bg-green-500"}`} />
-            <span className="text-sm text-medical-muted">
-              {t("record.readyToRecord")}
-            </span>
+          {/* Record button */}
+          <div className="flex flex-col items-center gap-3">
+            <Button
+              onClick={handleStartRecording}
+              disabled={!consentGiven || connectionStatus === "connecting"}
+              variant="danger"
+              size="lg"
+              className="h-20 w-20 rounded-full !p-0 shadow-lg shadow-red-200 transition-transform active:scale-95 disabled:shadow-none"
+            >
+              <svg className="h-7 w-7" fill="currentColor" viewBox="0 0 20 20">
+                <circle cx="10" cy="10" r="8" />
+              </svg>
+            </Button>
+            <p className="text-xs text-medical-muted">
+              {consentGiven
+                ? "Tap to start recording"
+                : "Confirm consent above to enable recording"}
+            </p>
           </div>
-
-          <Button
-            onClick={handleStartRecording}
-            disabled={!consentGiven || connectionStatus === "connecting"}
-            variant="danger"
-            size="lg"
-            className="h-16 w-16 rounded-full !p-0"
-          >
-            <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" /></svg>
-          </Button>
         </div>
       )}
 
       {/* PHASE 2: RECORDING */}
       {phase === "recording" && (
         <div className="space-y-3 py-2">
-          {/* Error banner */}
-          {streamingStatus && (streamingStatus.includes("error") || streamingStatus.includes("failed")) && (
-            <div className="rounded-lg px-3 py-1.5 text-xs bg-red-50 text-red-700 border border-red-200">
-              Transcription issue: {streamingStatus}
+
+          {/* ── Prominent status bar ─────────────────────────────────────── */}
+          <div className={`flex items-center justify-between rounded-xl px-4 py-3 ${
+            isPaused
+              ? "bg-amber-50 border border-amber-200"
+              : "bg-red-50 border border-red-200"
+          }`}>
+            <div className="flex items-center gap-3">
+              {/* Pulsing recording dot */}
+              <span className={`inline-flex h-4 w-4 rounded-full ${
+                isPaused ? "bg-amber-400" : "bg-red-500 animate-pulse"
+              }`} />
+              <span className={`text-base font-bold ${isPaused ? "text-amber-800" : "text-red-800"}`}>
+                {isPaused ? "PAUSED" : t("record.recording")}
+              </span>
+              <span className="font-mono text-lg font-semibold text-gray-700">
+                {formatDuration(duration)}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* STT streaming status pill */}
+              <div className={`hidden sm:flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                streamingActive
+                  ? "bg-purple-100 text-purple-700"
+                  : streamingStatus.includes("batch") || streamingStatus.includes("locally")
+                  ? "bg-amber-100 text-amber-700"
+                  : "bg-green-100 text-green-700"
+              }`}>
+                <div className={`h-1.5 w-1.5 rounded-full ${
+                  streamingActive ? "bg-purple-500 animate-pulse" : "bg-current"
+                }`} />
+                {streamingActive
+                  ? t("record.streamingLive")
+                  : streamingStatus.includes("batch") || streamingStatus.includes("locally")
+                  ? "Batch mode"
+                  : t("record.connected")}
+              </div>
+
+              {/* AI Tools toggle */}
+              <button
+                type="button"
+                onClick={() => setShowSidebar((v) => !v)}
+                className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                  showSidebar
+                    ? "border-brand-400 bg-brand-50 text-brand-700"
+                    : "border-gray-300 bg-white text-gray-600 hover:border-gray-400"
+                }`}
+              >
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" />
+                </svg>
+                AI Tools
+                {showSidebar ? (
+                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" />
+                  </svg>
+                ) : (
+                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                  </svg>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Streaming error / fallback notice */}
+          {(streamingStatus.includes("error") || streamingStatus.includes("failed") || streamingStatus.includes("locally")) && (
+            <div className={`rounded-lg px-3 py-2 text-xs border ${
+              streamingStatus.includes("locally")
+                ? "bg-amber-50 text-amber-800 border-amber-200"
+                : "bg-red-50 text-red-700 border-red-200"
+            }`}>
+              {streamingStatus.includes("locally")
+                ? `Live transcription unavailable — ${streamingStatus}`
+                : `Transcription issue: ${streamingStatus}`}
             </div>
           )}
 
-          {/* ===== REMOTE MODE: Meet slot + transcript + AI ===== */}
-          {consultationMode === "remote" ? (
-            <>
-              {/* Recording status bar */}
-              <div className="flex items-center justify-between rounded-lg bg-gray-50 p-3">
-                <div className="flex items-center gap-3">
-                  <span className="inline-flex h-3 w-3 animate-pulse rounded-full bg-medical-recording" />
-                  <span className="text-lg font-semibold text-medical-recording">{t("record.recording")}</span>
-                  <span className="text-lg font-mono text-medical-text">{formatDuration(duration)}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  {streamingStatus && streamingStatus !== "idle" && (
-                    <span className="text-[10px] text-gray-500 font-mono">{streamingStatus}</span>
-                  )}
-                  <div className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${streamingActive ? "bg-purple-100 text-purple-700" : "bg-green-100 text-green-700"}`}>
-                    <div className={`h-2 w-2 rounded-full ${streamingActive ? "bg-purple-500 animate-pulse" : "bg-green-500"}`} />
-                    {streamingActive ? t("record.streamingLive") : t("record.connected")}
-                  </div>
-                </div>
-              </div>
-
-              {/* Meet PiP slot + Transcript + AI */}
-              <div className="grid gap-3 lg:grid-cols-5">
-                <div className="lg:col-span-3 space-y-3">
-                  <div className="flex flex-col sm:flex-row gap-3 items-start">
-                    <div className="flex flex-col gap-1.5 shrink-0">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Video call</span>
-                      <GoogleMeetEmbed
-                      consultationId={consultationId!}
-                      slot
-                      isRecording={isRecording}
-                      duration={formatDuration(duration)}
-                      streamingActive={streamingActive}
-                      isMultichannel={isMultichannel}
-                      remoteStream={remoteVideoStream}
-                      shouldClose={shouldCloseMeet}
-                    />
-                    </div>
-                    <div className="flex-1 min-w-0 w-full">
-                  <Card>
-                    <CardContent className="pt-3 pb-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-xs font-semibold uppercase text-medical-muted">{t("record.liveConversation")}</h3>
-                        <div className="flex items-center gap-2">
-                          <span className="flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-600">
-                            <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />{t("record.doctor")}
-                          </span>
-                          <span className="flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-medium text-green-600">
-                            <span className="h-1.5 w-1.5 rounded-full bg-green-500" />{t("record.patientSpeaker")}
-                          </span>
-                        </div>
-                      </div>
-                      {renderTranscriptBubbles(transcript, "max-h-[500px]")}
-                    </CardContent>
-                  </Card>
-                    </div>
-                  </div>
-
-                  <Card>
-                    <CardContent className="pt-3 pb-3">
-                      <h3 className="mb-1.5 text-xs font-semibold uppercase text-medical-muted">{t("record.sessionNotes")}</h3>
-                      <textarea
-                        value={sessionNotes}
-                        onChange={(e) => setSessionNotes(e.target.value)}
-                        placeholder={t("record.sessionNotesPlaceholder")}
-                        className="w-full min-h-[60px] rounded-lg border border-medical-border bg-white px-3 py-2 text-sm text-medical-text placeholder-medical-muted focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 resize-y"
-                      />
-                    </CardContent>
-                  </Card>
-                </div>
-
-                <div className="lg:col-span-2 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto space-y-3">
-                  <ProblemTracker isRecording={isRecording} duration={duration} onProblemsChange={handleProblemsChange} />
-                  <AIAssistantPanel transcript={transcript} isRecording={isRecording} visitType={consultationData?.visit_type} patientName={patientName} />
-                  <ClinicalDecisionSupport
-                    consultationId={consultationId}
-                    patientId={consultationData?.patient_id ?? undefined}
-                    transcript={transcript.filter((t) => t.isFinal).map((t) => (t.speaker === 0 ? "Doctor" : "Patient") + ": " + t.text).join("\n")}
-                    medications={[]}
-                  />
-                  <CriteriaTracker transcript={transcript.filter((t) => t.isFinal).map((t) => t.text).join(" ")} />
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              {/* ===== IN-PERSON MODE: Audio visualizer + standard layout ===== */}
-              <div className="flex items-center justify-between rounded-lg bg-gray-50 p-3">
-                <div className="flex items-center gap-3">
-                  <span className="inline-flex h-3 w-3 animate-pulse rounded-full bg-medical-recording" />
-                  <span className="text-lg font-semibold text-medical-recording">{t("record.recording")}</span>
-                  <span className="text-lg font-mono text-medical-text">{formatDuration(duration)}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  {streamingStatus && streamingStatus !== "idle" && (
-                    <span className="text-[10px] text-gray-500 font-mono">{streamingStatus}</span>
-                  )}
-                  <div className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${streamingActive ? "bg-purple-100 text-purple-700" : "bg-green-100 text-green-700"}`}>
-                    <div className={`h-2 w-2 rounded-full ${streamingActive ? "bg-purple-500 animate-pulse" : "bg-green-500"}`} />
-                    {streamingActive ? t("record.streamingLive") : t("record.connected")}
-                  </div>
-                </div>
-              </div>
-
-              <AudioVisualizer audioLevel={audioLevel} isRecording={isRecording} isPaused={isPaused} duration={duration} />
-
-              <div className="grid gap-4 lg:grid-cols-5">
-                <div className="lg:col-span-3 space-y-4">
-                  <Card>
-                    <CardContent className="pt-4 pb-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-sm font-semibold uppercase text-medical-muted">{t("record.liveConversation")}</h3>
-                        <div className="flex items-center gap-2">
-                          <span className="flex items-center gap-1.5 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-600">
-                            <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />{t("record.doctor")}
-                          </span>
-                          <span className="flex items-center gap-1.5 rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-medium text-green-600">
-                            <span className="h-1.5 w-1.5 rounded-full bg-green-500" />{t("record.patientSpeaker")}
-                          </span>
-                        </div>
-                      </div>
-                      {renderTranscriptBubbles(transcript)}
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardContent className="pt-4 pb-4">
-                      <h3 className="mb-2 text-xs font-semibold uppercase text-medical-muted">{t("record.sessionNotes")}</h3>
-                      <textarea
-                        value={sessionNotes}
-                        onChange={(e) => setSessionNotes(e.target.value)}
-                        placeholder={t("record.sessionNotesPlaceholder")}
-                        className="w-full min-h-[80px] rounded-lg border border-medical-border bg-white px-3 py-2 text-sm text-medical-text placeholder-medical-muted focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 resize-y"
-                      />
-                    </CardContent>
-                  </Card>
-                </div>
-
-                <div className="lg:col-span-2 lg:sticky lg:top-24 lg:self-start lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto space-y-4">
-                  <ProblemTracker isRecording={isRecording} duration={duration} onProblemsChange={handleProblemsChange} />
-                  <AIAssistantPanel transcript={transcript} isRecording={isRecording} visitType={consultationData?.visit_type} patientName={patientName} />
-                  <ClinicalDecisionSupport
-                    consultationId={consultationId}
-                    patientId={consultationData?.patient_id ?? undefined}
-                    transcript={transcript.filter((t) => t.isFinal).map((t) => (t.speaker === 0 ? "Doctor" : "Patient") + ": " + t.text).join("\n")}
-                    medications={[]}
-                  />
-                  <CriteriaTracker transcript={transcript.filter((t) => t.isFinal).map((t) => t.text).join(" ")} />
-                </div>
-              </div>
-            </>
+          {/* Remote mode: floating Meet panel */}
+          {consultationMode === "remote" && (
+            <GoogleMeetEmbed
+              consultationId={consultationId!}
+              floating
+              isRecording={isRecording}
+              duration={formatDuration(duration)}
+              streamingActive={streamingActive}
+              isMultichannel={isMultichannel}
+              remoteStream={remoteVideoStream}
+              shouldClose={shouldCloseMeet}
+            />
           )}
 
-          {/* Controls — shared by both modes */}
+          {/* In-person: audio waveform */}
+          {consultationMode !== "remote" && (
+            <AudioVisualizer audioLevel={audioLevel} isRecording={isRecording} isPaused={isPaused} duration={duration} />
+          )}
+
+          {/* ── Main content: transcript + notes (full-width) ─────────────── */}
+          <div className={`grid gap-4 ${showSidebar ? "lg:grid-cols-5" : ""}`}>
+            {/* Primary column */}
+            <div className={`space-y-3 ${showSidebar ? "lg:col-span-3" : ""}`}>
+              {/* Transcript */}
+              <Card>
+                <CardContent className="pb-3 pt-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-medical-muted">
+                      {t("record.liveConversation")}
+                    </h3>
+                    <div className="flex items-center gap-1.5">
+                      <span className="flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-600">
+                        <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                        {t("record.doctor")}
+                      </span>
+                      <span className="flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-medium text-green-600">
+                        <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                        {t("record.patientSpeaker")}
+                      </span>
+                    </div>
+                  </div>
+                  {renderTranscriptBubbles(transcript, showSidebar ? "max-h-[420px]" : "max-h-[520px]")}
+                </CardContent>
+              </Card>
+
+              {/* Session notes */}
+              <Card>
+                <CardContent className="pb-3 pt-3">
+                  <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-medical-muted">
+                    {t("record.sessionNotes")}
+                  </h3>
+                  <textarea
+                    value={sessionNotes}
+                    onChange={(e) => setSessionNotes(e.target.value)}
+                    placeholder={t("record.sessionNotesPlaceholder")}
+                    rows={2}
+                    className="w-full resize-y rounded-lg border border-medical-border bg-white px-3 py-2 text-sm text-medical-text placeholder-medical-muted focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                  />
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* AI Tools sidebar (only when toggled on) */}
+            {showSidebar && (
+              <div className="lg:col-span-2 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto space-y-3">
+                <ProblemTracker isRecording={isRecording} duration={duration} onProblemsChange={handleProblemsChange} />
+                <AIAssistantPanel transcript={transcript} isRecording={isRecording} visitType={consultationData?.visit_type} patientName={patientName} />
+                <ClinicalDecisionSupport
+                  consultationId={consultationId}
+                  patientId={consultationData?.patient_id ?? undefined}
+                  transcript={transcript.filter((t) => t.isFinal).map((t) => (t.speaker === 0 ? "Doctor" : "Patient") + ": " + t.text).join("\n")}
+                  medications={[]}
+                />
+                <CriteriaTracker transcript={transcript.filter((t) => t.isFinal).map((t) => t.text).join(" ")} />
+              </div>
+            )}
+          </div>
+
+          {/* ── Controls ─────────────────────────────────────────────────── */}
           <div className="flex gap-3">
-            <Button onClick={isPaused ? resumeRecording : pauseRecording} variant="outline" size="md" className="flex-1">
+            <Button
+              onClick={isPaused ? resumeRecording : pauseRecording}
+              variant="outline"
+              size="md"
+              className="flex-1"
+              title="Space bar shortcut"
+            >
               {isPaused ? t("record.resume") : t("record.pause")}
             </Button>
-            <Button onClick={handleEndRecording} disabled={isTranscribing} variant="danger" size="md" className="flex-1">
-              {t("record.endConsultation")}
+            <Button
+              onClick={handleEndRecording}
+              disabled={isTranscribing}
+              variant="danger"
+              size="md"
+              className="flex-1"
+            >
+              {isTranscribing ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Transcribing…
+                </span>
+              ) : t("record.endConsultation")}
             </Button>
           </div>
+
+          {/* Keyboard shortcut hint */}
+          <p className="text-center text-[11px] text-medical-muted">
+            <kbd className="rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 font-mono text-[10px]">Space</kbd>
+            {" "}pause / resume
+          </p>
 
           {(error || recordingError) && (
             <div className="rounded-lg border border-red-200 bg-red-50 p-4">

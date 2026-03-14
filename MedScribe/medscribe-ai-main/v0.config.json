@@ -1,0 +1,85 @@
+{
+  "framework": "next",
+  "version": 15,
+  "language": "typescript",
+  "styling": "tailwind",
+  "ui": "shadcn",
+  "componentPath": "src/components/ui",
+  "importAlias": "@",
+  "tailwind": {
+    "colors": {
+      "brand": {
+        "50": "#eff6ff",
+        "100": "#dbeafe",
+        "200": "#bfdbfe",
+        "300": "#93c5fd",
+        "400": "#60a5fa",
+        "500": "#3b82f6",
+        "600": "#2563eb",
+        "700": "#1d4ed8",
+        "800": "#1e40af",
+        "900": "#1e3a8a",
+        "950": "#172554"
+      },
+      "medical": {
+        "bg": "#f8fafc",
+        "card": "#ffffff",
+        "border": "#e2e8f0",
+        "text": "#0f172a",
+        "muted": "#64748b",
+        "accent": "#2563eb",
+        "success": "#16a34a",
+        "warning": "#d97706",
+        "danger": "#dc2626",
+        "recording": "#b91c1c"
+      }
+    },
+    "fonts": {
+      "sans": "var(--font-sans)",
+      "display": "var(--font-display)",
+      "mono": "JetBrains Mono"
+    }
+  },
+  "designTokens": {
+    "primaryColor": "brand-600",
+    "textColor": "medical-text",
+    "mutedColor": "medical-muted",
+    "borderColor": "medical-border",
+    "bgColor": "medical-bg",
+    "cardBg": "medical-card",
+    "success": "medical-success",
+    "warning": "medical-warning",
+    "danger": "medical-danger"
+  },
+  "componentConventions": {
+    "cards": "Use Card, CardHeader, CardTitle, CardContent from @/components/ui/card",
+    "buttons": "Use Button with variant='outline'|'ghost'|'default' from @/components/ui/button",
+    "inputs": "Use Input from @/components/ui/input",
+    "badges": "Use StatusBadge from @/components/ui/badge for status indicators",
+    "layout": "mx-auto max-w-7xl space-y-6 p-6",
+    "tableHeader": "border-b border-medical-border bg-gray-50",
+    "tableRow": "border-b border-medical-border hover:bg-gray-50",
+    "sectionHeading": "text-2xl font-bold text-medical-text",
+    "label": "text-xs font-medium text-medical-muted"
+  },
+  "existingComponents": [
+    "src/components/ui/badge.tsx",
+    "src/components/ui/button.tsx",
+    "src/components/ui/card.tsx",
+    "src/components/ui/input.tsx",
+    "src/components/ui/select.tsx",
+    "src/components/ui/toast.tsx",
+    "src/components/ui/loading.tsx",
+    "src/components/ui/NetworkStatusBanner.tsx",
+    "src/components/ui/language-switcher.tsx"
+  ],
+  "notes": [
+    "This is a medical scribe SaaS — MedScribe. Clean, professional, clinical aesthetic.",
+    "Primary blue is brand-600 (#2563eb). Avoid bright or saturated accent colors.",
+    "All tables use the same header/row pattern: bg-gray-50 header, hover:bg-gray-50 rows.",
+    "Status badges use the custom StatusBadge component, not standard shadcn Badge.",
+    "All pages are 'use client' unless they are Server Components in the (app) route group.",
+    "Supabase is used for auth and database — no mock data in components.",
+    "Prefer cn() from @/lib/utils for conditional class merging."
+  ]
+}

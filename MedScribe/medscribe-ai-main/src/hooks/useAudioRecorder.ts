@@ -6,11 +6,22 @@ import type {
   ConsultationMode,
   LiveTranscriptItem,
 } from "@/types";
+import {
+  saveAudioBackup,
+  markBackupTranscribed,
+} from "@/lib/audioBackup";
 
 interface UseAudioRecorderOptions {
   mode?: ConsultationMode;
   language?: string;
   streaming?: boolean;
+  /**
+   * Provide the consultation ID to enable local audio backup via IndexedDB.
+   * When set, the assembled audio blob is saved to IDB before the transcription
+   * API call. On success the record is marked 'transcribed'. On failure it
+   * remains as 'saved', visible to the recovery UI in useAudioBackup.
+   */
+  consultationId?: string;
   onTranscriptUpdate?: (items: LiveTranscriptItem[]) => void;
   onError?: (error: string) => void;
 }
@@ -28,8 +39,15 @@ interface UseAudioRecorderReturn {
   streamingActive: boolean;
   streamingStatus: string;
   remoteVideoStream: MediaStream | null;
+  /** IDB record ID of the local backup written before batch transcription. */
+  backupId: string | null;
   startRecording: () => Promise<void>;
-  stopRecording: () => Promise<void>;
+  /**
+   * Stops the recorder and runs any necessary batch transcription.
+   * Resolves with the final transcript items so the caller doesn't have to
+   * read the (potentially stale) React state after awaiting this function.
+   */
+  stopRecording: () => Promise<LiveTranscriptItem[]>;
   pauseRecording: () => void;
   resumeRecording: () => void;
   error: string | null;
@@ -39,6 +57,7 @@ export function useAudioRecorder({
   mode = "in-person",
   language = "en",
   streaming = true,
+  consultationId,
   onTranscriptUpdate,
   onError,
 }: UseAudioRecorderOptions): UseAudioRecorderReturn {
@@ -55,6 +74,7 @@ export function useAudioRecorder({
   const [streamingActive, setStreamingActive] = useState(false);
   const [streamingStatus, setStreamingStatus] = useState("idle");
   const [remoteVideoStream, setRemoteVideoStream] = useState<MediaStream | null>(null);
+  const [backupId, setBackupId] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -84,13 +104,93 @@ export function useAudioRecorder({
   const wsParamsRef = useRef<string>("");
   const MAX_RECONNECT_ATTEMPTS = 5;
 
+  // ── Periodic batch fallback (fires when all WS reconnect attempts fail) ───
+  const periodicFlushIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const periodicFlushActiveRef = useRef(false);
+  const inPeriodicFlushRef = useRef(false);
+  // Captured mimeType so the flush callback doesn't close over a stale value
+  const mimeTypeRef = useRef("audio/webm");
+
+  /**
+   * Send ALL accumulated chunks to the batch transcription API and replace the
+   * current transcript with the result.  Sending the full audio each time
+   * (rather than a delta) gives the STT model full context and produces better
+   * speaker-diarization results.  The transcript "refreshes" every 30 s, which
+   * is acceptable — the doctor is not supposed to edit mid-recording.
+   */
+  const doPeriodicFlush = useCallback(async () => {
+    if (inPeriodicFlushRef.current || chunksRef.current.length === 0) return;
+
+    inPeriodicFlushRef.current = true;
+    setStreamingStatus("updating transcript…");
+
+    try {
+      const audioBlob = new Blob(chunksRef.current, { type: mimeTypeRef.current });
+      const headers: Record<string, string> = {
+        "Content-Type": mimeTypeRef.current || "audio/webm",
+        "X-Audio-Language": languageRef.current,
+      };
+      if (isMultichannelRef.current) headers["X-Audio-Mode"] = "multichannel";
+
+      const response = await fetch("/api/deepgram/transcribe", {
+        method: "POST",
+        headers,
+        body: audioBlob,
+      });
+
+      if (!response.ok) throw new Error(`${response.status}`);
+
+      const result = await response.json();
+      const items: LiveTranscriptItem[] = (
+        (result as { segments?: Array<{ speaker: number; text: string; start_time: number; confidence: number }> }).segments ?? []
+      ).map((seg) => ({
+        speaker: seg.speaker,
+        text: seg.text,
+        timestamp: seg.start_time,
+        isFinal: true,
+        confidence: seg.confidence,
+      }));
+
+      if (items.length > 0) {
+        setTranscript(items);
+        transcriptRef.current = items;
+        onTranscriptUpdate?.(items);
+      }
+
+      setStreamingStatus("recording locally · transcript updated");
+    } catch {
+      setStreamingStatus("recording locally · transcript update failed, retrying…");
+    } finally {
+      inPeriodicFlushRef.current = false;
+    }
+  }, [onTranscriptUpdate]);
+
   const reconnectWebSocket = useCallback(() => {
-    if (
-      intentionalCloseRef.current ||
-      !dgKeyRef.current ||
-      !wsParamsRef.current ||
-      reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS
-    ) {
+    // Always bail on intentional close or missing credentials
+    if (intentionalCloseRef.current || !dgKeyRef.current || !wsParamsRef.current) {
+      return;
+    }
+
+    // All reconnect attempts exhausted → switch to periodic batch fallback
+    if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
+      setStreamingActive(false);
+      setConnectionStatus("connected"); // mic is still active
+      setStreamingStatus(
+        "Deepgram unavailable — recording locally, transcript updates every 30 s"
+      );
+      mimeTypeRef.current = mediaRecorderRef.current?.mimeType ?? "audio/webm";
+      periodicFlushActiveRef.current = true;
+
+      if (!periodicFlushIntervalRef.current) {
+        // First update after 5 s (give the final failed WS attempt time to settle)
+        setTimeout(() => {
+          if (periodicFlushActiveRef.current) void doPeriodicFlush();
+        }, 5_000);
+        periodicFlushIntervalRef.current = setInterval(
+          () => void doPeriodicFlush(),
+          30_000
+        );
+      }
       return;
     }
 
@@ -172,7 +272,7 @@ export function useAudioRecorder({
         }
       };
     }, delay);
-  }, [onTranscriptUpdate]);
+  }, [onTranscriptUpdate, doPeriodicFlush]);
 
   const cleanup = useCallback(() => {
     intentionalCloseRef.current = true;
@@ -236,6 +336,13 @@ export function useAudioRecorder({
       cancelAnimationFrame(levelAnimationRef.current);
       levelAnimationRef.current = null;
     }
+
+    if (periodicFlushIntervalRef.current) {
+      clearInterval(periodicFlushIntervalRef.current);
+      periodicFlushIntervalRef.current = null;
+    }
+    periodicFlushActiveRef.current = false;
+    inPeriodicFlushRef.current = false;
 
     setAudioLevel(0);
     setStreamingActive(false);
@@ -401,6 +508,13 @@ export function useAudioRecorder({
     chunksSentRef.current = 0;
     intentionalCloseRef.current = false;
     reconnectAttemptsRef.current = 0;
+    // Clear any periodic flush left over from a previous recording
+    if (periodicFlushIntervalRef.current) {
+      clearInterval(periodicFlushIntervalRef.current);
+      periodicFlushIntervalRef.current = null;
+    }
+    periodicFlushActiveRef.current = false;
+    inPeriodicFlushRef.current = false;
     setStreamingStatus("starting");
 
     try {
@@ -662,7 +776,7 @@ export function useAudioRecorder({
   ]);
 
   const stopRecording = useCallback(async () => {
-    return new Promise<void>((resolve) => {
+    return new Promise<LiveTranscriptItem[]>((resolve) => {
       intentionalCloseRef.current = true;
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
@@ -688,27 +802,64 @@ export function useAudioRecorder({
       ) {
         setIsRecording(false);
         cleanup();
-        resolve();
+        resolve(transcriptRef.current);
         return;
       }
 
       const recorder = mediaRecorderRef.current;
-      const hadStreamingTranscript = transcriptRef.current.length > 0;
+      // Snapshot: did live streaming produce any transcript items?
+      const hadLiveStreamingTranscript = transcriptRef.current.length > 0;
+      // Snapshot: was the periodic batch fallback active during this recording?
+      const wasPeriodicFallback = periodicFlushActiveRef.current;
       const wasMultichannel = isMultichannelRef.current;
       const recordingLanguage = languageRef.current;
+
+      // Stop the periodic flush now — we'll do one definitive final batch below
+      if (periodicFlushIntervalRef.current) {
+        clearInterval(periodicFlushIntervalRef.current);
+        periodicFlushIntervalRef.current = null;
+      }
+      periodicFlushActiveRef.current = false;
 
       recorder.onstop = async () => {
         setIsRecording(false);
         setConnectionStatus("disconnected");
 
-        if (hadStreamingTranscript) {
+        // Only skip the final batch when Deepgram streamed cleanly the entire
+        // session and the periodic fallback was never needed.  If streaming
+        // partially failed mid-recording (wasPeriodicFallback), we always run
+        // a final complete batch to capture any trailing audio.
+        if (hadLiveStreamingTranscript && !wasPeriodicFallback) {
           setStreamingStatus("completed (live)");
+          const finalItems = transcriptRef.current;
           cleanup();
-          resolve();
+          resolve(finalItems);
           return;
         }
 
-        setStreamingStatus("running batch transcription...");
+        // ── Drain any in-flight periodic flush ────────────────────────────────
+        // If doPeriodicFlush is mid-request when the recorder stops, we must
+        // wait for it to finish before running the definitive final batch.
+        // Without this guard the two concurrent setTranscript() calls race and
+        // the flush's partial result can overwrite the complete batch result
+        // (or vice versa), leaving the transcript in an indeterminate state.
+        if (inPeriodicFlushRef.current) {
+          setStreamingStatus("waiting for in-progress transcript update…");
+          await new Promise<void>((res) => {
+            const poll = setInterval(() => {
+              if (!inPeriodicFlushRef.current) {
+                clearInterval(poll);
+                res();
+              }
+            }, 50);
+          });
+        }
+
+        setStreamingStatus(
+          wasPeriodicFallback
+            ? "finalising transcript (complete audio)…"
+            : "running batch transcription..."
+        );
         const audioBlob = new Blob(chunksRef.current, {
           type: recorder.mimeType,
         });
@@ -717,11 +868,34 @@ export function useAudioRecorder({
           setError("No audio was captured");
           onError?.("No audio was captured");
           cleanup();
-          resolve();
+          resolve([]);
           return;
         }
 
+        // ── Local backup: write to IndexedDB *before* the network call ──────
+        // If the transcription API fails or the browser crashes mid-request,
+        // the audio is already persisted and the recovery UI can offer a retry.
+        const recordId = consultationId ?? crypto.randomUUID();
+        setStreamingStatus("saving local backup...");
+        await saveAudioBackup({
+          id: recordId,
+          consultationId: consultationId ?? recordId,
+          audioBlob,
+          mimeType: recorder.mimeType || "audio/webm",
+          language: recordingLanguage,
+          isMultichannel: wasMultichannel,
+          durationSeconds: Math.floor(
+            (Date.now() - recordingStartRef.current) / 1000
+          ),
+          startedAt: recordingStartRef.current,
+        });
+        setBackupId(recordId);
+        setStreamingStatus("running batch transcription...");
+        // ─────────────────────────────────────────────────────────────────────
+
         setIsTranscribing(true);
+        let transcriptionSucceeded = false;
+        let finalItems: LiveTranscriptItem[] = transcriptRef.current;
         try {
           const headers: Record<string, string> = {
             "Content-Type": recorder.mimeType || "audio/webm",
@@ -738,46 +912,56 @@ export function useAudioRecorder({
           if (!response.ok) {
             const errData = await response.json().catch(() => ({}));
             throw new Error(
-              errData.error || `Transcription failed (${response.status})`
+              (errData as { error?: string }).error ||
+                `Transcription failed (${response.status})`
             );
           }
 
           const result = await response.json();
-          const items: LiveTranscriptItem[] = (result.segments || []).map(
-            (seg: {
-              speaker: number;
-              text: string;
-              start_time: number;
-              confidence: number;
-            }) => ({
-              speaker: seg.speaker,
-              text: seg.text,
-              timestamp: seg.start_time,
-              isFinal: true,
-              confidence: seg.confidence,
-            })
-          );
+          const items: LiveTranscriptItem[] = (
+            (result as { segments?: Array<{ speaker: number; text: string; start_time: number; confidence: number }> }).segments ?? []
+          ).map((seg) => ({
+            speaker: seg.speaker,
+            text: seg.text,
+            timestamp: seg.start_time,
+            isFinal: true,
+            confidence: seg.confidence,
+          }));
 
           setTranscript(items);
           transcriptRef.current = items;
+          finalItems = items;
           onTranscriptUpdate?.(items);
-          setStreamingStatus("completed (batch)");
+          setStreamingStatus(
+            wasPeriodicFallback ? "completed (live + batch fallback)" : "completed (batch)"
+          );
+          transcriptionSucceeded = true;
         } catch (err) {
           const message =
             err instanceof Error ? err.message : "Transcription failed";
           setError(message);
           onError?.(message);
+          // backupId remains 'saved' — recovery UI will surface it
         } finally {
           setIsTranscribing(false);
         }
 
+        // Mark the backup transcribed so the recovery UI doesn't resurface it
+        if (transcriptionSucceeded) {
+          await markBackupTranscribed(recordId);
+          setBackupId(null);
+        }
+
         cleanup();
-        resolve();
+        // Resolve with the final items so callers don't need to read stale
+        // React state — the state update (setTranscript) is batched and won't
+        // be reflected in the caller's closure until after a re-render.
+        resolve(finalItems);
       };
 
       recorder.stop();
     });
-  }, [cleanup, onTranscriptUpdate, onError]);
+  }, [cleanup, onTranscriptUpdate, onError, consultationId]);
 
   const pauseRecording = useCallback(() => {
     if (mediaRecorderRef.current?.state === "recording") {
@@ -806,6 +990,7 @@ export function useAudioRecorder({
     streamingActive,
     streamingStatus,
     remoteVideoStream,
+    backupId,
     startRecording,
     stopRecording,
     pauseRecording,

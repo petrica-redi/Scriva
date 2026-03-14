@@ -22,5 +22,11 @@ CREATE TABLE IF NOT EXISTS public.clinics (
 );
 
 ALTER TABLE public.clinics ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Allow public read access" ON public.clinics FOR SELECT USING (true);
-CREATE POLICY IF NOT EXISTS "Allow service role full access" ON public.clinics FOR ALL USING (true) WITH CHECK (true);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow public read access' AND tablename = 'clinics') THEN
+    CREATE POLICY "Allow public read access" ON public.clinics FOR SELECT USING (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow service role full access' AND tablename = 'clinics') THEN
+    CREATE POLICY "Allow service role full access" ON public.clinics FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+END $$;

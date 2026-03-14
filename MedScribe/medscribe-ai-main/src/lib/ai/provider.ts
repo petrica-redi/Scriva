@@ -1,6 +1,6 @@
 import { checkAIRateLimit } from "@/lib/rate-limit";
 
-export type AIProvider = "anthropic" | "ollama";
+export type AIProvider = "anthropic" | "openai" | "gemini";
 
 export interface AICompletionRequest {
   systemPrompt: string;
@@ -21,36 +21,39 @@ export interface AICompletionResult {
 
 export interface AIProviderStatus {
   anthropicConfigured: boolean;
-  ollamaConfigured: boolean;
+  openaiConfigured: boolean;
+  geminiConfigured: boolean;
   anthropicReachable: boolean;
-  ollamaReachable: boolean;
+  openaiReachable: boolean;
+  geminiReachable: boolean;
   primary: AIProvider | null;
-  fallback: AIProvider | null;
-  ollamaModel: string;
+  fallbacks: AIProvider[];
 }
 
-const DEFAULT_OLLAMA_URL = "http://localhost:11434";
-const DEFAULT_OLLAMA_MODEL = "medllama2:latest";
 const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-20250514";
-
-function getOllamaConfig() {
-  const baseUrl = (process.env.OLLAMA_BASE_URL || DEFAULT_OLLAMA_URL).replace(/\/$/, "");
-  const model = process.env.OLLAMA_MEDICAL_MODEL || DEFAULT_OLLAMA_MODEL;
-  return { baseUrl, model };
-}
+const DEFAULT_OPENAI_MODEL = "gpt-4o";
+const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash";
 
 function resolveProviderOrder(preferredProvider?: AICompletionRequest["preferredProvider"]): AIProvider[] {
   const anthropicConfigured = Boolean(process.env.ANTHROPIC_API_KEY);
-  const { baseUrl } = getOllamaConfig();
-  const ollamaConfigured = Boolean(baseUrl);
+  const openaiConfigured = Boolean(process.env.OPENAI_API_KEY);
+  const geminiConfigured = Boolean(process.env.GOOGLE_GEMINI_API_KEY);
 
-  if (preferredProvider === "anthropic") return ["anthropic", "ollama"];
-  if (preferredProvider === "ollama") return ["ollama", "anthropic"];
+  if (preferredProvider === "anthropic") return (["anthropic", "openai", "gemini"] as AIProvider[]).filter((p) =>
+    p === "anthropic" ? anthropicConfigured : p === "openai" ? openaiConfigured : geminiConfigured
+  );
+  if (preferredProvider === "openai") return (["openai", "anthropic", "gemini"] as AIProvider[]).filter((p) =>
+    p === "anthropic" ? anthropicConfigured : p === "openai" ? openaiConfigured : geminiConfigured
+  );
+  if (preferredProvider === "gemini") return (["gemini", "anthropic", "openai"] as AIProvider[]).filter((p) =>
+    p === "anthropic" ? anthropicConfigured : p === "openai" ? openaiConfigured : geminiConfigured
+  );
 
-  if (anthropicConfigured && ollamaConfigured) return ["anthropic", "ollama"];
-  if (anthropicConfigured) return ["anthropic"];
-  if (ollamaConfigured) return ["ollama"];
-  return [];
+  const order: AIProvider[] = [];
+  if (anthropicConfigured) order.push("anthropic");
+  if (openaiConfigured) order.push("openai");
+  if (geminiConfigured) order.push("gemini");
+  return order;
 }
 
 async function callAnthropic(req: AICompletionRequest): Promise<{ text: string; model: string }> {
@@ -91,33 +94,82 @@ async function callAnthropic(req: AICompletionRequest): Promise<{ text: string; 
   return { text, model: data.model || model };
 }
 
-async function callOllama(req: AICompletionRequest): Promise<{ text: string; model: string }> {
-  const { baseUrl, model } = getOllamaConfig();
+async function callOpenAI(req: AICompletionRequest): Promise<{ text: string; model: string }> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error("OpenAI provider is not configured");
+  }
 
-  const response = await fetch(`${baseUrl}/api/generate`, {
+  const model = process.env.OPENAI_MODEL || DEFAULT_OPENAI_MODEL;
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
     body: JSON.stringify({
       model,
-      stream: false,
-      prompt: `${req.systemPrompt}\n\nUser request:\n${req.userPrompt}`,
-      options: {
-        temperature: req.temperature ?? 0.1,
-        num_predict: req.maxTokens ?? 2048,
-      },
+      max_tokens: req.maxTokens ?? 2048,
+      temperature: req.temperature ?? 0.1,
+      messages: [
+        { role: "system", content: req.systemPrompt },
+        { role: "user", content: req.userPrompt },
+      ],
     }),
   });
 
   if (!response.ok) {
     const detail = await response.text();
-    throw new Error(`Ollama request failed (${response.status}): ${detail.slice(0, 250)}`);
+    throw new Error(`OpenAI request failed (${response.status}): ${detail.slice(0, 250)}`);
   }
 
-  const data = (await response.json()) as { response?: string; message?: { content?: string } };
-  const text = (data.response || data.message?.content || "").trim();
+  const data = (await response.json()) as { choices?: Array<{ message?: { content?: string } }>; model?: string };
+  const text = data.choices?.[0]?.message?.content?.trim();
 
   if (!text) {
-    throw new Error("Ollama returned an empty response");
+    throw new Error("OpenAI returned an empty response");
+  }
+
+  return { text, model: data.model || model };
+}
+
+async function callGemini(req: AICompletionRequest): Promise<{ text: string; model: string }> {
+  const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("Gemini provider is not configured");
+  }
+
+  const model = process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        // systemInstruction is the correct field for system prompts in Gemini API.
+        // Concatenating into the user message degrades instruction-following.
+        systemInstruction: { parts: [{ text: req.systemPrompt }] },
+        contents: [{ role: "user", parts: [{ text: req.userPrompt }] }],
+        generationConfig: {
+          maxOutputTokens: req.maxTokens ?? 2048,
+          temperature: req.temperature ?? 0.1,
+        },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(`Gemini request failed (${response.status}): ${detail.slice(0, 250)}`);
+  }
+
+  const data = (await response.json()) as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+  };
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+
+  if (!text) {
+    throw new Error("Gemini returned an empty response");
   }
 
   return { text, model };
@@ -125,7 +177,8 @@ async function callOllama(req: AICompletionRequest): Promise<{ text: string; mod
 
 export async function generateWithFallback(req: AICompletionRequest): Promise<AICompletionResult> {
   if (req.userId) {
-    const limit = checkAIRateLimit(req.userId, "anthropic");
+    // Single shared bucket for all AI providers per user — label "ai" is the generic tier.
+    const limit = checkAIRateLimit(req.userId, "ai");
     if (!limit.allowed) {
       throw new Error(
         `Rate limit exceeded. Try again in ${Math.ceil(limit.resetInMs / 1000)}s.`
@@ -136,7 +189,7 @@ export async function generateWithFallback(req: AICompletionRequest): Promise<AI
   const providerOrder = resolveProviderOrder(req.preferredProvider);
 
   if (providerOrder.length === 0) {
-    throw new Error("No AI providers are configured. Set ANTHROPIC_API_KEY and/or OLLAMA_BASE_URL.");
+    throw new Error("No AI providers are configured. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, and/or GOOGLE_GEMINI_API_KEY.");
   }
 
   const errors: string[] = [];
@@ -144,7 +197,12 @@ export async function generateWithFallback(req: AICompletionRequest): Promise<AI
   for (let i = 0; i < providerOrder.length; i += 1) {
     const provider = providerOrder[i];
     try {
-      const result = provider === "anthropic" ? await callAnthropic(req) : await callOllama(req);
+      const result =
+        provider === "anthropic"
+          ? await callAnthropic(req)
+          : provider === "openai"
+            ? await callOpenAI(req)
+            : await callGemini(req);
       return {
         text: result.text,
         provider,
@@ -177,10 +235,24 @@ async function isAnthropicReachable(): Promise<boolean> {
   }
 }
 
-async function isOllamaReachable(): Promise<boolean> {
-  const { baseUrl } = getOllamaConfig();
+async function isOpenAIReachable(): Promise<boolean> {
+  if (!process.env.OPENAI_API_KEY) return false;
   try {
-    const response = await fetch(`${baseUrl}/api/tags`, { cache: "no-store" });
+    const response = await fetch("https://api.openai.com/v1/models", {
+      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+      cache: "no-store",
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function isGeminiReachable(): Promise<boolean> {
+  if (!process.env.GOOGLE_GEMINI_API_KEY) return false;
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GOOGLE_GEMINI_API_KEY}`;
+    const response = await fetch(url, { cache: "no-store" });
     return response.ok;
   } catch {
     return false;
@@ -189,24 +261,27 @@ async function isOllamaReachable(): Promise<boolean> {
 
 export async function getProviderStatus(): Promise<AIProviderStatus> {
   const anthropicConfigured = Boolean(process.env.ANTHROPIC_API_KEY);
-  const { baseUrl, model } = getOllamaConfig();
-  const ollamaConfigured = Boolean(baseUrl);
+  const openaiConfigured = Boolean(process.env.OPENAI_API_KEY);
+  const geminiConfigured = Boolean(process.env.GOOGLE_GEMINI_API_KEY);
 
-  const [anthropicReachable, ollamaReachable] = await Promise.all([
+  const [anthropicReachable, openaiReachable, geminiReachable] = await Promise.all([
     isAnthropicReachable(),
-    isOllamaReachable(),
+    isOpenAIReachable(),
+    isGeminiReachable(),
   ]);
 
-  const primary = anthropicConfigured ? "anthropic" : ollamaConfigured ? "ollama" : null;
-  const fallback = anthropicConfigured && ollamaConfigured ? "ollama" : null;
+  const order = resolveProviderOrder();
+  const primary = order[0] ?? null;
+  const fallbacks = order.slice(1);
 
   return {
     anthropicConfigured,
-    ollamaConfigured,
+    openaiConfigured,
+    geminiConfigured,
     anthropicReachable,
-    ollamaReachable,
+    openaiReachable,
+    geminiReachable,
     primary,
-    fallback,
-    ollamaModel: model,
+    fallbacks,
   };
 }

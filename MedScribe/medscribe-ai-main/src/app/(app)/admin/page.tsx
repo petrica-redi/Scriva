@@ -9,7 +9,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
 import { formatDuration, cn } from "@/lib/utils";
 
-type AdminTab = "overview" | "consultations" | "transcripts" | "notes" | "prescriptions" | "audit" | "storage";
+type AdminTab = "overview" | "users" | "consultations" | "transcripts" | "notes" | "prescriptions" | "audit" | "storage";
+
+interface AdminUserRow {
+  id: string;
+  email: string | null;
+  created_at: string;
+  last_sign_in_at: string | null;
+  full_name: string | null;
+  role: string;
+  specialty: string | null;
+  patient_count: number;
+  consultation_count: number;
+}
 
 interface ConsultationRow {
   id: string;
@@ -88,6 +100,10 @@ export default function AdminPanel() {
   const [notes, setNotes] = useState<NoteRow[]>([]);
   const [prescriptions, setPrescriptions] = useState<PrescriptionRow[]>([]);
   const [auditLog, setAuditLog] = useState<AuditRow[]>([]);
+  const [adminUsers, setAdminUsers] = useState<AdminUserRow[]>([]);
+  const [adminUsersTotal, setAdminUsersTotal] = useState(0);
+  const [userSearch, setUserSearch] = useState("");
+  const [userRoleFilter, setUserRoleFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [page, setPage] = useState(0);
@@ -98,114 +114,104 @@ export default function AdminPanel() {
 
   const loadOverview = useCallback(async () => {
     setLoading(true);
-    const [
-      { count: totalConsultations },
-      { count: totalTranscripts },
-      { count: totalNotes },
-      { count: totalPrescriptions },
-      { count: totalPatients },
-      { count: totalAuditEntries },
-      { data: consultationData },
-      { data: noteData },
-    ] = await Promise.all([
-      supabase.from("consultations").select("*", { count: "exact", head: true }),
-      supabase.from("transcripts").select("*", { count: "exact", head: true }),
-      supabase.from("clinical_notes").select("*", { count: "exact", head: true }),
-      supabase.from("consultation_documents").select("*", { count: "exact", head: true }).eq("document_type", "prescription"),
-      supabase.from("patients").select("*", { count: "exact", head: true }),
-      supabase.from("audit_log").select("*", { count: "exact", head: true }),
-      supabase.from("consultations").select("status"),
-      supabase.from("clinical_notes").select("status"),
-    ]);
-
-    const statusBreakdown: Record<string, number> = {};
-    (consultationData || []).forEach((c: { status: string }) => {
-      statusBreakdown[c.status] = (statusBreakdown[c.status] || 0) + 1;
-    });
-
-    const noteStatusBreakdown: Record<string, number> = {};
-    (noteData || []).forEach((n: { status: string }) => {
-      noteStatusBreakdown[n.status] = (noteStatusBreakdown[n.status] || 0) + 1;
-    });
-
+    // Uses the admin API route so stats reflect ALL users (service-role, bypasses RLS).
+    const res = await fetch("/api/admin/overview");
+    if (!res.ok) {
+      setLoading(false);
+      return;
+    }
+    const data = await res.json();
     setStats({
-      totalConsultations: totalConsultations || 0,
-      totalTranscripts: totalTranscripts || 0,
-      totalNotes: totalNotes || 0,
-      totalPrescriptions: totalPrescriptions || 0,
-      totalPatients: totalPatients || 0,
-      totalAuditEntries: totalAuditEntries || 0,
-      statusBreakdown,
-      noteStatusBreakdown,
+      totalConsultations: data.totalConsultations ?? 0,
+      totalTranscripts: data.totalTranscripts ?? 0,
+      totalNotes: data.totalNotes ?? 0,
+      totalPrescriptions: data.totalPrescriptions ?? 0,
+      totalPatients: data.totalPatients ?? 0,
+      totalAuditEntries: data.totalAuditEntries ?? 0,
+      statusBreakdown: data.statusBreakdown ?? {},
+      noteStatusBreakdown: data.noteStatusBreakdown ?? {},
     });
     setLoading(false);
-  }, [supabase]);
+  }, []);
+
+  /**
+   * Generic helper that calls /api/admin/data (service-role, bypasses RLS).
+   * Previously these functions queried Supabase with the anon/session client,
+   * which applies RLS — admins only saw their own records.
+   */
+  async function fetchAdminData(
+    table: string,
+    params: Record<string, string> = {}
+  ): Promise<unknown[]> {
+    const sp = new URLSearchParams({ table, page: String(page), per_page: String(PAGE_SIZE), ...params });
+    const res = await fetch(`/api/admin/data?${sp}`);
+    if (!res.ok) return [];
+    const json = await res.json();
+    return (json.data as unknown[]) ?? [];
+  }
 
   const loadConsultations = useCallback(async () => {
     setLoading(true);
-    let query = supabase
-      .from("consultations")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-
-    if (statusFilter !== "all") query = query.eq("status", statusFilter);
-    if (dateFrom) query = query.gte("created_at", dateFrom);
-    if (dateTo) query = query.lte("created_at", dateTo + "T23:59:59");
-
-    const { data } = await query;
-    setConsultations((data || []) as ConsultationRow[]);
+    const params: Record<string, string> = {};
+    if (statusFilter !== "all") params.status = statusFilter;
+    if (dateFrom) params.date_from = dateFrom;
+    if (dateTo) params.date_to = dateTo;
+    const data = await fetchAdminData("consultations", params);
+    setConsultations(data as ConsultationRow[]);
     setLoading(false);
-  }, [supabase, page, statusFilter, dateFrom, dateTo]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, statusFilter, dateFrom, dateTo]);
 
   const loadTranscripts = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("transcripts")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-    setTranscripts((data || []) as TranscriptRow[]);
+    const data = await fetchAdminData("transcripts");
+    setTranscripts(data as TranscriptRow[]);
     setLoading(false);
-  }, [supabase, page]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
   const loadNotes = useCallback(async () => {
     setLoading(true);
-    let query = supabase
-      .from("clinical_notes")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-
-    if (statusFilter !== "all") query = query.eq("status", statusFilter);
-
-    const { data } = await query;
-    setNotes((data || []) as NoteRow[]);
+    const params: Record<string, string> = {};
+    if (statusFilter !== "all") params.status = statusFilter;
+    const data = await fetchAdminData("clinical_notes", params);
+    setNotes(data as NoteRow[]);
     setLoading(false);
-  }, [supabase, page, statusFilter]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, statusFilter]);
 
   const loadPrescriptions = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("consultation_documents")
-      .select("*")
-      .eq("document_type", "prescription")
-      .order("created_at", { ascending: false })
-      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-    setPrescriptions((data || []) as unknown as PrescriptionRow[]);
+    const data = await fetchAdminData("consultation_documents", { document_type: "prescription" });
+    setPrescriptions(data as unknown as PrescriptionRow[]);
     setLoading(false);
-  }, [supabase, page]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
   const loadAuditLog = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("audit_log")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-    setAuditLog((data || []) as AuditRow[]);
+    const data = await fetchAdminData("audit_log");
+    setAuditLog(data as AuditRow[]);
     setLoading(false);
-  }, [supabase, page]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
+
+  const loadAdminUsers = useCallback(async () => {
+    setLoading(true);
+    const params = new URLSearchParams({ page: "1", per_page: "100" });
+    if (userSearch) params.set("search", userSearch);
+    if (userRoleFilter !== "all") params.set("role", userRoleFilter);
+    const res = await fetch(`/api/admin/users?${params}`);
+    if (!res.ok) {
+      setAdminUsers([]);
+      setLoading(false);
+      return;
+    }
+    const json = await res.json();
+    setAdminUsers(json.users ?? []);
+    setAdminUsersTotal(json.total ?? 0);
+    setLoading(false);
+  }, [userSearch, userRoleFilter]);
 
   useEffect(() => {
     setPage(0);
@@ -215,6 +221,7 @@ export default function AdminPanel() {
   useEffect(() => {
     switch (tab) {
       case "overview": loadOverview(); break;
+      case "users": loadAdminUsers(); break;
       case "consultations": loadConsultations(); break;
       case "transcripts": loadTranscripts(); break;
       case "notes": loadNotes(); break;
@@ -222,7 +229,7 @@ export default function AdminPanel() {
       case "audit": loadAuditLog(); break;
       case "storage": loadOverview(); break;
     }
-  }, [tab, page, loadOverview, loadConsultations, loadTranscripts, loadNotes, loadPrescriptions, loadAuditLog]);
+  }, [tab, page, userSearch, userRoleFilter, loadOverview, loadAdminUsers, loadConsultations, loadTranscripts, loadNotes, loadPrescriptions, loadAuditLog]);
 
   const fmt = (iso: string) => {
     if (!iso) return "—";
@@ -244,6 +251,7 @@ export default function AdminPanel() {
 
   const tabs: { id: AdminTab; label: string; icon: string }[] = [
     { id: "overview", label: "Overview", icon: "📊" },
+    { id: "users", label: "Users", icon: "👤" },
     { id: "consultations", label: "Consultations", icon: "🩺" },
     { id: "transcripts", label: "Transcripts", icon: "📝" },
     { id: "notes", label: "Clinical Notes", icon: "📋" },
@@ -396,6 +404,92 @@ export default function AdminPanel() {
               </div>
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* USERS TAB */}
+      {tab === "users" && (
+        <div className="space-y-4">
+          <div className="flex flex-wrap gap-3 items-end">
+            <div>
+              <label className="block text-xs font-medium text-medical-muted mb-1">Search by email or name</label>
+              <Input
+                type="text"
+                placeholder="Search..."
+                value={userSearch}
+                onChange={(e) => setUserSearch(e.target.value)}
+                className="w-56"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-medical-muted mb-1">Role</label>
+              <select
+                value={userRoleFilter}
+                onChange={(e) => setUserRoleFilter(e.target.value)}
+                className="rounded-lg border border-medical-border px-3 py-2 text-sm"
+              >
+                <option value="all">All roles</option>
+                <option value="admin">Admin</option>
+                <option value="clinician">Clinician</option>
+                <option value="reviewer">Reviewer</option>
+              </select>
+            </div>
+          </div>
+
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-medical-border bg-gray-50">
+                      <th className="px-4 py-3 text-left font-semibold text-medical-muted">Email</th>
+                      <th className="px-4 py-3 text-left font-semibold text-medical-muted">Name</th>
+                      <th className="px-4 py-3 text-left font-semibold text-medical-muted">Role</th>
+                      <th className="px-4 py-3 text-left font-semibold text-medical-muted">Patients</th>
+                      <th className="px-4 py-3 text-left font-semibold text-medical-muted">Consultations</th>
+                      <th className="px-4 py-3 text-left font-semibold text-medical-muted">Last sign-in</th>
+                      <th className="px-4 py-3 text-left font-semibold text-medical-muted">Created</th>
+                      <th className="px-4 py-3 text-left font-semibold text-medical-muted">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {adminUsers.map((u) => (
+                      <tr
+                        key={u.id}
+                        className="border-b border-medical-border hover:bg-gray-50 cursor-pointer"
+                        onClick={() => setExpandedRow(expandedRow === u.id ? null : u.id)}
+                      >
+                        <td className="px-4 py-3 text-medical-text">{u.email ?? "—"}</td>
+                        <td className="px-4 py-3 text-medical-text">{u.full_name ?? "—"}</td>
+                        <td className="px-4 py-3">
+                          <span className={cn(
+                            "rounded-full px-2 py-0.5 text-xs font-medium",
+                            u.role === "admin" ? "bg-purple-100 text-purple-700" :
+                            u.role === "reviewer" ? "bg-amber-100 text-amber-700" :
+                            "bg-blue-100 text-blue-700"
+                          )}>
+                            {u.role}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-medical-text">{u.patient_count}</td>
+                        <td className="px-4 py-3 text-medical-text">{u.consultation_count}</td>
+                        <td className="px-4 py-3 text-medical-muted text-xs">{u.last_sign_in_at ? fmt(u.last_sign_in_at) : "—"}</td>
+                        <td className="px-4 py-3 text-medical-muted text-xs">{fmt(u.created_at)}</td>
+                        <td className="px-4 py-3">
+                          <span className="text-medical-muted text-xs">Click row to expand</span>
+                        </td>
+                      </tr>
+                    ))}
+                    {adminUsers.length === 0 && !loading && (
+                      <tr><td colSpan={8} className="px-4 py-8 text-center text-medical-muted">No users found</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+
+          <p className="text-sm text-medical-muted">Total users: {adminUsersTotal}</p>
         </div>
       )}
 
