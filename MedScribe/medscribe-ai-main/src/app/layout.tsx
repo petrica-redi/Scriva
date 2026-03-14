@@ -8,11 +8,21 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Scriva",
-  description: "Clinical documentation powered by Scriva — real-time transcription and diagnostic guidance",
+  title: {
+    default: "Scriva",
+    template: "%s — Scriva",
+  },
+  description: "Clinical AI for European Healthcare — real-time transcription, diagnostic guidance, and intelligent documentation",
   icons: {
     icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
+  },
+  metadataBase: new URL("https://scriva.doctor"),
+  openGraph: {
+    title: "Scriva — Clinical AI for European Healthcare",
+    description: "Real-time transcription, diagnostic guidance, and intelligent documentation for clinicians",
+    siteName: "Scriva",
+    locale: "en_EU",
+    type: "website",
   },
 };
 
