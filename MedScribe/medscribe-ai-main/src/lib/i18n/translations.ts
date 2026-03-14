@@ -14,15 +14,15 @@ export const translations = {
     "nav.followUps": "Follow-Ups",
     "nav.admin": "Admin Panel",
     "nav.settings": "Settings",
-    "sidebar.sessionReadiness": "Session Readiness",
-    "sidebar.systemHealth": "System Health",
-    "sidebar.operational": "Operational",
+    "sidebar.sessionReadiness": "",
+    "sidebar.systemHealth": "",
+    "sidebar.operational": "",
     "sidebar.signedInAs": "Signed in as",
     "sidebar.signOut": "Sign out",
-    "sidebar.aiDocumentation": "AI Documentation",
+    "sidebar.aiDocumentation": "Clinical AI",
 
     // Header
-    "header.precisionWorkspace": "Precision Workspace",
+    "header.precisionWorkspace": "",
     "header.searchPlaceholder": "Search consultations, patients, notes...",
     "header.signedIn": "Signed in",
     "header.signOut": "Sign out",
@@ -34,7 +34,7 @@ export const translations = {
     "header.noResults": "No results found for",
 
     // Dashboard
-    "dashboard.dailyCommandCenter": "Daily Command Center",
+    "dashboard.dailyCommandCenter": "Today's Overview",
     "dashboard.greeting.morning": "Good morning",
     "dashboard.greeting.afternoon": "Good afternoon",
     "dashboard.greeting.evening": "Good evening",
@@ -619,15 +619,15 @@ export const translations = {
     "nav.followUps": "Urmăriri",
     "nav.admin": "Panou Admin",
     "nav.settings": "Setări",
-    "sidebar.sessionReadiness": "Stare Sesiune",
-    "sidebar.systemHealth": "Stare Sistem",
-    "sidebar.operational": "Operațional",
+    "sidebar.sessionReadiness": "",
+    "sidebar.systemHealth": "",
+    "sidebar.operational": "",
     "sidebar.signedInAs": "Autentificat ca",
     "sidebar.signOut": "Deconectare",
-    "sidebar.aiDocumentation": "Documentație AI",
+    "sidebar.aiDocumentation": "Clinical AI",
 
     // Header
-    "header.precisionWorkspace": "Spațiu de Lucru",
+    "header.precisionWorkspace": "",
     "header.searchPlaceholder": "Caută consultații, pacienți, note...",
     "header.signedIn": "Autentificat",
     "header.signOut": "Deconectare",
@@ -639,7 +639,7 @@ export const translations = {
     "header.noResults": "Niciun rezultat pentru",
 
     // Dashboard
-    "dashboard.dailyCommandCenter": "Centru de Comandă Zilnic",
+    "dashboard.dailyCommandCenter": "Prezentare zilnică",
     "dashboard.greeting.morning": "Bună dimineața",
     "dashboard.greeting.afternoon": "Bună ziua",
     "dashboard.greeting.evening": "Bună seara",
