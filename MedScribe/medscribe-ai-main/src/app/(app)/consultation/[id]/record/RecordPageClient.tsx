@@ -115,8 +115,8 @@ export default function ConsultationRecordPage() {
   const [retranscribeStatus, setRetranscribeStatus] = useState<Record<string, string>>({});
 
   // ── UX: simplified recording view state ──────────────────────────────────
-  /** AI/clinical sidebar panel during recording */
-  const [showSidebar, setShowSidebar] = useState(false);
+  /** AI/clinical sidebar panel during recording — default true so diagnostics are visible */
+  const [showSidebar, setShowSidebar] = useState(true);
   const [shouldCloseMeet, setShouldCloseMeet] = useState(false);
   /** Microphone test: idle → recording (3 s) → playing → idle */
   const [micTestState, setMicTestState] = useState<"idle" | "recording" | "playing">("idle");
@@ -926,22 +926,21 @@ export default function ConsultationRecordPage() {
             <AudioVisualizer audioLevel={audioLevel} isRecording={isRecording} isPaused={isPaused} duration={duration} />
           )}
 
-          {/* ── Remote: upper panel (consultation video) then transcript below ── */}
+          {/* ── Remote: compact PiP (consultation video) then transcript below ── */}
           {consultationMode === "remote" && (
-            <div className="w-full space-y-4">
-              {/* Upper panel: fixed consultation video */}
+            <div className="w-full max-w-2xl">
               <div
                 className="rounded-xl overflow-hidden border border-gray-700 bg-black shadow-lg"
                 aria-label="Consultation video"
               >
-                <div className="flex items-center justify-between px-3 py-2 bg-gray-800/95">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-gray-300">
+                <div className="flex items-center justify-between px-2.5 py-1.5 bg-gray-800/95">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-300">
                     Consultation
                   </span>
                   {isRecording && (
-                    <span className="flex items-center gap-1.5 rounded-full bg-red-500/30 px-2 py-1">
-                      <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-                      <span className="text-[10px] font-medium text-red-300">LIVE</span>
+                    <span className="flex items-center gap-1 rounded-full bg-red-500/30 px-1.5 py-0.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+                      <span className="text-[9px] font-medium text-red-300">LIVE</span>
                     </span>
                   )}
                 </div>
@@ -951,11 +950,11 @@ export default function ConsultationRecordPage() {
                     autoPlay
                     playsInline
                     muted
-                    className="w-full aspect-video object-contain bg-black"
+                    className="h-[180px] w-full object-contain bg-black"
                   />
                 ) : (
-                  <div className="flex aspect-video w-full items-center justify-center bg-gray-900 text-gray-500">
-                    <p className="text-sm">Share your Meet tab when recording starts to see the video here.</p>
+                  <div className="flex h-[120px] w-full items-center justify-center bg-gray-900 text-gray-500">
+                    <p className="text-xs">Share your Meet tab when recording starts to see the video here.</p>
                   </div>
                 )}
               </div>
