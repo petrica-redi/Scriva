@@ -6,8 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 import { useTranslation } from "@/lib/i18n/context";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { PRACTICE_COUNTRIES } from "@/lib/practiceCountries";
-import { useGoogleSignIn } from "@/hooks/useGoogleSignIn";
 import { ScrivaLogo } from "@/components/ui/ScrivaLogo";
+import { GoogleButton } from "@/components/ui/GoogleButton";
 
 const SPECIALTIES = [
   // Mental Health & Healing
@@ -75,11 +75,6 @@ export default function SignUpPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [confirmationSent, setConfirmationSent] = useState(false);
-
-  const { buttonRef: googleBtnRef } = useGoogleSignIn({
-    onError: setError,
-    onLoading: setLoading,
-  });
 
   async function handleSignUp(e: React.FormEvent) {
     e.preventDefault();
@@ -165,11 +160,10 @@ export default function SignUpPage() {
             </div>
           </div>
 
-          {/* Google Sign-In (rendered by Google Identity Services) */}
-          <div
-            ref={googleBtnRef}
-            className="mb-5 flex min-h-[44px] w-full items-center justify-center"
-          />
+          {/* Google Sign-Up */}
+          <div className="mb-5">
+            <GoogleButton label="Sign up with Google" />
+          </div>
 
           <div className="relative mb-5">
             <div className="absolute inset-0 flex items-center">

@@ -6,8 +6,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useTranslation } from "@/lib/i18n/context";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
-import { useGoogleSignIn } from "@/hooks/useGoogleSignIn";
 import { ScrivaLogo } from "@/components/ui/ScrivaLogo";
+import { GoogleButton } from "@/components/ui/GoogleButton";
 
 function SignInForm() {
   const router = useRouter();
@@ -42,11 +42,6 @@ function SignInForm() {
     router.push("/dashboard");
     router.refresh();
   }
-
-  const { buttonRef: googleBtnRef } = useGoogleSignIn({
-    onError: setError,
-    onLoading: setLoading,
-  });
 
   const inputClass =
     "mt-2 block w-full rounded-lg border border-medical-border bg-gray-50 px-4 py-3 text-medical-text placeholder-medical-muted transition focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:opacity-50";
@@ -93,11 +88,10 @@ function SignInForm() {
           </div>
         )}
 
-        {/* Google Sign-In (rendered by Google Identity Services) */}
-        <div
-          ref={googleBtnRef}
-          className="mb-5 flex min-h-[44px] w-full items-center justify-center"
-        />
+        {/* Google Sign-In */}
+        <div className="mb-5">
+          <GoogleButton label="Continue with Google" />
+        </div>
 
         <div className="relative mb-5">
           <div className="absolute inset-0 flex items-center">

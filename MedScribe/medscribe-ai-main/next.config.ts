@@ -36,10 +36,10 @@ const nextConfig: NextConfig = {
           value: [
             "default-src 'self'",
             isDev
-              ? "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://accounts.google.com"
-              : "script-src 'self' 'unsafe-inline' https://accounts.google.com",
-            "style-src 'self' 'unsafe-inline' https://accounts.google.com",
-            "style-src-elem 'self' 'unsafe-inline' https://accounts.google.com",
+              ? "script-src 'self' 'unsafe-eval' 'unsafe-inline'"
+              : "script-src 'self' 'unsafe-inline'",
+            "style-src 'self' 'unsafe-inline'",
+            "style-src-elem 'self' 'unsafe-inline'",
             "img-src 'self' data: blob: https://*.googleusercontent.com https://lh3.googleusercontent.com",
             "font-src 'self' https://fonts.gstatic.com",
             `connect-src 'self' wss://*.supabase.co https://*.supabase.co wss://api.deepgram.com https://api.deepgram.com https://api.anthropic.com https://accounts.google.com https://oauth2.googleapis.com https://openidconnect.googleapis.com${isDev ? " wss://localhost:* http://localhost:*" : ""}`,
