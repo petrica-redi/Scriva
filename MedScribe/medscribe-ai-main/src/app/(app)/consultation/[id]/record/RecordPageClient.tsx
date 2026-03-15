@@ -116,7 +116,7 @@ export default function ConsultationRecordPage() {
   //   "multi" mode handles low-resource languages like Romanian or Arabic.
   } = useAudioRecorder({
     mode: consultationMode,
-    language: isMultilingual ? patientLang : doctorLang,
+    language: isMultilingual ? "multi" : doctorLang,
     streaming: true,
     consultationId: consultationId ?? undefined,
     onError: (err) => setError(err),

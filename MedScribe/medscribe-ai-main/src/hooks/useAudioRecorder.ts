@@ -201,8 +201,8 @@ export function useAudioRecorder({
     reconnectTimeoutRef.current = setTimeout(() => {
       if (intentionalCloseRef.current) return;
 
-      const wsUrl = `wss://api.deepgram.com/v1/listen?${wsParamsRef.current}&token=${encodeURIComponent(dgKeyRef.current as string)}`;
-      const ws = new WebSocket(wsUrl);
+      const wsUrl = `wss://api.deepgram.com/v1/listen?${wsParamsRef.current}`;
+      const ws = new WebSocket(wsUrl, ["token", dgKeyRef.current as string]);
       ws.binaryType = "arraybuffer";
 
       const useMultichannel = isMultichannelRef.current;
@@ -585,14 +585,13 @@ export function useAudioRecorder({
 
         const useMultichannel = isMultichannelRef.current;
         const sampleRate = audioContextRef.current?.sampleRate || 48000;
-        // Pass the specific language to Deepgram for best accuracy.
-        // nova-3-medical only supports English; use nova-3 for all others.
+        // nova-3-medical only supports English; nova-3 handles all others + multi.
         const isEnglishOnly = language === "en" || language.startsWith("en-");
         const wsModel = isEnglishOnly ? "nova-3-medical" : "nova-3";
 
         const wsParams = new URLSearchParams({
           model: wsModel,
-          language,
+          language,  // "multi" when multilingual, specific code otherwise
           smart_format: "true",
           punctuate: "true",
           interim_results: "true",
@@ -609,12 +608,11 @@ export function useAudioRecorder({
         });
 
         wsParamsRef.current = wsParams.toString();
-        // Use token query param for auth (more compatible than subprotocol)
-        const wsUrl = `wss://api.deepgram.com/v1/listen?${wsParams}&token=${encodeURIComponent(dgKey)}`;
+        const wsUrl = `wss://api.deepgram.com/v1/listen?${wsParams}`;
 
         try {
           wsConnected = await new Promise<boolean>((resolve) => {
-            const ws = new WebSocket(wsUrl);
+            const ws = new WebSocket(wsUrl, ["token", dgKey]);
             ws.binaryType = "arraybuffer";
 
             const timeout = setTimeout(() => {
