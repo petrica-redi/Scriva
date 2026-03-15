@@ -907,7 +907,7 @@ export default function ConsultationRecordPage() {
             </div>
           )}
 
-          {/* Remote mode: floating Meet panel */}
+          {/* In-person only: keep the floating Meet bar for popup management */}
           {consultationMode === "remote" && (
             <GoogleMeetEmbed
               consultationId={consultationId!}
@@ -916,7 +916,7 @@ export default function ConsultationRecordPage() {
               duration={formatDuration(duration)}
               streamingActive={streamingActive}
               isMultichannel={isMultichannel}
-              remoteStream={remoteVideoStream}
+              remoteStream={null}
               shouldClose={shouldCloseMeet}
             />
           )}
@@ -926,52 +926,73 @@ export default function ConsultationRecordPage() {
             <AudioVisualizer audioLevel={audioLevel} isRecording={isRecording} isPaused={isPaused} duration={duration} />
           )}
 
-          {/* ── Remote: compact PiP (consultation video) then transcript below ── */}
-          {consultationMode === "remote" && (
-            <div className="w-full max-w-2xl">
-              <div
-                className="rounded-xl overflow-hidden border border-gray-700 bg-black shadow-lg"
-                aria-label="Consultation video"
-              >
-                <div className="flex items-center justify-between px-2.5 py-1.5 bg-gray-800/95">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-300">
-                    Consultation
-                  </span>
-                  {isRecording && (
-                    <span className="flex items-center gap-1 rounded-full bg-red-500/30 px-1.5 py-0.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
-                      <span className="text-[9px] font-medium text-red-300">LIVE</span>
-                    </span>
+          {/* ── Main content grid ─────────────────────────────────────────── */}
+          <div className="grid gap-4 lg:grid-cols-5">
+            {/* Left column: video PiP (remote) + live transcript + notes */}
+            <div className="space-y-3 lg:col-span-3">
+
+              {/* Remote: consultation video panel (above transcript) */}
+              {consultationMode === "remote" && (
+                <div className="rounded-xl overflow-hidden border border-gray-700 bg-black shadow-lg">
+                  <div className="flex items-center justify-between px-3 py-2 bg-gray-800">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-300">
+                        Google Meet
+                      </span>
+                      {isMultichannel && (
+                        <span className="rounded-full bg-purple-500/20 px-2 py-0.5 text-[9px] font-medium text-purple-400">Stereo</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {streamingActive && (
+                        <span className="flex items-center gap-1 rounded-full bg-purple-500/20 px-2 py-0.5">
+                          <span className="h-1.5 w-1.5 rounded-full bg-purple-400 animate-pulse" />
+                          <span className="text-[9px] font-medium text-purple-300">Transcribing</span>
+                        </span>
+                      )}
+                      {isRecording && (
+                        <span className="flex items-center gap-1 rounded-full bg-red-500/20 px-2 py-0.5">
+                          <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+                          <span className="text-[9px] font-semibold text-red-400">REC {formatDuration(duration)}</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {remoteVideoStream && remoteVideoStream.getVideoTracks().length > 0 ? (
+                    <video
+                      ref={pipVideoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full bg-black"
+                      style={{ maxHeight: "260px", objectFit: "contain" }}
+                    />
+                  ) : (
+                    <div className="flex h-[160px] w-full flex-col items-center justify-center gap-2 bg-gray-900">
+                      <svg className="h-8 w-8 text-gray-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
+                      </svg>
+                      <p className="text-xs text-gray-500">Share your Meet tab when prompted to show video here</p>
+                    </div>
                   )}
                 </div>
-                {remoteVideoStream && remoteVideoStream.getVideoTracks().length > 0 ? (
-                  <video
-                    ref={pipVideoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="h-[180px] w-full object-contain bg-black"
-                  />
-                ) : (
-                  <div className="flex h-[120px] w-full items-center justify-center bg-gray-900 text-gray-500">
-                    <p className="text-xs">Share your Meet tab when recording starts to see the video here.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+              )}
 
-          {/* ── Main content: transcript + notes (full-width) ─────────────── */}
-          <div className={`grid gap-4 ${showSidebar ? "lg:grid-cols-5" : ""}`}>
-            {/* Primary column */}
-            <div className={`space-y-3 ${showSidebar ? "lg:col-span-3" : ""}`}>
-              {/* Transcript */}
+              {/* Live transcript */}
               <Card>
                 <CardContent className="pb-3 pt-3">
                   <div className="mb-2 flex items-center justify-between">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-medical-muted">
-                      {t("record.liveConversation")}
-                    </h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-medical-muted">
+                        {t("record.liveConversation")}
+                      </h3>
+                      {isRecording && streamingActive && (
+                        <span className="flex items-center gap-1 rounded-full bg-purple-50 px-2 py-0.5 text-[10px] font-medium text-purple-600">
+                          <span className="h-1.5 w-1.5 rounded-full bg-purple-500 animate-pulse" />
+                          Live
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-1.5">
                       <span className="flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-600">
                         <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
@@ -983,7 +1004,7 @@ export default function ConsultationRecordPage() {
                       </span>
                     </div>
                   </div>
-                  {renderTranscriptBubbles(transcript, showSidebar ? "max-h-[420px]" : "max-h-[520px]")}
+                  {renderTranscriptBubbles(transcript, consultationMode === "remote" ? "max-h-[320px]" : "max-h-[480px]")}
                 </CardContent>
               </Card>
 
@@ -1004,20 +1025,27 @@ export default function ConsultationRecordPage() {
               </Card>
             </div>
 
-            {/* AI Tools sidebar (only when toggled on) */}
-            {showSidebar && (
-              <div className="lg:col-span-2 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto space-y-3">
-                <ProblemTracker isRecording={isRecording} duration={duration} onProblemsChange={handleProblemsChange} />
-                <AIAssistantPanel transcript={transcript} isRecording={isRecording} visitType={consultationData?.visit_type} patientName={patientName} />
-                <ClinicalDecisionSupport
-                  consultationId={consultationId}
-                  patientId={consultationData?.patient_id ?? undefined}
-                  transcript={transcript.filter((t) => t.isFinal).map((t) => (t.speaker === 0 ? "Doctor" : "Patient") + ": " + t.text).join("\n")}
-                  medications={[]}
-                />
-                <CriteriaTracker transcript={transcript.filter((t) => t.isFinal).map((t) => t.text).join(" ")} />
-              </div>
-            )}
+            {/* Right column: AI Tools — always visible */}
+            <div className="lg:col-span-2 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto space-y-3">
+              {!showSidebar && (
+                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 text-center text-xs text-gray-400">
+                  AI tools hidden — click <strong>AI Tools</strong> in the top bar to show diagnostics
+                </div>
+              )}
+              {showSidebar && (
+                <>
+                  <ProblemTracker isRecording={isRecording} duration={duration} onProblemsChange={handleProblemsChange} />
+                  <AIAssistantPanel transcript={transcript} isRecording={isRecording} visitType={consultationData?.visit_type} patientName={patientName} />
+                  <ClinicalDecisionSupport
+                    consultationId={consultationId}
+                    patientId={consultationData?.patient_id ?? undefined}
+                    transcript={transcript.filter((t) => t.isFinal).map((t) => (t.speaker === 0 ? "Doctor" : "Patient") + ": " + t.text).join("\n")}
+                    medications={[]}
+                  />
+                  <CriteriaTracker transcript={transcript.filter((t) => t.isFinal).map((t) => t.text).join(" ")} />
+                </>
+              )}
+            </div>
           </div>
 
           {/* ── Controls ─────────────────────────────────────────────────── */}
