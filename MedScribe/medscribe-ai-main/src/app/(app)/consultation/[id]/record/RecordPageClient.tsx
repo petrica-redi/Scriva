@@ -122,12 +122,25 @@ export default function ConsultationRecordPage() {
   const [micTestState, setMicTestState] = useState<"idle" | "recording" | "playing">("idle");
   const [micTestUrl, setMicTestUrl] = useState<string | null>(null);
   const micTestAudioRef = useRef<HTMLAudioElement | null>(null);
+  const pipVideoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
     if (transcriptEndRef.current) {
       transcriptEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [transcript]);
+
+  // Attach remote stream to fixed PiP video when in remote mode
+  useEffect(() => {
+    const el = pipVideoRef.current;
+    if (consultationMode === "remote" && el && remoteVideoStream && remoteVideoStream.getVideoTracks().length > 0) {
+      el.srcObject = remoteVideoStream;
+      el.play().catch(() => {});
+    }
+    return () => {
+      if (el) el.srcObject = null;
+    };
+  }, [consultationMode, remoteVideoStream]);
 
   useEffect(() => {
     const loadConsultationAndAuth = async () => {
@@ -907,6 +920,36 @@ export default function ConsultationRecordPage() {
               shouldClose={shouldCloseMeet}
             />
           )}
+
+          {/* Fixed PiP of consultation (remote mode) — always visible in corner */}
+          {phase === "recording" &&
+            consultationMode === "remote" &&
+            remoteVideoStream &&
+            remoteVideoStream.getVideoTracks().length > 0 && (
+              <div
+                className="fixed bottom-5 right-5 z-[45] w-56 rounded-xl overflow-hidden border-2 border-gray-700 bg-black shadow-2xl ring-2 ring-black/20"
+                aria-label="Consultation video picture-in-picture"
+              >
+                <div className="flex items-center justify-between px-2.5 py-1.5 bg-gray-800/95">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-300">
+                    Consultation PiP
+                  </span>
+                  {isRecording && (
+                    <span className="flex items-center gap-1 rounded-full bg-red-500/30 px-1.5 py-0.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+                      <span className="text-[9px] font-medium text-red-300">LIVE</span>
+                    </span>
+                  )}
+                </div>
+                <video
+                  ref={pipVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full aspect-video object-contain bg-black"
+                />
+              </div>
+            )}
 
           {/* In-person: audio waveform */}
           {consultationMode !== "remote" && (
