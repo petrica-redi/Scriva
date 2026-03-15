@@ -136,6 +136,9 @@ export default function ConsultationRecordPage() {
   // ── UX: simplified recording view state ──────────────────────────────────
   /** AI/clinical sidebar panel during recording — default true so diagnostics are visible */
   const [showSidebar, setShowSidebar] = useState(true);
+  const [showVideo, setShowVideo] = useState(true);
+  const [showTranscript, setShowTranscript] = useState(true);
+  const [showNotes, setShowNotes] = useState(true);
   const [shouldCloseMeet, setShouldCloseMeet] = useState(false);
   /** Microphone test: idle → recording (3 s) → playing → idle */
   const [micTestState, setMicTestState] = useState<"idle" | "recording" | "playing">("idle");
@@ -1077,7 +1080,7 @@ export default function ConsultationRecordPage() {
             </div>
           )}
 
-          {/* In-person only: keep the floating Meet bar for popup management */}
+          {/* Floating Meet controls (popup management only — no video here) */}
           {consultationMode === "remote" && (
             <GoogleMeetEmbed
               consultationId={consultationId!}
@@ -1096,62 +1099,73 @@ export default function ConsultationRecordPage() {
             <AudioVisualizer audioLevel={audioLevel} isRecording={isRecording} isPaused={isPaused} duration={duration} />
           )}
 
-          {/* ── Remote: sticky PiP above the grid (full width, centered) ── */}
-          {consultationMode === "remote" && (
-            <div className="sticky top-16 z-30 mx-auto w-full max-w-3xl rounded-xl overflow-hidden border border-gray-700 bg-black shadow-xl">
-              <div className="flex items-center justify-between px-3 py-1.5 bg-gray-800">
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-300">
-                    Google Meet
-                  </span>
-                  {isMultichannel && (
-                    <span className="rounded-full bg-purple-500/20 px-2 py-0.5 text-[9px] font-medium text-purple-400">Stereo</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  {streamingActive && (
-                    <span className="flex items-center gap-1 rounded-full bg-purple-500/20 px-2 py-0.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-purple-400 animate-pulse" />
-                      <span className="text-[9px] font-medium text-purple-300">Transcribing</span>
-                    </span>
-                  )}
-                  {isRecording && (
-                    <span className="flex items-center gap-1 rounded-full bg-red-500/20 px-2 py-0.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
-                      <span className="text-[9px] font-semibold text-red-400">REC {formatDuration(duration)}</span>
-                    </span>
-                  )}
-                </div>
-              </div>
-              {remoteVideoStream && remoteVideoStream.getVideoTracks().length > 0 ? (
-                <video
-                  ref={pipVideoCallbackRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="mx-auto block w-full bg-black"
-                  style={{ height: "220px", objectFit: "contain" }}
-                />
-              ) : (
-                <div className="flex h-[120px] w-full flex-col items-center justify-center gap-2 bg-gray-900">
-                  <svg className="h-7 w-7 text-gray-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
-                  </svg>
-                  <p className="text-xs text-gray-500">Share your Meet tab when prompted to show video here</p>
-                </div>
-              )}
-            </div>
-          )}
-
           {/* ── Main content grid ─────────────────────────────────────────── */}
-          <div className="grid gap-4 lg:grid-cols-5">
-            {/* Left column: live transcript + notes */}
+          <div className="grid gap-3 lg:grid-cols-5">
+
+            {/* ── Left column (3/5): Video + Transcript + Notes ──────────── */}
             <div className="space-y-3 lg:col-span-3">
 
-              {/* Live transcript */}
+              {/* Video PiP — collapsible, inline (no overlap) */}
+              {consultationMode === "remote" && (
+                <div className="rounded-xl overflow-hidden border border-gray-700 bg-black shadow-lg">
+                  <button
+                    type="button"
+                    onClick={() => setShowVideo((v) => !v)}
+                    className="flex w-full items-center justify-between px-3 py-2 bg-gray-800 hover:bg-gray-750 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <svg className="h-3.5 w-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
+                      </svg>
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-300">
+                        Google Meet
+                      </span>
+                      {isMultichannel && (
+                        <span className="rounded-full bg-purple-500/20 px-2 py-0.5 text-[9px] font-medium text-purple-400">Stereo</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {streamingActive && (
+                        <span className="flex items-center gap-1 rounded-full bg-purple-500/20 px-2 py-0.5">
+                          <span className="h-1.5 w-1.5 rounded-full bg-purple-400 animate-pulse" />
+                          <span className="text-[9px] font-medium text-purple-300">Transcribing</span>
+                        </span>
+                      )}
+                      <svg className={`h-3.5 w-3.5 text-gray-400 transition-transform ${showVideo ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                      </svg>
+                    </div>
+                  </button>
+                  {showVideo && (
+                    remoteVideoStream && remoteVideoStream.getVideoTracks().length > 0 ? (
+                      <video
+                        ref={pipVideoCallbackRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="mx-auto block w-full bg-black"
+                        style={{ height: "200px", objectFit: "contain" }}
+                      />
+                    ) : (
+                      <div className="flex h-[100px] w-full flex-col items-center justify-center gap-2 bg-gray-900">
+                        <svg className="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
+                        </svg>
+                        <p className="text-[11px] text-gray-500">Share your Meet tab to show video</p>
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
+
+              {/* Live transcript — collapsible */}
               <Card>
-                <CardContent className="pb-3 pt-3">
-                  <div className="mb-2 flex items-center justify-between">
+                <CardContent className="p-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowTranscript((v) => !v)}
+                    className="flex w-full items-center justify-between px-4 py-2.5 hover:bg-gray-50/50 transition-colors rounded-t-xl"
+                  >
                     <div className="flex items-center gap-2">
                       <h3 className="text-xs font-semibold uppercase tracking-wider text-medical-muted">
                         {t("record.liveConversation")}
@@ -1167,47 +1181,72 @@ export default function ConsultationRecordPage() {
                           <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" d="m10.5 21 5.25-11.25L21 21m-9-3h7.5M3 5.621a48.474 48.474 0 0 1 6-.371m0 0c1.12 0 2.233.038 3.334.114M9 5.25V3m3.334 2.364C11.176 10.658 7.69 15.08 3 17.502m9.334-12.138c.896.061 1.785.147 2.666.257m-4.589 8.495a18.023 18.023 0 0 1-3.827-5.802" />
                           </svg>
-                          Live Translation
+                          Translation
                         </span>
                       )}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-600">
-                        <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-                        {t("record.doctor")} ({LANG_LABELS[doctorLang] ?? doctorLang.toUpperCase()})
-                      </span>
-                      <span className="flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-medium text-green-600">
-                        <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-                        {t("record.patientSpeaker")} ({LANG_LABELS[patientLang] ?? patientLang.toUpperCase()})
+                      <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
+                        {transcript.filter(t => t.isFinal).length}
                       </span>
                     </div>
-                  </div>
-                  {renderTranscriptBubbles(transcript, "max-h-[480px]")}
+                    <div className="flex items-center gap-2">
+                      <div className="hidden sm:flex items-center gap-1.5">
+                        <span className="flex items-center gap-1 rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-medium text-blue-600">
+                          <span className="h-1 w-1 rounded-full bg-blue-500" />
+                          {LANG_LABELS[doctorLang] ?? doctorLang.toUpperCase()}
+                        </span>
+                        <span className="flex items-center gap-1 rounded-full bg-green-50 px-1.5 py-0.5 text-[9px] font-medium text-green-600">
+                          <span className="h-1 w-1 rounded-full bg-green-500" />
+                          {LANG_LABELS[patientLang] ?? patientLang.toUpperCase()}
+                        </span>
+                      </div>
+                      <svg className={`h-3.5 w-3.5 text-gray-400 transition-transform ${showTranscript ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                      </svg>
+                    </div>
+                  </button>
+                  {showTranscript && (
+                    <div className="px-4 pb-3">
+                      {renderTranscriptBubbles(transcript, "max-h-[50vh]")}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
-              {/* Session notes */}
+              {/* Session notes — collapsible */}
               <Card>
-                <CardContent className="pb-3 pt-3">
-                  <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-medical-muted">
-                    {t("record.sessionNotes")}
-                  </h3>
-                  <textarea
-                    value={sessionNotes}
-                    onChange={(e) => setSessionNotes(e.target.value)}
-                    placeholder={t("record.sessionNotesPlaceholder")}
-                    rows={2}
-                    className="w-full resize-y rounded-lg border border-medical-border bg-white px-3 py-2 text-sm text-medical-text placeholder-medical-muted focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
-                  />
+                <CardContent className="p-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowNotes((v) => !v)}
+                    className="flex w-full items-center justify-between px-4 py-2.5 hover:bg-gray-50/50 transition-colors rounded-t-xl"
+                  >
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-medical-muted">
+                      {t("record.sessionNotes")}
+                    </h3>
+                    <svg className={`h-3.5 w-3.5 text-gray-400 transition-transform ${showNotes ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                    </svg>
+                  </button>
+                  {showNotes && (
+                    <div className="px-4 pb-3">
+                      <textarea
+                        value={sessionNotes}
+                        onChange={(e) => setSessionNotes(e.target.value)}
+                        placeholder={t("record.sessionNotesPlaceholder")}
+                        rows={3}
+                        className="w-full resize-y rounded-lg border border-medical-border bg-white px-3 py-2 text-sm text-medical-text placeholder-medical-muted focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                      />
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
 
-            {/* Right column: AI Tools — always visible */}
-            <div className="lg:col-span-2 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto space-y-3">
+            {/* ── Right column (2/5): AI Tools ────────────────────────────── */}
+            <div className="lg:col-span-2 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto space-y-3">
               {!showSidebar && (
-                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 text-center text-xs text-gray-400">
-                  AI tools hidden — click <strong>AI Tools</strong> in the top bar to show diagnostics
+                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-3 text-center text-xs text-gray-400">
+                  AI tools hidden — click <strong>AI Tools</strong> above
                 </div>
               )}
               {showSidebar && (
