@@ -893,16 +893,10 @@ export default function ConsultationRecordPage() {
             </div>
           </div>
 
-          {/* Streaming error / fallback notice */}
-          {(streamingStatus.includes("error") || streamingStatus.includes("failed") || streamingStatus.includes("locally")) && (
-            <div className={`rounded-lg px-3 py-2 text-xs border ${
-              streamingStatus.includes("locally")
-                ? "bg-amber-50 text-amber-800 border-amber-200"
-                : "bg-red-50 text-red-700 border-red-200"
-            }`}>
-              {streamingStatus.includes("locally")
-                ? `Live transcription unavailable — ${streamingStatus}`
-                : `Transcription issue: ${streamingStatus}`}
+          {/* Streaming status detail — always show when not live */}
+          {!streamingActive && isRecording && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              <span className="font-semibold">STT status:</span> {streamingStatus || "idle"}
             </div>
           )}
 
