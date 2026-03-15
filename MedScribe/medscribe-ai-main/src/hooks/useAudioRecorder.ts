@@ -553,17 +553,15 @@ export function useAudioRecorder({
           const keyRes = await fetch("/api/deepgram/stream-key", {
             method: "POST",
           });
-          if (keyRes.ok) {
-            const keyData = await keyRes.json();
-            if (keyData.streaming_available && keyData.key) {
-              dgKey = keyData.key.trim();
-              dgKeyRef.current = dgKey;
-              setStreamingStatus("key obtained");
-            } else {
-              setStreamingStatus("key unavailable");
-            }
+          const keyData = await keyRes.json();
+          if (keyRes.ok && keyData.streaming_available && keyData.key) {
+            dgKey = keyData.key.trim();
+            dgKeyRef.current = dgKey;
+            setStreamingStatus("key obtained");
           } else {
-            setStreamingStatus(`key API error: ${keyRes.status}`);
+            setStreamingStatus(
+              `key failed: HTTP ${keyRes.status} — ${keyData.error || "no key in response"}`
+            );
           }
         } catch (err) {
           setStreamingStatus(
