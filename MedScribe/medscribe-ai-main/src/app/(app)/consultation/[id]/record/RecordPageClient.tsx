@@ -921,39 +921,45 @@ export default function ConsultationRecordPage() {
             />
           )}
 
-          {/* Fixed PiP of consultation (remote mode) — always visible in corner */}
-          {phase === "recording" &&
-            consultationMode === "remote" &&
-            remoteVideoStream &&
-            remoteVideoStream.getVideoTracks().length > 0 && (
-              <div
-                className="fixed bottom-5 right-5 z-[45] w-56 rounded-xl overflow-hidden border-2 border-gray-700 bg-black shadow-2xl ring-2 ring-black/20"
-                aria-label="Consultation video picture-in-picture"
-              >
-                <div className="flex items-center justify-between px-2.5 py-1.5 bg-gray-800/95">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-300">
-                    Consultation PiP
-                  </span>
-                  {isRecording && (
-                    <span className="flex items-center gap-1 rounded-full bg-red-500/30 px-1.5 py-0.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
-                      <span className="text-[9px] font-medium text-red-300">LIVE</span>
-                    </span>
-                  )}
-                </div>
-                <video
-                  ref={pipVideoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full aspect-video object-contain bg-black"
-                />
-              </div>
-            )}
-
           {/* In-person: audio waveform */}
           {consultationMode !== "remote" && (
             <AudioVisualizer audioLevel={audioLevel} isRecording={isRecording} isPaused={isPaused} duration={duration} />
+          )}
+
+          {/* ── Remote: upper panel (consultation video) then transcript below ── */}
+          {consultationMode === "remote" && (
+            <div className="w-full space-y-4">
+              {/* Upper panel: fixed consultation video */}
+              <div
+                className="rounded-xl overflow-hidden border border-gray-700 bg-black shadow-lg"
+                aria-label="Consultation video"
+              >
+                <div className="flex items-center justify-between px-3 py-2 bg-gray-800/95">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-gray-300">
+                    Consultation
+                  </span>
+                  {isRecording && (
+                    <span className="flex items-center gap-1.5 rounded-full bg-red-500/30 px-2 py-1">
+                      <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+                      <span className="text-[10px] font-medium text-red-300">LIVE</span>
+                    </span>
+                  )}
+                </div>
+                {remoteVideoStream && remoteVideoStream.getVideoTracks().length > 0 ? (
+                  <video
+                    ref={pipVideoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full aspect-video object-contain bg-black"
+                  />
+                ) : (
+                  <div className="flex aspect-video w-full items-center justify-center bg-gray-900 text-gray-500">
+                    <p className="text-sm">Share your Meet tab when recording starts to see the video here.</p>
+                  </div>
+                )}
+              </div>
+            </div>
           )}
 
           {/* ── Main content: transcript + notes (full-width) ─────────────── */}
