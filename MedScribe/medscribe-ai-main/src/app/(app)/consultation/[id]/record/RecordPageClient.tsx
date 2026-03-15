@@ -229,6 +229,93 @@ export default function ConsultationRecordPage() {
     setTrackedProblems(problems);
   }, []);
 
+  // Persist language selection across sessions.
+  // langLoadedRef prevents the write effect from firing on the very first render
+  // (with the default "en" value) before the read effect has had a chance to
+  // restore the saved value.
+  const langLoadedRef = useRef(false);
+  useEffect(() => {
+    const saved = localStorage.getItem("scriva-last-language");
+    if (saved && LANGUAGES.some((l) => l.value === saved)) setSelectedLanguage(saved);
+    langLoadedRef.current = true;
+  }, []);
+  useEffect(() => {
+    if (!langLoadedRef.current) return;
+    localStorage.setItem("scriva-last-language", selectedLanguage);
+  }, [selectedLanguage]);
+
+  // Keyboard shortcuts during recording (Space = pause/resume)
+  useEffect(() => {
+    if (!isRecording) return;
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.tagName === "SELECT"
+      )
+        return;
+      if (e.key === " ") {
+        e.preventDefault();
+        isPaused ? resumeRecording() : pauseRecording();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [isRecording, isPaused, pauseRecording, resumeRecording]);
+
+  const handleMicTest = useCallback(async () => {
+    if (micTestState !== "idle") return;
+    try {
+      setMicTestState("recording");
+      if (micTestUrl) {
+        URL.revokeObjectURL(micTestUrl);
+        setMicTestUrl(null);
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const chunks: Blob[] = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+      recorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(chunks, { type: recorder.mimeType });
+        const url = URL.createObjectURL(blob);
+        setMicTestUrl(url);
+        setMicTestState("playing");
+        if (micTestAudioRef.current) {
+          micTestAudioRef.current.src = url;
+          void micTestAudioRef.current.play();
+          micTestAudioRef.current.onended = () => setMicTestState("idle");
+        }
+      };
+      recorder.start();
+      setTimeout(() => recorder.stop(), 3000);
+    } catch {
+      setMicTestState("idle");
+      setError("Microphone access denied. Please allow microphone access in your browser.");
+    }
+  }, [micTestState, micTestUrl]);
+
+  const handleRetranscribe = useCallback(
+    async (backupId: string) => {
+      setRetranscribeStatus((s) => ({ ...s, [backupId]: "Retranscribing…" }));
+      const items = await retranscribe(backupId, (msg) => {
+        setRetranscribeStatus((s) => ({ ...s, [backupId]: msg }));
+      });
+      if (items && items.length > 0) {
+        await refreshBackups();
+        setRetranscribeStatus((s) => {
+          const next = { ...s };
+          delete next[backupId];
+          return next;
+        });
+      }
+    },
+    [retranscribe, refreshBackups]
+  );
+
   const handleStartRecording = async () => {
     setError("");
     try {
@@ -440,94 +527,6 @@ export default function ConsultationRecordPage() {
         </>
       )}
     </div>
-  );
-
-  // Persist language selection across sessions.
-  // langLoadedRef prevents the write effect from firing on the very first render
-  // (with the default "en" value) before the read effect has had a chance to
-  // restore the saved value — without the guard the read wins the race
-  // structurally but briefly overwrites the stored preference on each mount.
-  const langLoadedRef = useRef(false);
-  useEffect(() => {
-    const saved = localStorage.getItem("scriva-last-language");
-    if (saved && LANGUAGES.some((l) => l.value === saved)) setSelectedLanguage(saved);
-    langLoadedRef.current = true;
-  }, []);
-  useEffect(() => {
-    if (!langLoadedRef.current) return;
-    localStorage.setItem("scriva-last-language", selectedLanguage);
-  }, [selectedLanguage]);
-
-  // Keyboard shortcuts during recording (Space = pause/resume)
-  useEffect(() => {
-    if (!isRecording) return;
-    const handler = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.tagName === "SELECT"
-      )
-        return;
-      if (e.key === " ") {
-        e.preventDefault();
-        isPaused ? resumeRecording() : pauseRecording();
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [isRecording, isPaused, pauseRecording, resumeRecording]);
-
-  const handleMicTest = useCallback(async () => {
-    if (micTestState !== "idle") return;
-    try {
-      setMicTestState("recording");
-      if (micTestUrl) {
-        URL.revokeObjectURL(micTestUrl);
-        setMicTestUrl(null);
-      }
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      const chunks: Blob[] = [];
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunks.push(e.data);
-      };
-      recorder.onstop = () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunks, { type: recorder.mimeType });
-        const url = URL.createObjectURL(blob);
-        setMicTestUrl(url);
-        setMicTestState("playing");
-        if (micTestAudioRef.current) {
-          micTestAudioRef.current.src = url;
-          void micTestAudioRef.current.play();
-          micTestAudioRef.current.onended = () => setMicTestState("idle");
-        }
-      };
-      recorder.start();
-      setTimeout(() => recorder.stop(), 3000);
-    } catch {
-      setMicTestState("idle");
-      setError("Microphone access denied. Please allow microphone access in your browser.");
-    }
-  }, [micTestState, micTestUrl]);
-
-  const handleRetranscribe = useCallback(
-    async (backupId: string) => {
-      setRetranscribeStatus((s) => ({ ...s, [backupId]: "Retranscribing…" }));
-      const items = await retranscribe(backupId, (msg) => {
-        setRetranscribeStatus((s) => ({ ...s, [backupId]: msg }));
-      });
-      if (items && items.length > 0) {
-        await refreshBackups();
-        setRetranscribeStatus((s) => {
-          const next = { ...s };
-          delete next[backupId];
-          return next;
-        });
-      }
-    },
-    [retranscribe, refreshBackups]
   );
 
   return (
