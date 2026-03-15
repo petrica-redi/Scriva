@@ -1,16 +1,16 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { useTranslation } from "@/lib/i18n/context";
 import { formatDateTime } from "@/lib/utils";
 import type { Patient } from "@/types";
 import Link from "next/link";
+import { Search, Plus, Upload, X, ChevronDown, Download, Edit2, Trash2, User } from "lucide-react";
 
 interface PatientConsultation {
   id: string;
@@ -30,25 +30,72 @@ interface PatientNote {
 }
 
 type PatientTab = "file" | "pending" | "consultations";
+type ModalMode = "add" | "csv" | null;
+
+function ageFromDOB(dob: string): number {
+  if (!dob) return 0;
+  const today = new Date();
+  const birth = new Date(dob);
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return Math.max(0, age);
+}
+
+function dobFromAge(age: number): string {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - age);
+  return d.toISOString().split("T")[0];
+}
+
+function getInitials(name: string): string {
+  return name.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase();
+}
+
+function avatarColor(name: string): string {
+  const colors = [
+    "bg-teal-100 text-teal-700",
+    "bg-violet-100 text-violet-700",
+    "bg-rose-100 text-rose-700",
+    "bg-amber-100 text-amber-700",
+    "bg-sky-100 text-sky-700",
+    "bg-emerald-100 text-emerald-700",
+  ];
+  const i = name.charCodeAt(0) % colors.length;
+  return colors[i];
+}
 
 export default function PatientsPage() {
   const supabase = createClient();
   const { toast } = useToast();
   const { t } = useTranslation();
+  const csvRef = useRef<HTMLInputElement>(null);
 
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [modal, setModal] = useState<ModalMode>(null);
 
-  // New patient form
+  // Add patient form state
   const [newName, setNewName] = useState("");
   const [newMRN, setNewMRN] = useState("");
   const [newDOB, setNewDOB] = useState("");
+  const [newAge, setNewAge] = useState(35);
   const [newGender, setNewGender] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+
+  // CSV import state
+  const [csvRows, setCsvRows] = useState<Record<string, string>[]>([]);
+  const [csvImporting, setCsvImporting] = useState(false);
+
+  // Expanded patient
+  const [expandedPatientId, setExpandedPatientId] = useState<string | null>(null);
+  const [patientTab, setPatientTab] = useState<PatientTab>("file");
+  const [patientConsultations, setPatientConsultations] = useState<PatientConsultation[]>([]);
+  const [patientNotes, setPatientNotes] = useState<PatientNote[]>([]);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   // Edit state
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -58,13 +105,6 @@ export default function PatientsPage() {
   const [editGender, setEditGender] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editEmail, setEditEmail] = useState("");
-
-  // Expanded patient view
-  const [expandedPatientId, setExpandedPatientId] = useState<string | null>(null);
-  const [patientTab, setPatientTab] = useState<PatientTab>("file");
-  const [patientConsultations, setPatientConsultations] = useState<PatientConsultation[]>([]);
-  const [patientNotes, setPatientNotes] = useState<PatientNote[]>([]);
-  const [loadingDetails, setLoadingDetails] = useState(false);
 
   const fetchPatients = useCallback(async () => {
     setLoading(true);
@@ -85,16 +125,31 @@ export default function PatientsPage() {
     return () => clearTimeout(timer);
   }, [fetchPatients]);
 
+  // Sync age ↔ DOB
+  const handleDOBChange = (dob: string) => {
+    setNewDOB(dob);
+    if (dob) setNewAge(ageFromDOB(dob));
+  };
+  const handleAgeChange = (age: number) => {
+    setNewAge(age);
+    setNewDOB(dobFromAge(age));
+  };
+
+  const resetForm = () => {
+    setNewName(""); setNewMRN(""); setNewDOB(""); setNewAge(35);
+    setNewGender(""); setNewPhone(""); setNewEmail("");
+  };
+
   const handleAddPatient = async () => {
-    if (!newName.trim()) { toast(t("patients.nameRequired"), "error"); return; }
+    if (!newName.trim()) { toast("Full name is required", "error"); return; }
     setIsSaving(true);
     try {
       const res = await fetch("/api/patients", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          full_name: newName,
-          mrn: newMRN || null,
+          full_name: newName.trim(),
+          mrn: newMRN.trim() || null,
           date_of_birth: newDOB || null,
           gender: newGender || null,
           contact_info: {
@@ -103,10 +158,10 @@ export default function PatientsPage() {
           },
         }),
       });
-      if (!res.ok) throw new Error("Failed to create patient");
+      if (!res.ok) throw new Error("Failed");
       toast("Patient added successfully", "success");
-      setShowAddForm(false);
-      setNewName(""); setNewMRN(""); setNewDOB(""); setNewGender(""); setNewPhone(""); setNewEmail("");
+      setModal(null);
+      resetForm();
       fetchPatients();
     } catch {
       toast("Failed to add patient", "error");
@@ -115,8 +170,59 @@ export default function PatientsPage() {
     }
   };
 
+  // CSV parsing
+  const handleCSVFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      const lines = text.split("\n").filter((l) => l.trim());
+      if (lines.length < 2) { toast("CSV must have a header row and at least one data row", "error"); return; }
+      const headers = lines[0].split(",").map((h) => h.trim().toLowerCase().replace(/[^a-z_]/g, "_"));
+      const rows = lines.slice(1).map((line) => {
+        const vals = line.split(",");
+        const row: Record<string, string> = {};
+        headers.forEach((h, i) => { row[h] = (vals[i] || "").trim().replace(/^"|"$/g, ""); });
+        return row;
+      }).filter((r) => r["full_name"] || r["name"]);
+      setCsvRows(rows);
+    };
+    reader.readAsText(file);
+  };
+
+  const handleCSVImport = async () => {
+    if (csvRows.length === 0) return;
+    setCsvImporting(true);
+    let success = 0;
+    for (const row of csvRows) {
+      try {
+        await fetch("/api/patients", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            full_name: row["full_name"] || row["name"] || "Unknown",
+            mrn: row["mrn"] || row["medical_record_number"] || null,
+            date_of_birth: row["date_of_birth"] || row["dob"] || row["birth_date"] || null,
+            gender: row["gender"] || row["sex"] || null,
+            contact_info: {
+              ...(row["phone"] ? { phone: row["phone"] } : {}),
+              ...(row["email"] ? { email: row["email"] } : {}),
+            },
+          }),
+        });
+        success++;
+      } catch { /* skip failed rows */ }
+    }
+    toast(`Imported ${success} of ${csvRows.length} patients`, "success");
+    setCsvImporting(false);
+    setCsvRows([]);
+    setModal(null);
+    fetchPatients();
+  };
+
   const handleDelete = async (id: string) => {
-    if (!confirm(t("patients.deleteConfirm"))) return;
+    if (!confirm("Delete this patient? This cannot be undone.")) return;
     try {
       await fetch(`/api/patients/${id}`, { method: "DELETE" });
       toast("Patient deleted", "success");
@@ -152,34 +258,18 @@ export default function PatientsPage() {
     }
   };
 
-  const startEditing = (patient: Patient) => {
-    setEditingId(patient.id);
-    setEditName(patient.full_name);
-    setEditMRN(patient.mrn || "");
-    setEditDOB(patient.date_of_birth ? patient.date_of_birth.slice(0, 10) : "");
-    setEditGender(patient.gender || "");
-    setEditPhone(patient.contact_info?.phone || "");
-    setEditEmail(patient.contact_info?.email || "");
-  };
-
   const expandPatient = async (patient: Patient) => {
-    if (expandedPatientId === patient.id) {
-      setExpandedPatientId(null);
-      return;
-    }
+    if (expandedPatientId === patient.id) { setExpandedPatientId(null); return; }
     setExpandedPatientId(patient.id);
     setPatientTab("file");
     setLoadingDetails(true);
     try {
-      // Fetch consultations for this patient
       const { data: consultations } = await supabase
         .from("consultations")
         .select("id, visit_type, status, created_at, metadata")
         .eq("patient_id", patient.id)
         .order("created_at", { ascending: false });
       setPatientConsultations(consultations || []);
-
-      // Fetch clinical notes for this patient's consultations
       if (consultations && consultations.length > 0) {
         const { data: notes } = await supabase
           .from("clinical_notes")
@@ -198,44 +288,26 @@ export default function PatientsPage() {
   };
 
   const handleDownloadPatientFile = (patient: Patient) => {
-    const sections: string[] = [];
-    sections.push(`PATIENT FILE — ${patient.full_name}`);
-    sections.push("=".repeat(50));
-    sections.push(`MRN: ${patient.mrn || "N/A"}`);
-    sections.push(`Date of Birth: ${patient.date_of_birth ? new Date(patient.date_of_birth).toLocaleDateString() : "N/A"}`);
-    sections.push(`Gender: ${patient.gender || "N/A"}`);
-    if (patient.contact_info?.phone) sections.push(`Phone: ${patient.contact_info.phone}`);
-    if (patient.contact_info?.email) sections.push(`Email: ${patient.contact_info.email}`);
-    sections.push("");
-
+    const lines: string[] = [
+      `PATIENT FILE — ${patient.full_name}`, "=".repeat(50),
+      `MRN: ${patient.mrn || "N/A"}`,
+      `DOB: ${patient.date_of_birth ? new Date(patient.date_of_birth).toLocaleDateString() : "N/A"}`,
+      `Gender: ${patient.gender || "N/A"}`,
+      ...(patient.contact_info?.phone ? [`Phone: ${patient.contact_info.phone}`] : []),
+      ...(patient.contact_info?.email ? [`Email: ${patient.contact_info.email}`] : []),
+    ];
     if (patientConsultations.length > 0) {
-      sections.push("CONSULTATIONS");
-      sections.push("-".repeat(50));
-      patientConsultations.forEach((c) => {
-        sections.push(`• ${c.visit_type} — ${c.status} — ${formatDateTime(c.created_at)}`);
-      });
-      sections.push("");
+      lines.push("", "CONSULTATIONS", "-".repeat(50));
+      patientConsultations.forEach((c) => lines.push(`• ${c.visit_type} — ${c.status} — ${formatDateTime(c.created_at)}`));
     }
-
     if (patientNotes.length > 0) {
-      sections.push("CLINICAL NOTES");
-      sections.push("-".repeat(50));
+      lines.push("", "CLINICAL NOTES", "-".repeat(50));
       patientNotes.forEach((note) => {
-        sections.push(`\n--- Note (${note.status}) — ${formatDateTime(note.created_at)} ---`);
-        (note.sections || []).forEach((s) => {
-          sections.push(`\n[${s.title}]`);
-          sections.push(s.content);
-        });
-        if (note.billing_codes?.length > 0) {
-          sections.push("\nBilling Codes:");
-          note.billing_codes.forEach((bc) => {
-            sections.push(`  ${bc.system}: ${bc.code} — ${bc.description}`);
-          });
-        }
+        lines.push(`\n--- Note (${note.status}) — ${formatDateTime(note.created_at)} ---`);
+        (note.sections || []).forEach((s) => { lines.push(`\n[${s.title}]`, s.content); });
       });
     }
-
-    const blob = new Blob([sections.join("\n")], { type: "text/plain" });
+    const blob = new Blob([lines.join("\n")], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -247,266 +319,223 @@ export default function PatientsPage() {
   const pendingActions = patientConsultations.filter((c) => ["transcribed", "note_generated"].includes(c.status));
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <div className="flex flex-col gap-5 py-4">
+
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-medical-text">{t("patients.title")}</h1>
-          <p className="text-sm text-medical-muted mt-1">{t("patients.subtitle")}</p>
+          <h1 className="text-xl font-bold text-medical-text">Patient Database</h1>
+          <p className="text-sm text-medical-muted">{patients.length} patient{patients.length !== 1 ? "s" : ""} on record</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={() => window.open("/api/export/pdf", "_blank")}>
-            Export PDF
-          </Button>
-          <Button onClick={() => setShowAddForm(!showAddForm)}>
-            {showAddForm ? t("common.cancel") : t("patients.addPatient")}
-          </Button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setModal("csv")}
+            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+          >
+            <Upload className="h-4 w-4" />
+            Import CSV
+          </button>
+          <button
+            onClick={() => { setModal("add"); resetForm(); }}
+            className="flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700"
+          >
+            <Plus className="h-4 w-4" />
+            Add Patient
+          </button>
         </div>
       </div>
 
-      {/* Add Patient Form */}
-      {showAddForm && (
-        <Card>
-          <CardHeader><CardTitle>{t("patients.newPatient")}</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Input id="new-name" label={t("patients.fullName") + " *"} value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Patient full name" />
-              <Input id="new-mrn" label={t("patients.mrn")} value={newMRN} onChange={(e) => setNewMRN(e.target.value)} placeholder="Medical Record Number" />
-              <Input id="new-dob" label={t("patients.dateOfBirth")} type="date" value={newDOB} onChange={(e) => setNewDOB(e.target.value)} />
-              <div>
-                <label htmlFor="new-gender" className="block text-sm font-medium text-medical-text mb-1.5">{t("patients.gender")}</label>
-                <select id="new-gender" value={newGender} onChange={(e) => setNewGender(e.target.value)} className="block w-full rounded-lg border border-medical-border px-4 py-2.5 text-sm text-medical-text focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20">
-                  <option value="">{t("common.select")}</option>
-                  <option value="male">{t("common.male")}</option>
-                  <option value="female">{t("common.female")}</option>
-                  <option value="other">{t("common.other")}</option>
-                </select>
-              </div>
-              <Input id="new-phone" label={t("patients.phone")} value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="+1 (555) 000-0000" />
-              <Input id="new-email" label={t("patients.email")} type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="patient@email.com" />
-            </div>
-            <Button onClick={handleAddPatient} disabled={isSaving}>
-              {isSaving ? t("patients.adding") : t("patients.addPatient")}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Search */}
       <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder={t("patients.searchPlaceholder")}
-          className="w-full rounded-lg border border-medical-border bg-white px-4 py-2.5 pl-10 text-sm text-medical-text placeholder-medical-muted focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+          placeholder="Search by name, MRN, or condition…"
+          className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm text-medical-text placeholder-slate-400 focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-200/60"
         />
-        <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-medical-muted" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-        </svg>
       </div>
 
       {/* Patient List */}
       <Card>
         <CardContent className="p-0">
           {loading ? (
-            <div className="p-8 text-center text-medical-muted">{t("patients.loading")}</div>
+            <div className="flex items-center justify-center gap-2 py-16 text-medical-muted">
+              <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+              Loading patients…
+            </div>
           ) : patients.length === 0 ? (
-            <div className="p-8 text-center text-medical-muted">
-              {search ? t("patients.noMatch") : t("patients.noPatients")}
+            <div className="flex flex-col items-center gap-3 py-16 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+                <User className="h-6 w-6 text-slate-400" />
+              </div>
+              <p className="text-sm text-slate-500">{search ? "No patients match your search" : "No patients yet — add one to get started"}</p>
             </div>
           ) : (
-            <div className="divide-y divide-medical-border">
+            <div className="divide-y divide-slate-100">
               {patients.map((patient) => (
                 <div key={patient.id}>
-                  <div className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition">
+                  <div className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50/60 transition-colors">
                     {editingId === patient.id ? (
-                      <div className="flex-1 space-y-4 py-2">
+                      <div className="flex-1 space-y-4 py-1">
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          <Input id={`edit-name-${patient.id}`} label={t("patients.fullName") + " *"} value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Patient full name" />
-                          <Input id={`edit-mrn-${patient.id}`} label={t("patients.mrn")} value={editMRN} onChange={(e) => setEditMRN(e.target.value)} placeholder="Medical Record Number" />
-                          <Input id={`edit-dob-${patient.id}`} label={t("patients.dateOfBirth")} type="date" value={editDOB} onChange={(e) => setEditDOB(e.target.value)} />
+                          {[
+                            { label: "Full Name *", value: editName, setter: setEditName, placeholder: "Full name" },
+                            { label: "MRN / ID", value: editMRN, setter: setEditMRN, placeholder: "Medical record number" },
+                            { label: "Phone", value: editPhone, setter: setEditPhone, placeholder: "+40 7xx xxx xxx" },
+                            { label: "Email", value: editEmail, setter: setEditEmail, placeholder: "patient@email.com" },
+                          ].map(({ label, value, setter, placeholder }) => (
+                            <div key={label}>
+                              <label className="mb-1 block text-xs font-medium text-slate-600">{label}</label>
+                              <input value={value} onChange={(e) => setter(e.target.value)} placeholder={placeholder}
+                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-200/60" />
+                            </div>
+                          ))}
                           <div>
-                            <label className="block text-sm font-medium text-medical-text mb-1.5">{t("patients.gender")}</label>
-                            <select value={editGender} onChange={(e) => setEditGender(e.target.value)} className="block w-full rounded-lg border border-medical-border px-4 py-2.5 text-sm text-medical-text focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20">
-                              <option value="">{t("common.select")}</option>
-                              <option value="male">{t("common.male")}</option>
-                              <option value="female">{t("common.female")}</option>
-                              <option value="other">{t("common.other")}</option>
+                            <label className="mb-1 block text-xs font-medium text-slate-600">Date of Birth</label>
+                            <input type="date" value={editDOB} onChange={(e) => setEditDOB(e.target.value)}
+                              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-200/60" />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-slate-600">Gender</label>
+                            <select value={editGender} onChange={(e) => setEditGender(e.target.value)}
+                              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-200/60">
+                              <option value="">Select…</option>
+                              <option value="male">Male</option>
+                              <option value="female">Female</option>
+                              <option value="other">Other / Prefer not to say</option>
                             </select>
                           </div>
-                          <Input id={`edit-phone-${patient.id}`} label={t("patients.phone")} value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="+1 (555) 000-0000" />
-                          <Input id={`edit-email-${patient.id}`} label={t("patients.email")} type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="patient@email.com" />
                         </div>
                         <div className="flex gap-2">
-                          <Button size="sm" onClick={() => handleEditSave(patient.id)}>{t("common.save")}</Button>
-                          <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>{t("common.cancel")}</Button>
+                          <button onClick={() => handleEditSave(patient.id)} className="rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-700 transition">Save</button>
+                          <button onClick={() => setEditingId(null)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition">Cancel</button>
                         </div>
                       </div>
                     ) : (
                       <>
+                        {/* Avatar */}
+                        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold ${avatarColor(patient.full_name)}`}>
+                          {getInitials(patient.full_name)}
+                        </div>
+
+                        {/* Info */}
                         <button onClick={() => expandPatient(patient)} className="flex-1 text-left">
-                          <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold text-sm">
-                              {patient.full_name.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase()}
-                            </div>
-                            <div>
-                              <p className="font-medium text-medical-text">{patient.full_name}</p>
-                              <p className="text-xs text-medical-muted mt-0.5">
-                                {[
-                                  patient.mrn && `MRN: ${patient.mrn}`,
-                                  patient.gender,
-                                  patient.date_of_birth && `DOB: ${new Date(patient.date_of_birth).toLocaleDateString()}`,
-                                ].filter(Boolean).join(" · ") || t("patients.noDetails")}
-                              </p>
-                            </div>
-                          </div>
+                          <p className="text-sm font-semibold text-medical-text">{patient.full_name}</p>
+                          <p className="mt-0.5 text-xs text-medical-muted">
+                            {[
+                              patient.mrn && `ID: ${patient.mrn}`,
+                              patient.gender,
+                              patient.date_of_birth && `Age ${ageFromDOB(patient.date_of_birth.slice(0, 10))}`,
+                            ].filter(Boolean).join(" · ") || "No details yet"}
+                          </p>
                         </button>
-                        <div className="flex items-center gap-2">
-                          <Button size="sm" variant="ghost" onClick={() => expandPatient(patient)}>
-                            <svg className={`h-4 w-4 transition ${expandedPatientId === patient.id ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => startEditing(patient)}>
-                            {t("common.edit")}
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => handleDelete(patient.id)} className="text-red-600 hover:text-red-700">
-                            {t("common.delete")}
-                          </Button>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => expandPatient(patient)} title="Expand"
+                            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600">
+                            <ChevronDown className={`h-4 w-4 transition ${expandedPatientId === patient.id ? "rotate-180" : ""}`} />
+                          </button>
+                          <button onClick={() => {
+                            setEditingId(patient.id);
+                            setEditName(patient.full_name); setEditMRN(patient.mrn || "");
+                            setEditDOB(patient.date_of_birth?.slice(0, 10) || "");
+                            setEditGender(patient.gender || ""); setEditPhone(patient.contact_info?.phone || "");
+                            setEditEmail(patient.contact_info?.email || "");
+                          }} title="Edit"
+                            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600">
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </button>
+                          <button onClick={() => handleDelete(patient.id)} title="Delete"
+                            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-500">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
                         </div>
                       </>
                     )}
                   </div>
 
-                  {/* Expanded Patient Detail */}
-                  {expandedPatientId === patient.id && (
-                    <div className="border-t border-medical-border bg-gray-50 px-6 py-4">
+                  {/* Expanded detail */}
+                  {expandedPatientId === patient.id && !editingId && (
+                    <div className="border-t border-slate-100 bg-slate-50/50 px-5 py-4">
                       {loadingDetails ? (
-                        <div className="text-center py-4 text-medical-muted text-sm">{t("patients.loadingDetails")}</div>
+                        <p className="py-3 text-center text-sm text-slate-400">Loading…</p>
                       ) : (
                         <>
-                          {/* Tabs */}
-                          <div className="flex gap-1 mb-4 border-b border-medical-border">
-                            {([
-                              { key: "file" as const, label: t("patients.patientFile") },
-                              { key: "consultations" as const, label: t("patients.consultations") },
-                              { key: "pending" as const, label: `${t("patients.pendingActions")}${pendingActions.length > 0 ? ` (${pendingActions.length})` : ""}` },
-                            ]).map((tab) => (
-                              <button
-                                key={tab.key}
-                                onClick={() => setPatientTab(tab.key)}
-                                className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition ${
-                                  patientTab === tab.key
-                                    ? "border-brand-500 text-brand-600"
-                                    : "border-transparent text-medical-muted hover:text-medical-text"
-                                }`}
-                              >
-                                {tab.label}
+                          <div className="mb-3 flex gap-1">
+                            {(["file", "consultations", "pending"] as const).map((tab) => (
+                              <button key={tab} onClick={() => setPatientTab(tab)}
+                                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                                  patientTab === tab ? "bg-teal-50 text-teal-700" : "text-slate-500 hover:bg-slate-100"
+                                }`}>
+                                {tab === "file" ? "Patient File" : tab === "consultations" ? "Consultations" : `Pending${pendingActions.length > 0 ? ` (${pendingActions.length})` : ""}`}
                               </button>
                             ))}
+                            <button onClick={() => handleDownloadPatientFile(patient)} title="Download file"
+                              className="ml-auto flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-slate-400 transition hover:bg-slate-100 hover:text-slate-600">
+                              <Download className="h-3.5 w-3.5" />
+                              Download
+                            </button>
                           </div>
 
-                          {/* Patient File Tab */}
                           {patientTab === "file" && (
-                            <div className="space-y-4">
-                              <div className="grid grid-cols-2 gap-4 text-sm">
-                                <div><p className="text-medical-muted">{t("patients.fullName")}</p><p className="font-medium text-medical-text">{patient.full_name}</p></div>
-                                <div><p className="text-medical-muted">{t("patients.mrn")}</p><p className="font-medium text-medical-text">{patient.mrn || "—"}</p></div>
-                                <div><p className="text-medical-muted">{t("patients.dateOfBirth")}</p><p className="font-medium text-medical-text">{patient.date_of_birth ? new Date(patient.date_of_birth).toLocaleDateString() : "—"}</p></div>
-                                <div><p className="text-medical-muted">{t("patients.gender")}</p><p className="font-medium text-medical-text capitalize">{patient.gender || "—"}</p></div>
-                                <div><p className="text-medical-muted">{t("patients.phone")}</p><p className="font-medium text-medical-text">{patient.contact_info?.phone || "—"}</p></div>
-                                <div><p className="text-medical-muted">{t("patients.email")}</p><p className="font-medium text-medical-text">{patient.contact_info?.email || "—"}</p></div>
-                              </div>
-
-                              {/* Clinical Notes Summary */}
-                              {patientNotes.length > 0 && (
-                                <div>
-                                  <h4 className="text-sm font-semibold text-medical-text mb-2">{t("patients.medicalNotes")}</h4>
-                                  <div className="space-y-2">
-                                    {patientNotes.slice(0, 3).map((note) => (
-                                      <div key={note.id} className="rounded-lg bg-white border border-medical-border p-3">
-                                        <div className="flex items-center justify-between mb-1">
-                                          <StatusBadge status={note.status} />
-                                          <span className="text-xs text-medical-muted">{formatDateTime(note.created_at)}</span>
-                                        </div>
-                                        <div className="text-xs text-medical-muted space-y-0.5">
-                                          {(note.sections || []).slice(0, 2).map((s, i) => (
-                                            <p key={i}><span className="font-medium">{s.title}:</span> {s.content.substring(0, 100)}...</p>
-                                          ))}
-                                        </div>
-                                        {note.billing_codes?.length > 0 && (
-                                          <div className="mt-1 flex flex-wrap gap-1">
-                                            {note.billing_codes.slice(0, 3).map((bc, i) => (
-                                              <span key={i} className="inline-block rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium text-indigo-700">
-                                                {bc.system}: {bc.code}
-                                              </span>
-                                            ))}
-                                          </div>
-                                        )}
-                                        <Link href={`/consultation/${note.consultation_id}/note`} className="text-xs text-brand-600 hover:underline mt-1 inline-block">
-                                          {t("patients.viewFullNote")}
-                                        </Link>
-                                      </div>
-                                    ))}
-                                  </div>
+                            <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+                              {[
+                                { label: "Full Name", value: patient.full_name },
+                                { label: "MRN / ID", value: patient.mrn || "—" },
+                                { label: "Date of Birth", value: patient.date_of_birth ? new Date(patient.date_of_birth).toLocaleDateString("en-GB") : "—" },
+                                { label: "Age", value: patient.date_of_birth ? `${ageFromDOB(patient.date_of_birth.slice(0, 10))} years` : "—" },
+                                { label: "Gender", value: patient.gender ? patient.gender.charAt(0).toUpperCase() + patient.gender.slice(1) : "—" },
+                                { label: "Phone", value: patient.contact_info?.phone || "—" },
+                                { label: "Email", value: patient.contact_info?.email || "—" },
+                              ].map(({ label, value }) => (
+                                <div key={label} className="rounded-lg bg-white px-3 py-2.5 shadow-sm ring-1 ring-slate-100">
+                                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
+                                  <p className="mt-0.5 text-sm font-medium text-slate-700 truncate">{value}</p>
                                 </div>
-                              )}
-
-                              {/* Download */}
-                              <Button size="sm" variant="outline" onClick={() => handleDownloadPatientFile(patient)}>
-                                <svg className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
-                                {t("patients.downloadFile")}
-                              </Button>
+                              ))}
                             </div>
                           )}
 
-                          {/* Consultations Tab */}
                           {patientTab === "consultations" && (
                             <div className="space-y-2">
                               {patientConsultations.length === 0 ? (
-                                <p className="text-sm text-medical-muted py-4">{t("patients.noConsultations")}</p>
-                              ) : (
-                                patientConsultations.map((c) => (
-                                  <div key={c.id} className="flex items-center justify-between rounded-lg bg-white border border-medical-border p-3">
-                                    <div>
-                                      <p className="text-sm font-medium text-medical-text">{c.visit_type}</p>
-                                      <p className="text-xs text-medical-muted">{formatDateTime(c.created_at)}</p>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                      <StatusBadge status={c.status} />
-                                      <Link href={`/consultation/${c.id}/note`} className="text-xs text-brand-600 hover:underline">{t("common.view")}</Link>
-                                    </div>
+                                <p className="py-4 text-center text-sm text-slate-400">No consultations yet</p>
+                              ) : patientConsultations.map((c) => (
+                                <div key={c.id} className="flex items-center justify-between rounded-xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-100">
+                                  <div>
+                                    <p className="text-sm font-medium text-medical-text">{c.visit_type}</p>
+                                    <p className="text-xs text-medical-muted">{formatDateTime(c.created_at)}</p>
                                   </div>
-                                ))
-                              )}
+                                  <div className="flex items-center gap-3">
+                                    <StatusBadge status={c.status} />
+                                    <Link href={`/consultation/${c.id}/note`} className="text-xs font-medium text-teal-600 hover:underline">View</Link>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           )}
 
-                          {/* Pending Actions Tab */}
                           {patientTab === "pending" && (
                             <div className="space-y-2">
                               {pendingActions.length === 0 ? (
-                                <div className="text-center py-6">
-                                  <div className="flex justify-center mb-2">
-                                    <svg className="h-8 w-8 text-green-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
-                                  </div>
-                                  <p className="text-sm text-green-600 font-medium">{t("patients.noPending")}</p>
-                                  <p className="text-xs text-medical-muted mt-0.5">{t("patients.allUpToDate")}</p>
+                                <div className="py-6 text-center">
+                                  <svg className="mx-auto mb-2 h-8 w-8 text-green-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                                  <p className="text-sm font-medium text-green-600">All caught up</p>
                                 </div>
-                              ) : (
-                                pendingActions.map((c) => (
-                                  <div key={c.id} className="flex items-center justify-between rounded-lg bg-amber-50 border border-amber-200 p-3">
-                                    <div>
-                                      <p className="text-sm font-medium text-medical-text">{c.visit_type}</p>
-                                      <p className="text-xs text-amber-700">
-                                        {c.status === "transcribed" ? t("patients.transcriptReview") : t("patients.noteReview")}
-                                      </p>
-                                      <p className="text-xs text-medical-muted">{formatDateTime(c.created_at)}</p>
-                                    </div>
-                                    <Link href={`/consultation/${c.id}/note`}>
-                                      <Button size="sm" variant="outline">{t("stats.review")}</Button>
-                                    </Link>
+                              ) : pendingActions.map((c) => (
+                                <div key={c.id} className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                                  <div>
+                                    <p className="text-sm font-medium text-medical-text">{c.visit_type}</p>
+                                    <p className="text-xs text-amber-700">{c.status === "transcribed" ? "Transcript review needed" : "Note approval needed"}</p>
                                   </div>
-                                ))
-                              )}
+                                  <Link href={`/consultation/${c.id}/note`}>
+                                    <button className="rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800 transition hover:bg-amber-200">Review</button>
+                                  </Link>
+                                </div>
+                              ))}
                             </div>
                           )}
                         </>
@@ -519,6 +548,226 @@ export default function PatientsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* ── Add Patient Modal ───────────────────────────────────────────── */}
+      {modal === "add" && (
+        <div className="fixed inset-0 z-60 flex items-end justify-center bg-black/40 backdrop-blur-sm sm:items-center p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+            {/* Modal header */}
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+              <div>
+                <h2 className="text-base font-bold text-slate-800">New Patient</h2>
+                <p className="text-xs text-slate-400">Fill in the details below</p>
+              </div>
+              <button onClick={() => setModal(null)} className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-5 px-6 py-5">
+              {/* Full name */}
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-600">Full Name <span className="text-red-400">*</span></label>
+                <input
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="e.g. Maria Ionescu"
+                  autoFocus
+                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-200/60"
+                />
+              </div>
+
+              {/* MRN + Gender */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Patient ID / MRN</label>
+                  <input
+                    value={newMRN}
+                    onChange={(e) => setNewMRN(e.target.value)}
+                    placeholder="Auto-generated if blank"
+                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-200/60"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Gender</label>
+                  <div className="flex gap-2">
+                    {[{ val: "female", label: "♀", full: "Female" }, { val: "male", label: "♂", full: "Male" }, { val: "other", label: "⊘", full: "Other" }].map(({ val, label, full }) => (
+                      <button
+                        key={val}
+                        type="button"
+                        title={full}
+                        onClick={() => setNewGender(newGender === val ? "" : val)}
+                        className={`flex-1 rounded-xl border py-2.5 text-sm font-bold transition ${
+                          newGender === val
+                            ? "border-teal-400 bg-teal-50 text-teal-700"
+                            : "border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Age slider + DOB */}
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-600">Age</label>
+                  <span className="rounded-lg bg-teal-50 px-2.5 py-1 text-sm font-bold text-teal-700">{newAge} yr</span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={110}
+                  value={newAge}
+                  onChange={(e) => handleAgeChange(Number(e.target.value))}
+                  className="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-teal-500"
+                />
+                <div className="mt-1 flex justify-between text-[10px] text-slate-400">
+                  <span>0</span><span>25</span><span>50</span><span>75</span><span>110</span>
+                </div>
+              </div>
+
+              {/* DOB */}
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-600">Date of Birth</label>
+                <input
+                  type="date"
+                  value={newDOB}
+                  onChange={(e) => handleDOBChange(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-800 focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-200/60"
+                />
+                <p className="mt-1 text-[11px] text-slate-400">Adjusting DOB updates the age slider and vice versa</p>
+              </div>
+
+              {/* Contact (collapsible) */}
+              <details className="group rounded-xl border border-slate-200">
+                <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-xs font-semibold text-slate-500 hover:text-slate-700">
+                  Contact details (optional)
+                  <ChevronDown className="h-3.5 w-3.5 transition group-open:rotate-180" />
+                </summary>
+                <div className="grid grid-cols-2 gap-3 px-4 pb-4">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-500">Phone</label>
+                    <input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="+40 7xx xxx xxx"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-teal-400 focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-500">Email</label>
+                    <input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="patient@email.com"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-teal-400 focus:outline-none" />
+                  </div>
+                </div>
+              </details>
+            </div>
+
+            {/* Footer */}
+            <div className="flex gap-3 border-t border-slate-100 px-6 py-4">
+              <button onClick={() => setModal(null)} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50">
+                Cancel
+              </button>
+              <button
+                onClick={handleAddPatient}
+                disabled={isSaving || !newName.trim()}
+                className="flex-1 rounded-xl bg-teal-600 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-teal-700 disabled:opacity-50"
+              >
+                {isSaving ? "Saving…" : "Add Patient"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── CSV Import Modal ────────────────────────────────────────────── */}
+      {modal === "csv" && (
+        <div className="fixed inset-0 z-60 flex items-end justify-center bg-black/40 backdrop-blur-sm sm:items-center p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+              <div>
+                <h2 className="text-base font-bold text-slate-800">Import Patients</h2>
+                <p className="text-xs text-slate-400">Upload a CSV file or connect an external database</p>
+              </div>
+              <button onClick={() => { setModal(null); setCsvRows([]); }} className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4 px-6 py-5">
+              {/* CSV upload */}
+              <div>
+                <p className="mb-2 text-xs font-semibold text-slate-600">CSV File</p>
+                <p className="mb-3 text-[11px] text-slate-400 leading-relaxed">
+                  Required column: <code className="rounded bg-slate-100 px-1 py-0.5">full_name</code>. Optional: <code className="rounded bg-slate-100 px-1 py-0.5">mrn</code>, <code className="rounded bg-slate-100 px-1 py-0.5">date_of_birth</code>, <code className="rounded bg-slate-100 px-1 py-0.5">gender</code>, <code className="rounded bg-slate-100 px-1 py-0.5">phone</code>, <code className="rounded bg-slate-100 px-1 py-0.5">email</code>
+                </p>
+                <input ref={csvRef} type="file" accept=".csv" onChange={handleCSVFile} className="hidden" />
+                <button
+                  onClick={() => csvRef.current?.click()}
+                  className="flex w-full items-center justify-center gap-3 rounded-xl border-2 border-dashed border-slate-200 py-8 text-sm text-slate-400 transition hover:border-teal-300 hover:text-teal-500 hover:bg-teal-50/30"
+                >
+                  <Upload className="h-5 w-5" />
+                  Click to choose a CSV file
+                </button>
+              </div>
+
+              {/* Preview */}
+              {csvRows.length > 0 && (
+                <div>
+                  <p className="mb-2 text-xs font-semibold text-slate-600">{csvRows.length} patients found — preview:</p>
+                  <div className="max-h-40 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50">
+                    {csvRows.slice(0, 8).map((row, i) => (
+                      <div key={i} className="flex items-center gap-3 border-b border-slate-100 px-4 py-2.5 last:border-0">
+                        <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${avatarColor(row["full_name"] || row["name"] || "?")}`}>
+                          {getInitials(row["full_name"] || row["name"] || "?")}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-slate-700">{row["full_name"] || row["name"]}</p>
+                          <p className="text-[11px] text-slate-400">{[row["mrn"], row["date_of_birth"], row["gender"]].filter(Boolean).join(" · ")}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {csvRows.length > 8 && (
+                      <p className="px-4 py-2 text-xs text-slate-400">…and {csvRows.length - 8} more</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Divider */}
+              <div className="flex items-center gap-3">
+                <div className="h-px flex-1 bg-slate-200" />
+                <span className="text-xs text-slate-400">or connect a database</span>
+                <div className="h-px flex-1 bg-slate-200" />
+              </div>
+
+              {/* Database options */}
+              <div className="grid grid-cols-3 gap-2">
+                {["HL7 FHIR", "Epic / MyChart", "Medisoft"].map((db) => (
+                  <button key={db} disabled title="Coming soon"
+                    className="flex flex-col items-center gap-1.5 rounded-xl border border-dashed border-slate-200 py-3 text-[11px] text-slate-300 transition hover:border-slate-300 cursor-not-allowed">
+                    <div className="h-5 w-5 rounded bg-slate-100" />
+                    {db}
+                    <span className="rounded bg-slate-100 px-1 py-0.5 text-[9px] text-slate-300">Soon</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-3 border-t border-slate-100 px-6 py-4">
+              <button onClick={() => { setModal(null); setCsvRows([]); }} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50">
+                Cancel
+              </button>
+              <button
+                onClick={handleCSVImport}
+                disabled={csvRows.length === 0 || csvImporting}
+                className="flex-1 rounded-xl bg-teal-600 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-teal-700 disabled:opacity-40"
+              >
+                {csvImporting ? "Importing…" : `Import ${csvRows.length > 0 ? csvRows.length : ""} Patients`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

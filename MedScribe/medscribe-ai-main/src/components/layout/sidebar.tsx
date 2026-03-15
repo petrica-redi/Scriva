@@ -7,15 +7,12 @@ import {
   Calendar,
   ChartNoAxesCombined,
   ClipboardList,
-  ClipboardPlus,
   FileText,
   LayoutDashboard,
   LogOut,
-  MessageSquare,
   Settings,
   Users,
   Zap,
-  Shield,
   ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -43,7 +40,7 @@ export function Sidebar({ isOpen, onClose, userEmail, onSignOut }: SidebarProps)
 
   const navGroups: NavGroup[] = [
     {
-      label: 'Clinical',
+      label: 'Workspace',
       items: [
         { labelKey: 'nav.dashboard', href: '/dashboard', icon: LayoutDashboard },
         { labelKey: 'nav.patients', href: '/patients', icon: Users },
@@ -52,18 +49,16 @@ export function Sidebar({ isOpen, onClose, userEmail, onSignOut }: SidebarProps)
       ],
     },
     {
-      label: 'AI Tools',
+      label: 'Intelligence',
       items: [
         { labelKey: 'nav.aiAssistant', href: '/ai-assistant', icon: BrainCircuit },
         { labelKey: 'nav.analytics', href: '/analytics', icon: ChartNoAxesCombined },
         { labelKey: 'nav.templates', href: '/templates', icon: FileText },
-        { labelKey: 'nav.portal' as TranslationKey, href: '/portal', icon: MessageSquare },
       ],
     },
     {
-      label: 'System',
+      label: 'Account',
       items: [
-        { labelKey: 'nav.admin' as TranslationKey, href: '/admin', icon: Shield },
         { labelKey: 'nav.settings', href: '/settings', icon: Settings },
       ],
     },
