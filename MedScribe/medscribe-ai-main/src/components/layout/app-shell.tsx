@@ -44,12 +44,8 @@ export function AppShell({ children, userEmail }: AppShellProps) {
         onSignOut={handleSignOut}
       />
 
-      <main className="relative pt-20 lg:ml-72">
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute -top-20 left-10 h-60 w-60 rounded-full bg-brand-100/60 blur-3xl" />
-          <div className="absolute right-0 top-1/4 h-56 w-56 rounded-full bg-amber-100/40 blur-3xl" />
-        </div>
-        <div className="relative min-h-[calc(100vh-5rem)] animate-slide-in px-3 pb-8 sm:px-6">
+      <main className="relative pt-14 lg:ml-64">
+        <div className="min-h-[calc(100vh-3.5rem)] animate-slide-in px-3 pb-8 sm:px-6">
           {children}
         </div>
       </main>
