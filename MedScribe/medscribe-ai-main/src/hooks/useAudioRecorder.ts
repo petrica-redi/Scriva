@@ -13,7 +13,17 @@ import {
 
 interface UseAudioRecorderOptions {
   mode?: ConsultationMode;
+  /** Primary language (doctor's language). Use "multi" for Deepgram multilingual mode. */
   language?: string;
+  /**
+   * When set and different from `language`, opens a SECOND Deepgram WebSocket
+   * for this language in parallel. Audio is sent to both connections; the
+   * connection with higher confidence per utterance wins (which also identifies
+   * the speaker: language → speaker 0, patientLanguage → speaker 1).
+   * This gives full accuracy for both languages simultaneously, bypassing the
+   * limitations of Deepgram's `language=multi` mode (which e.g. excludes Romanian).
+   */
+  patientLanguage?: string;
   streaming?: boolean;
   /**
    * Provide the consultation ID to enable local audio backup via IndexedDB.
@@ -56,6 +66,7 @@ interface UseAudioRecorderReturn {
 export function useAudioRecorder({
   mode = "in-person",
   language = "en",
+  patientLanguage,
   streaming = true,
   consultationId,
   onTranscriptUpdate,
@@ -92,10 +103,20 @@ export function useAudioRecorder({
   const languageRef = useRef("en");
 
   const wsRef = useRef<WebSocket | null>(null);
+  /** Second WebSocket for patient language (dual-lang mode) */
+  const wsPatientRef = useRef<WebSocket | null>(null);
   const streamingRef = useRef(false);
   const transcriptRef = useRef<LiveTranscriptItem[]>([]);
   const chunksSentRef = useRef(0);
   const workletNodeRef = useRef<AudioWorkletNode | null>(null);
+
+  /**
+   * Pending utterances when in dual-WS mode. Keyed by rounded timestamp (50ms
+   * buckets).  Each entry accumulates one result from each WebSocket; once both
+   * sides have fired we pick the winner by confidence.
+   */
+  type PendingSide = { text: string; confidence: number; isFinal: boolean; lang: string };
+  const pendingDualRef = useRef<Map<number, { doctor?: PendingSide; patient?: PendingSide; settled?: true }>>(new Map());
 
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -318,11 +339,19 @@ export function useAudioRecorder({
           wsRef.current.send(JSON.stringify({ type: "CloseStream" }));
           wsRef.current.close();
         }
-      } catch {
-        /* ignore */
-      }
+      } catch { /* ignore */ }
       wsRef.current = null;
     }
+    if (wsPatientRef.current) {
+      try {
+        if (wsPatientRef.current.readyState === WebSocket.OPEN) {
+          wsPatientRef.current.send(JSON.stringify({ type: "CloseStream" }));
+          wsPatientRef.current.close();
+        }
+      } catch { /* ignore */ }
+      wsPatientRef.current = null;
+    }
+    pendingDualRef.current.clear();
     streamingRef.current = false;
 
     if (workletNodeRef.current) {
@@ -578,135 +607,296 @@ export function useAudioRecorder({
         }
       }
 
-      // --- Step 2: Open WebSocket to Deepgram ---
+      // --- Step 2: Open WebSocket(s) to Deepgram ---
       let wsConnected = false;
-      if (dgKey) {
-        setStreamingStatus("connecting WebSocket...");
 
+      // Dual-language mode: open one WS per language for full accuracy.
+      // When patientLanguage is set and different from the doctor language, we
+      // open two parallel connections.  The connection with higher confidence per
+      // utterance wins — this also determines the speaker (0 = doctor, 1 = patient).
+      const dualLang = patientLanguage && patientLanguage !== language && !isMultichannelRef.current;
+
+      /** Build Deepgram URLSearchParams for a given language code */
+      const buildWsParams = (lang: string) => {
         const useMultichannel = isMultichannelRef.current;
         const sampleRate = audioContextRef.current?.sampleRate || 48000;
-        // nova-3-medical only supports English; nova-3 handles all others + multi.
-        const isEnglishOnly = language === "en" || language.startsWith("en-");
-        const wsModel = isEnglishOnly ? "nova-3-medical" : "nova-3";
-
-        const wsParams = new URLSearchParams({
-          model: wsModel,
-          language,  // "multi" when multilingual, specific code otherwise
+        const isEnglish = lang === "en" || lang.startsWith("en-");
+        return new URLSearchParams({
+          model: isEnglish ? "nova-3-medical" : "nova-3",
+          language: lang,
           smart_format: "true",
           punctuate: "true",
           interim_results: "true",
           endpointing: "300",
           utterance_end_ms: "1000",
           ...(useMultichannel
-            ? {
-                multichannel: "true",
-                channels: "2",
-                encoding: "linear16",
-                sample_rate: String(sampleRate),
-              }
+            ? { multichannel: "true", channels: "2", encoding: "linear16", sample_rate: String(sampleRate) }
             : { diarize: "true" }),
         });
+      };
 
-        wsParamsRef.current = wsParams.toString();
-        const wsUrl = `wss://api.deepgram.com/v1/listen?${wsParams}`;
+      /**
+       * In dual-lang mode, record both WS results for the same timestamp bucket
+       * and emit the winner once both sides have fired (or after a short timeout).
+       */
+      const settleDual = (bucket: number) => {
+        const entry = pendingDualRef.current.get(bucket);
+        if (!entry || entry.settled) return;
 
-        try {
-          wsConnected = await new Promise<boolean>((resolve) => {
-            const ws = new WebSocket(wsUrl, ["token", dgKey]);
-            ws.binaryType = "arraybuffer";
+        const { doctor, patient } = entry;
+        if (!doctor && !patient) return;
 
-            const timeout = setTimeout(() => {
-              setStreamingStatus("WebSocket timed out (8s)");
-              ws.close();
-              resolve(false);
-            }, 8000);
+        const useDoctor =
+          !patient ||
+          (doctor && (doctor.confidence ?? 0) >= (patient.confidence ?? 0));
+        const winner = useDoctor ? doctor! : patient!;
+        const speakerIdx = useDoctor ? 0 : 1;
 
-            ws.onopen = () => {
-              clearTimeout(timeout);
-              wsRef.current = ws;
-              streamingRef.current = true;
-              setStreamingActive(true);
-              setStreamingStatus("streaming live");
-              setConnectionStatus("connected");
-              resolve(true);
-            };
+        entry.settled = true;
+        pendingDualRef.current.delete(bucket);
 
-            ws.onmessage = (event) => {
-              try {
-                const data = JSON.parse(
-                  typeof event.data === "string"
-                    ? event.data
-                    : new TextDecoder().decode(event.data)
-                );
+        if (!winner.text.trim()) return;
 
-                if (data.type === "Results" && data.channel) {
-                  const alt = data.channel.alternatives?.[0];
-                  if (!alt || !alt.transcript) return;
+        const item: LiveTranscriptItem = {
+          speaker: speakerIdx,
+          text: winner.text,
+          timestamp: bucket / 100,
+          isFinal: winner.isFinal,
+          confidence: winner.confidence,
+          detectedLanguage: winner.lang,
+        };
 
-                  const speaker = useMultichannel
-                    ? (data.channel_index?.[0] ?? 0)
-                    : (alt.words?.[0]?.speaker ?? 0);
-                  const isFinal = data.is_final === true;
+        setTranscript((prev) => {
+          const last = prev[prev.length - 1];
+          const lastIsInterim = last && !last.isFinal;
+          const next = lastIsInterim ? [...prev.slice(0, -1), item] : [...prev, item];
+          transcriptRef.current = next;
+          onTranscriptUpdate?.(next);
+          return next;
+        });
+      };
 
-                  const detectedLanguage =
-                    alt.languages?.[0] ??
-                    alt.words?.[0]?.language ??
-                    data.channel?.detected_language ??
-                    undefined;
+      /** Attach onmessage for a single-language (non-dual) WebSocket */
+      const attachSingleMessage = (ws: WebSocket) => {
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(
+              typeof event.data === "string"
+                ? event.data
+                : new TextDecoder().decode(event.data)
+            );
 
+            if (data.type === "Results" && data.channel) {
+              const alt = data.channel.alternatives?.[0];
+              if (!alt || !alt.transcript?.trim()) return;
+
+              const useMultichannel = isMultichannelRef.current;
+              const speaker = useMultichannel
+                ? (data.channel_index?.[0] ?? 0)
+                : (alt.words?.[0]?.speaker ?? 0);
+              const isFinal = data.is_final === true;
+              const detectedLanguage =
+                alt.languages?.[0] ?? alt.words?.[0]?.language ?? undefined;
+
+              const item: LiveTranscriptItem = {
+                speaker,
+                text: alt.transcript,
+                timestamp: data.start ?? 0,
+                isFinal,
+                confidence: alt.confidence ?? 0,
+                detectedLanguage,
+              };
+
+              setTranscript((prev) => {
+                const last = prev[prev.length - 1];
+                const lastIsInterim = last && !last.isFinal;
+                const next = lastIsInterim ? [...prev.slice(0, -1), item] : [...prev, item];
+                transcriptRef.current = next;
+                onTranscriptUpdate?.(next);
+                return next;
+              });
+            }
+          } catch { /* ignore parse errors */ }
+        };
+      };
+
+      /** Attach onmessage for a dual-language WebSocket side ("doctor" | "patient") */
+      const attachDualMessage = (ws: WebSocket, side: "doctor" | "patient", lang: string) => {
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(
+              typeof event.data === "string"
+                ? event.data
+                : new TextDecoder().decode(event.data)
+            );
+
+            if (data.type === "Results" && data.channel) {
+              const alt = data.channel.alternatives?.[0];
+              if (!alt || !alt.transcript?.trim()) return;
+
+              const isFinal = data.is_final === true;
+              // Round to 100ms buckets so both sides can match the same utterance
+              const bucket = Math.round((data.start ?? 0) * 100);
+
+              const sideData = {
+                text: alt.transcript,
+                confidence: alt.confidence ?? 0,
+                isFinal,
+                lang,
+              };
+
+              const entry = pendingDualRef.current.get(bucket) ?? {};
+              entry[side] = sideData;
+              pendingDualRef.current.set(bucket, entry);
+
+              if (isFinal) {
+                // If both sides have fired, settle immediately
+                if (entry.doctor && entry.patient) {
+                  settleDual(bucket);
+                } else {
+                  // Otherwise wait up to 600ms for the other side, then settle anyway
+                  setTimeout(() => settleDual(bucket), 600);
+                }
+              } else {
+                // Interim: emit the most recent non-final result for live preview
+                // Always use the doctor-side for interim display
+                if (side === "doctor") {
                   const item: LiveTranscriptItem = {
-                    speaker,
+                    speaker: 0,
                     text: alt.transcript,
                     timestamp: data.start ?? 0,
-                    isFinal,
+                    isFinal: false,
                     confidence: alt.confidence ?? 0,
-                    detectedLanguage,
+                    detectedLanguage: lang,
                   };
-
-                  if (!alt.transcript.trim()) return;
                   setTranscript((prev) => {
                     const last = prev[prev.length - 1];
                     const lastIsInterim = last && !last.isFinal;
-                    const next = lastIsInterim ? [...prev.slice(0, -1), item] : [...prev, item];
-                    transcriptRef.current = next;
-                    onTranscriptUpdate?.(next);
-                    return next;
+                    return lastIsInterim ? [...prev.slice(0, -1), item] : [...prev, item];
                   });
                 }
-              } catch {
-                /* ignore parse errors */
               }
-            };
+            }
+          } catch { /* ignore parse errors */ }
+        };
+      };
 
-            ws.onerror = (e) => {
-              clearTimeout(timeout);
-              setStreamingStatus(
-                `WebSocket error: ${(e as ErrorEvent).message || "connection failed"}`
-              );
-              streamingRef.current = false;
-              setStreamingActive(false);
+      if (dgKey) {
+        setStreamingStatus("connecting WebSocket...");
+
+        if (dualLang) {
+          // ── Dual-language mode: open two WebSockets in parallel ────────────
+          const paramsDoctor = buildWsParams(language);
+          const paramsPatient = buildWsParams(patientLanguage!);
+          wsParamsRef.current = paramsDoctor.toString();
+
+          const urlDoctor = `wss://api.deepgram.com/v1/listen?${paramsDoctor}`;
+          const urlPatient = `wss://api.deepgram.com/v1/listen?${paramsPatient}`;
+
+          pendingDualRef.current.clear();
+
+          const wsDoctor = new WebSocket(urlDoctor, ["token", dgKey]);
+          wsDoctor.binaryType = "arraybuffer";
+          attachDualMessage(wsDoctor, "doctor", language);
+
+          const wsPatient = new WebSocket(urlPatient, ["token", dgKey]);
+          wsPatient.binaryType = "arraybuffer";
+          attachDualMessage(wsPatient, "patient", patientLanguage!);
+
+          wsConnected = await new Promise<boolean>((resolve) => {
+            const timeout = setTimeout(() => {
+              setStreamingStatus("WebSocket timed out (8s)");
+              wsDoctor.close();
+              wsPatient.close();
               resolve(false);
+            }, 8000);
+
+            let doctorOpen = false;
+            let patientOpen = false;
+
+            const onOpen = () => {
+              if (doctorOpen && patientOpen) {
+                clearTimeout(timeout);
+                wsRef.current = wsDoctor;
+                wsPatientRef.current = wsPatient;
+                streamingRef.current = true;
+                setStreamingActive(true);
+                setStreamingStatus(`streaming live · ${language.toUpperCase()} + ${patientLanguage!.toUpperCase()}`);
+                setConnectionStatus("connected");
+                resolve(true);
+              }
             };
 
-            ws.onclose = (e) => {
+            wsDoctor.onopen = () => { doctorOpen = true; onOpen(); };
+            wsPatient.onopen = () => { patientOpen = true; onOpen(); };
+
+            wsDoctor.onerror = () => { clearTimeout(timeout); wsDoctor.close(); wsPatient.close(); resolve(false); };
+            wsPatient.onerror = () => { clearTimeout(timeout); wsDoctor.close(); wsPatient.close(); resolve(false); };
+
+            wsDoctor.onclose = (e) => {
               streamingRef.current = false;
               setStreamingActive(false);
-              if (!wsConnected) {
-                setStreamingStatus(
-                  `WebSocket closed: code=${e.code} reason=${e.reason || "none"}`
-                );
-              } else if (!intentionalCloseRef.current && e.code !== 1000) {
-                setStreamingStatus("connection lost, reconnecting...");
-                reconnectWebSocket();
-              }
+              if (!intentionalCloseRef.current && e.code !== 1000) reconnectWebSocket();
+            };
+            wsPatient.onclose = () => {
+              // Patient WS closed — just log it; reconnect via doctor's onclose
             };
           });
-        } catch (err) {
-          setStreamingStatus(
-            `WS error: ${err instanceof Error ? err.message : "unknown"}`
-          );
-        }
-      }
+        } else {
+          // ── Single-language mode (original path) ──────────────────────────
+          const wsParams = buildWsParams(language);
+          wsParamsRef.current = wsParams.toString();
+          const wsUrl = `wss://api.deepgram.com/v1/listen?${wsParams}`;
+
+          try {
+            wsConnected = await new Promise<boolean>((resolve) => {
+              const ws = new WebSocket(wsUrl, ["token", dgKey]);
+              ws.binaryType = "arraybuffer";
+
+              const timeout = setTimeout(() => {
+                setStreamingStatus("WebSocket timed out (8s)");
+                ws.close();
+                resolve(false);
+              }, 8000);
+
+              ws.onopen = () => {
+                clearTimeout(timeout);
+                wsRef.current = ws;
+                streamingRef.current = true;
+                setStreamingActive(true);
+                setStreamingStatus("streaming live");
+                setConnectionStatus("connected");
+                resolve(true);
+              };
+
+              attachSingleMessage(ws);
+
+              ws.onerror = (e) => {
+                clearTimeout(timeout);
+                setStreamingStatus(`WebSocket error: ${(e as ErrorEvent).message || "connection failed"}`);
+                streamingRef.current = false;
+                setStreamingActive(false);
+                resolve(false);
+              };
+
+              ws.onclose = (e) => {
+                streamingRef.current = false;
+                setStreamingActive(false);
+                if (!wsConnected) {
+                  setStreamingStatus(`WebSocket closed: code=${e.code} reason=${e.reason || "none"}`);
+                } else if (!intentionalCloseRef.current && e.code !== 1000) {
+                  setStreamingStatus("connection lost, reconnecting...");
+                  reconnectWebSocket();
+                }
+              };
+            });
+          } catch (err) {
+            setStreamingStatus(
+              `WS error: ${err instanceof Error ? err.message : "unknown"}`
+            );
+          }
+        } // end single-language mode
+      } // end if (dgKey)
 
       if (!wsConnected) {
         setConnectionStatus("connected");
@@ -733,13 +923,15 @@ export function useAudioRecorder({
 
           // In multichannel mode, raw PCM is sent via ScriptProcessorNode;
           // MediaRecorder chunks are only sent for single-channel (diarize) mode.
-          if (
-            !isMultichannelRef.current &&
-            streamingRef.current &&
-            wsRef.current?.readyState === WebSocket.OPEN
-          ) {
-            chunksSentRef.current++;
-            wsRef.current.send(event.data);
+          if (!isMultichannelRef.current && streamingRef.current) {
+            if (wsRef.current?.readyState === WebSocket.OPEN) {
+              chunksSentRef.current++;
+              wsRef.current.send(event.data);
+            }
+            // Dual-lang mode: also send to the patient WebSocket
+            if (wsPatientRef.current?.readyState === WebSocket.OPEN) {
+              wsPatientRef.current.send(event.data);
+            }
           }
         }
       };
@@ -802,15 +994,22 @@ export function useAudioRecorder({
       if (wsRef.current?.readyState === WebSocket.OPEN) {
         try {
           wsRef.current.send(JSON.stringify({ type: "CloseStream" }));
-          setTimeout(() => {
-            wsRef.current?.close();
-            wsRef.current = null;
-          }, 1500);
+          setTimeout(() => { wsRef.current?.close(); wsRef.current = null; }, 1500);
         } catch {
           wsRef.current?.close();
           wsRef.current = null;
         }
       }
+      if (wsPatientRef.current?.readyState === WebSocket.OPEN) {
+        try {
+          wsPatientRef.current.send(JSON.stringify({ type: "CloseStream" }));
+          setTimeout(() => { wsPatientRef.current?.close(); wsPatientRef.current = null; }, 1500);
+        } catch {
+          wsPatientRef.current?.close();
+          wsPatientRef.current = null;
+        }
+      }
+      pendingDualRef.current.clear();
       streamingRef.current = false;
 
       if (
