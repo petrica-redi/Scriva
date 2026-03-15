@@ -20,10 +20,12 @@ function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
 
   const timeoutReason = searchParams.get("reason") === "timeout";
-  // Read URL error directly — no extra state/ref/effect needed
-  const urlError = searchParams.get("error")
-    ? decodeURIComponent(searchParams.get("error") ?? "")
-    : null;
+  const rawError = searchParams.get("error");
+  // Ignore stale/generic errors that are no longer relevant after switching to OAuth redirect
+  const urlError =
+    rawError && !rawError.includes("invalid_callback") && !rawError.includes("missing_code")
+      ? decodeURIComponent(rawError)
+      : null;
 
   async function handleSignIn(e: React.FormEvent) {
     e.preventDefault();
@@ -67,8 +69,8 @@ function SignInForm() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3m0 3h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
             </svg>
             <div className="flex-1">
-              <p className="text-sm font-medium text-amber-800">Previous sign-in attempt failed</p>
-              <p className="mt-0.5 text-xs text-amber-700">Please click &ldquo;Continue with Google&rdquo; below to try again.</p>
+              <p className="text-sm font-medium text-amber-800">Sign-in failed</p>
+              <p className="mt-0.5 text-xs text-amber-700">{urlError}</p>
             </div>
             <button
               onClick={() => router.replace("/auth/signin")}
