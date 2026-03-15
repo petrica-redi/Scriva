@@ -764,7 +764,7 @@ export default function ConsultationRecordPage() {
 
       {/* PHASE 1: PRE-RECORDING */}
       {phase === "pre" && (
-        <div className="flex flex-col items-center gap-6 py-10">
+        <div className="flex flex-col items-center gap-5 py-6 sm:py-10">
           {/* Hidden audio element for mic test playback */}
           <audio ref={micTestAudioRef} className="hidden" />
 
@@ -1006,7 +1006,7 @@ export default function ConsultationRecordPage() {
 
       {/* PHASE 2: RECORDING */}
       {phase === "recording" && (
-        <div className="space-y-3 py-2">
+        <div className="space-y-3 pb-36 lg:pb-4">
 
           {/* ── Prominent status bar ─────────────────────────────────────── */}
           <div className={`flex items-center justify-between rounded-xl px-4 py-3 ${
@@ -1100,7 +1100,7 @@ export default function ConsultationRecordPage() {
           )}
 
           {/* ── Main content grid ─────────────────────────────────────────── */}
-          <div className="grid gap-3 lg:grid-cols-5">
+          <div className="grid gap-3 grid-cols-1 lg:grid-cols-5">
 
             {/* ── Left column (3/5): Video + Transcript + Notes ──────────── */}
             <div className="space-y-3 lg:col-span-3">
@@ -1206,7 +1206,7 @@ export default function ConsultationRecordPage() {
                   </button>
                   {showTranscript && (
                     <div className="px-4 pb-3">
-                      {renderTranscriptBubbles(transcript, "max-h-[50vh]")}
+                      {renderTranscriptBubbles(transcript, "max-h-[40vh] lg:max-h-[50vh]")}
                     </div>
                   )}
                 </CardContent>
@@ -1265,13 +1265,14 @@ export default function ConsultationRecordPage() {
             </div>
           </div>
 
-          {/* ── Controls ─────────────────────────────────────────────────── */}
-          <div className="flex gap-3">
+          {/* ── Controls — sticky on mobile ───────────────────────────────── */}
+          <div className="sticky bottom-0 z-10 -mx-3 bg-white/95 px-3 pb-4 pt-3 backdrop-blur-sm lg:static lg:mx-0 lg:bg-transparent lg:pb-0 lg:pt-0 lg:backdrop-blur-none">
+            <div className="flex gap-3">
             <Button
               onClick={isPaused ? resumeRecording : pauseRecording}
               variant="outline"
               size="md"
-              className="flex-1"
+              className="flex-1 h-12 lg:h-auto"
               title="Space bar shortcut"
             >
               {isPaused ? t("record.resume") : t("record.pause")}
@@ -1281,7 +1282,7 @@ export default function ConsultationRecordPage() {
               disabled={isTranscribing}
               variant="danger"
               size="md"
-              className="flex-1"
+              className="flex-1 h-12 lg:h-auto"
             >
               {isTranscribing ? (
                 <span className="flex items-center justify-center gap-2">
@@ -1293,13 +1294,14 @@ export default function ConsultationRecordPage() {
                 </span>
               ) : t("record.endConsultation")}
             </Button>
-          </div>
+            </div>
 
-          {/* Keyboard shortcut hint */}
-          <p className="text-center text-[11px] text-medical-muted">
-            <kbd className="rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 font-mono text-[10px]">Space</kbd>
-            {" "}pause / resume
-          </p>
+            {/* Keyboard shortcut hint — desktop only */}
+            <p className="hidden text-center text-[11px] text-medical-muted lg:block">
+              <kbd className="rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 font-mono text-[10px]">Space</kbd>
+              {" "}pause / resume
+            </p>
+          </div>
 
           {(error || recordingError) && (
             <div className="rounded-lg border border-red-200 bg-red-50 p-4">

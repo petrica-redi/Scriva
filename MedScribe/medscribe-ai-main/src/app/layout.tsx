@@ -21,6 +21,18 @@ export const metadata: Metadata = {
     locale: "en_EU",
     type: "website",
   },
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    viewportFit: "cover",
+  },
+  themeColor: "#0d1b2a",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Scriva",
+  },
 };
 
 export default function RootLayout({
