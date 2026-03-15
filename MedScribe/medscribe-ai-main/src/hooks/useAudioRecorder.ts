@@ -235,12 +235,20 @@ export function useAudioRecorder({
               ? (data.channel_index?.[0] ?? 0)
               : (alt.words?.[0]?.speaker ?? 0);
             const isFinal = data.is_final === true;
+
+            const detectedLanguage =
+              alt.languages?.[0] ??
+              alt.words?.[0]?.language ??
+              data.channel?.detected_language ??
+              undefined;
+
             const item: LiveTranscriptItem = {
               speaker,
               text: alt.transcript,
               timestamp: data.start ?? 0,
               isFinal,
               confidence: alt.confidence ?? 0,
+              detectedLanguage,
             };
             if (!alt.transcript.trim()) return;
             setTranscript((prev) => {
@@ -577,14 +585,21 @@ export function useAudioRecorder({
 
         const useMultichannel = isMultichannelRef.current;
         const sampleRate = audioContextRef.current?.sampleRate || 48000;
+        // Use the selected language; "multi" enables auto-detection across all languages.
+        // nova-3-medical only works with English; use nova-3 for everything else.
+        const isMultiLang = language === "multi";
+        const isEnglishOnly = !isMultiLang && (language === "en" || language.startsWith("en-"));
+        const wsModel = isEnglishOnly ? "nova-3-medical" : "nova-3";
+
         const wsParams = new URLSearchParams({
-          model: "nova-2",
-          language,
+          model: wsModel,
+          language: isMultiLang ? "multi" : language,
           smart_format: "true",
           punctuate: "true",
           interim_results: "true",
           endpointing: "300",
           utterance_end_ms: "1000",
+          ...(isMultiLang ? { detect_language: "true" } : {}),
           ...(useMultichannel
             ? {
                 multichannel: "true",
@@ -636,12 +651,19 @@ export function useAudioRecorder({
                     : (alt.words?.[0]?.speaker ?? 0);
                   const isFinal = data.is_final === true;
 
+                  const detectedLanguage =
+                    alt.languages?.[0] ??
+                    alt.words?.[0]?.language ??
+                    data.channel?.detected_language ??
+                    undefined;
+
                   const item: LiveTranscriptItem = {
                     speaker,
                     text: alt.transcript,
                     timestamp: data.start ?? 0,
                     isFinal,
                     confidence: alt.confidence ?? 0,
+                    detectedLanguage,
                   };
 
                   if (!alt.transcript.trim()) return;

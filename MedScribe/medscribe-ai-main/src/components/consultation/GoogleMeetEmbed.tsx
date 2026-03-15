@@ -50,11 +50,7 @@ export function GoogleMeetEmbed({
   const popupRef = useRef<Window | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
 
-  // ---------- Draggable state (floating mode only) ----------
   const panelRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
-  const dragOrigin = useRef({ mx: 0, my: 0, px: 0, py: 0 });
-  const [dragging, setDragging] = useState(false);
 
   // Attach remote stream to video element
   useEffect(() => {
@@ -178,29 +174,6 @@ export function GoogleMeetEmbed({
     }
   }, [meetUrl, openPopup]);
 
-  // ---------- Drag handlers ----------
-  const onDragStart = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    const rect = panelRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    dragOrigin.current = { mx: e.clientX, my: e.clientY, px: rect.left, py: rect.top };
-    setDragging(true);
-  }, []);
-
-  useEffect(() => {
-    if (!dragging) return;
-    const onMove = (e: MouseEvent) => {
-      const { mx, my, px, py } = dragOrigin.current;
-      setPos({ x: px + (e.clientX - mx), y: py + (e.clientY - my) });
-    };
-    const onUp = () => setDragging(false);
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-  }, [dragging]);
 
   const linkInputValid = isValidMeetLink(normalizeMeetLink(linkInput));
 
@@ -210,23 +183,11 @@ export function GoogleMeetEmbed({
   // =====================================================================
   if (floating) {
     if (hasRemoteVideo) {
-      const style: React.CSSProperties = pos
-        ? { position: "fixed", left: pos.x, top: pos.y, zIndex: 50 }
-        : { position: "fixed", top: 12, right: 12, zIndex: 50 };
-
       return (
-        <div ref={panelRef} style={style} className="select-none">
+        <div ref={panelRef} className="fixed bottom-4 right-4 z-50">
           <div className="rounded-xl overflow-hidden shadow-2xl border border-gray-700 bg-gray-900">
-            <div
-              onMouseDown={onDragStart}
-              className="flex items-center justify-between px-3 py-1.5 bg-gray-800 cursor-grab active:cursor-grabbing"
-            >
+            <div className="flex items-center justify-between px-3 py-1.5 bg-gray-800">
               <div className="flex items-center gap-2">
-                <svg className="h-3.5 w-3.5 text-gray-500" viewBox="0 0 24 24" fill="currentColor">
-                  <circle cx="9" cy="5" r="1.5" /><circle cx="15" cy="5" r="1.5" />
-                  <circle cx="9" cy="12" r="1.5" /><circle cx="15" cy="12" r="1.5" />
-                  <circle cx="9" cy="19" r="1.5" /><circle cx="15" cy="19" r="1.5" />
-                </svg>
                 <span className="text-[10px] font-medium text-gray-400">Google Meet — Patient view</span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -271,12 +232,8 @@ export function GoogleMeetEmbed({
       );
     }
 
-    const style: React.CSSProperties = pos
-      ? { position: "fixed", left: pos.x, top: pos.y, zIndex: 50 }
-      : { position: "fixed", top: 12, right: 12, zIndex: 50 };
-
     return (
-      <div ref={panelRef} style={style} className="select-none">
+      <div ref={panelRef} className="fixed bottom-4 right-4 z-50">
         <div
           className={`flex items-center gap-2 rounded-xl shadow-2xl border px-3 py-2 ${
             popupAlive
@@ -284,14 +241,6 @@ export function GoogleMeetEmbed({
               : "bg-white border-gray-200 text-gray-700"
           }`}
         >
-          <div onMouseDown={onDragStart} className="cursor-grab active:cursor-grabbing p-0.5 -ml-1" title="Drag to reposition">
-            <svg className="h-4 w-4 text-gray-400" viewBox="0 0 24 24" fill="currentColor">
-              <circle cx="9" cy="5" r="1.5" /><circle cx="15" cy="5" r="1.5" />
-              <circle cx="9" cy="12" r="1.5" /><circle cx="15" cy="12" r="1.5" />
-              <circle cx="9" cy="19" r="1.5" /><circle cx="15" cy="19" r="1.5" />
-            </svg>
-          </div>
-
           <svg className="h-4 w-4 shrink-0 text-blue-400" viewBox="0 0 24 24" fill="currentColor">
             <path d="M14.5 8.5v7l4.5 2.5V6l-4.5 2.5zM2 6.5v11c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2v-11c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2z" />
           </svg>

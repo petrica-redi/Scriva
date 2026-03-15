@@ -276,10 +276,12 @@ export async function POST(request: NextRequest) {
     // Determine audio mode and language from headers
     const audioMode = request.headers.get("X-Audio-Mode");
     const isMultichannel = audioMode === "multichannel";
-    const language = request.headers.get("X-Audio-Language") || "en";
+    const language = request.headers.get("X-Audio-Language") || "multi";
 
-    // nova-3-medical only supports English; use nova-3 (general) for all other languages
-    const isEnglish = language === "en" || language.startsWith("en-");
+    // "multi" = auto-detect any language; otherwise use language-specific model
+    const isMultiLang = language === "multi";
+    const isEnglish = !isMultiLang && (language === "en" || language.startsWith("en-"));
+    // nova-3-medical only supports English; nova-3 supports all languages + multi
     const primaryModel = isEnglish ? "nova-3-medical" : "nova-3";
 
     const apiKey = process.env.DEEPGRAM_API_KEY;
@@ -291,14 +293,14 @@ export async function POST(request: NextRequest) {
     // prevented the fallbacks from ever running when the key was missing.
     if (apiKey) {
       console.log(
-        `[Deepgram] Transcribing: ${(audioBlob.size / 1024).toFixed(1)}KB, mode: ${isMultichannel ? "multichannel" : "diarize"}, model: ${primaryModel}`
+        `[Deepgram] Transcribing: ${(audioBlob.size / 1024).toFixed(1)}KB, mode: ${isMultichannel ? "multichannel" : "diarize"}, model: ${primaryModel}, language: ${language}`
       );
 
       const params = new URLSearchParams({
         model: primaryModel,
-        language,
+        language: isMultiLang ? "multi" : language,
         smart_format: "true",
-        detect_language: "false",
+        detect_language: isMultiLang ? "true" : "false",
       });
 
       if (isMultichannel) {

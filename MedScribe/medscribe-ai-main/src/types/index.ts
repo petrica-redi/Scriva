@@ -158,6 +158,10 @@ export interface LiveTranscriptItem {
   timestamp: number;
   isFinal: boolean;
   confidence: number;
+  /** BCP-47 language code detected by Deepgram (e.g. "en", "fr") */
+  detectedLanguage?: string;
+  /** AI-translated text when the segment is in a different language */
+  translatedText?: string;
 }
 
 export interface RecordingState {

@@ -32,24 +32,29 @@ const TEMPLATES = [
 ];
 
 const LANGUAGES = [
-  { value: "en", label: "English", model: "nova-3-medical" },
-  { value: "ro", label: "Romanian", model: "nova-3" },
-  { value: "de", label: "German", model: "nova-3" },
-  { value: "fr", label: "French", model: "nova-3" },
-  { value: "es", label: "Spanish", model: "nova-3" },
-  { value: "it", label: "Italian", model: "nova-3" },
-  { value: "pt", label: "Portuguese", model: "nova-3" },
-  { value: "nl", label: "Dutch", model: "nova-3" },
-  { value: "pl", label: "Polish", model: "nova-3" },
-  { value: "hu", label: "Hungarian", model: "nova-3" },
-  { value: "bg", label: "Bulgarian", model: "nova-3" },
-  { value: "cs", label: "Czech", model: "nova-3" },
-  { value: "ru", label: "Russian", model: "nova-3" },
-  { value: "tr", label: "Turkish", model: "nova-3" },
-  { value: "hi", label: "Hindi", model: "nova-3" },
-  { value: "ja", label: "Japanese", model: "nova-3" },
-  { value: "ko", label: "Korean", model: "nova-3" },
+  { value: "multi", label: "Auto-detect (multilingual)" },
+  { value: "en", label: "English" },
+  { value: "ro", label: "Romanian" },
+  { value: "de", label: "German" },
+  { value: "fr", label: "French" },
+  { value: "es", label: "Spanish" },
+  { value: "it", label: "Italian" },
+  { value: "pt", label: "Portuguese" },
+  { value: "nl", label: "Dutch" },
+  { value: "pl", label: "Polish" },
+  { value: "hu", label: "Hungarian" },
+  { value: "bg", label: "Bulgarian" },
+  { value: "cs", label: "Czech" },
+  { value: "ru", label: "Russian" },
+  { value: "tr", label: "Turkish" },
+  { value: "hi", label: "Hindi" },
+  { value: "ja", label: "Japanese" },
+  { value: "ko", label: "Korean" },
 ];
+
+const LANG_LABELS: Record<string, string> = Object.fromEntries(
+  LANGUAGES.map((l) => [l.value, l.label])
+);
 
 export default function ConsultationRecordPage() {
   const params = useParams<{ id: string }>();
@@ -65,7 +70,9 @@ export default function ConsultationRecordPage() {
   const [consultationData, setConsultationData] = useState<ConsultationWithRelations | null>(null);
   const [error, setError] = useState("");
   const [consultationMode, setConsultationMode] = useState<ConsultationMode>("in-person");
-  const [selectedLanguage, setSelectedLanguage] = useState("en");
+  const [selectedLanguage, setSelectedLanguage] = useState("multi");
+  const [detectedPatientLang, setDetectedPatientLang] = useState<string | null>(null);
+  const [detectedDoctorLang, setDetectedDoctorLang] = useState<string | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState(TEMPLATES[0].value);
   const [isGeneratingNote, setIsGeneratingNote] = useState(false);
   const [sessionNotes, setSessionNotes] = useState("");
@@ -273,6 +280,67 @@ export default function ConsultationRecordPage() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [isRecording, isPaused, pauseRecording, resumeRecording]);
+
+  // ── Auto-translation for multilingual conversations ─────────────────
+  const translatingRef = useRef<Set<string>>(new Set());
+  const [translations, setTranslations] = useState<Record<string, string>>({});
+
+  const makeTranslationKey = useCallback(
+    (item: LiveTranscriptItem) =>
+      `${item.timestamp}|${item.speaker}|${item.text.slice(0, 40)}`,
+    []
+  );
+
+  useEffect(() => {
+    if (!isRecording || !streamingActive) return;
+
+    const isMultiLang = selectedLanguage === "multi";
+    // In multi mode, the "doctor language" is auto-detected from speaker 0 segments.
+    // In single-language mode, it's whatever the user selected.
+    const doctorLang = isMultiLang ? detectedDoctorLang : selectedLanguage;
+
+    const finalItems = transcript.filter(
+      (t) => t.isFinal && t.detectedLanguage
+    );
+
+    for (const item of finalItems) {
+      const lang = item.detectedLanguage!;
+      const key = makeTranslationKey(item);
+      if (translatingRef.current.has(key) || translations[key]) continue;
+
+      // Track detected languages per speaker
+      if (item.speaker === 0 && isMultiLang && !detectedDoctorLang) {
+        setDetectedDoctorLang(lang);
+      }
+      if (item.speaker !== 0 && lang !== doctorLang) {
+        setDetectedPatientLang(lang);
+      }
+
+      // Translate when doctor and patient speak different languages
+      const needsTranslation = doctorLang && detectedPatientLang &&
+        doctorLang !== detectedPatientLang &&
+        ((item.speaker === 0 && lang !== detectedPatientLang) ||
+         (item.speaker !== 0 && lang !== doctorLang));
+
+      if (!needsTranslation) continue;
+
+      const toLang = item.speaker === 0 ? detectedPatientLang! : doctorLang!;
+
+      translatingRef.current.add(key);
+      fetch("/api/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: item.text, fromLang: lang, toLang }),
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data: { translatedText?: string } | null) => {
+          if (!data?.translatedText) return;
+          setTranslations((prev) => ({ ...prev, [key]: data.translatedText! }));
+        })
+        .catch(() => {})
+        .finally(() => translatingRef.current.delete(key));
+    }
+  }, [transcript, isRecording, streamingActive, selectedLanguage, detectedDoctorLang, detectedPatientLang, translations, makeTranslationKey]);
 
   const handleMicTest = useCallback(async () => {
     if (micTestState !== "idle") return;
@@ -505,6 +573,12 @@ export default function ConsultationRecordPage() {
           {items.map((item, idx) => {
             const isDoctor = item.speaker === 0;
             const isInterim = !item.isFinal;
+            const tKey = makeTranslationKey(item);
+            const translatedText = item.translatedText || translations[tKey];
+            const langCode = item.detectedLanguage;
+            const langLabel = langCode
+              ? LANG_LABELS[langCode] ?? langCode.toUpperCase()
+              : null;
             return (
               <div
                 key={`${item.timestamp}-${item.speaker}-${idx}`}
@@ -521,6 +595,11 @@ export default function ConsultationRecordPage() {
                     <span className={`text-[10px] font-bold uppercase tracking-wider ${isDoctor ? "text-blue-600" : "text-green-600"}`}>
                       {isDoctor ? t("record.doctor") : t("record.patientSpeaker")}
                     </span>
+                    {langLabel && (
+                      <span className="rounded-full bg-gray-200/70 px-1.5 py-px text-[9px] font-semibold uppercase text-gray-500">
+                        {langCode}
+                      </span>
+                    )}
                     {item.timestamp > 0 && (
                       <span className="text-[10px] text-gray-400">{formatDuration(Math.round(item.timestamp))}</span>
                     )}
@@ -529,6 +608,13 @@ export default function ConsultationRecordPage() {
                     )}
                   </div>
                   <p className="leading-relaxed">{item.text}</p>
+                  {translatedText && (
+                    <div className="mt-1.5 border-t border-current/10 pt-1.5">
+                      <p className="text-[13px] italic leading-relaxed opacity-80">
+                        {translatedText}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -732,17 +818,27 @@ export default function ConsultationRecordPage() {
             </div>
           )}
 
-            {/* Language + mic test row */}
-            <div className="flex items-center gap-2">
-              <select
-                value={selectedLanguage}
-                onChange={(e) => setSelectedLanguage(e.target.value)}
-                className="flex-1 rounded-lg border border-medical-border px-3 py-2 text-sm text-medical-text focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
-              >
-                {LANGUAGES.map((lang) => (
-                  <option key={lang.value} value={lang.value}>{lang.label}</option>
-                ))}
-              </select>
+            {/* Doctor language + mic test row */}
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="flex-1">
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-medical-muted">
+                  Transcription language
+                </label>
+                <select
+                  value={selectedLanguage}
+                  onChange={(e) => setSelectedLanguage(e.target.value)}
+                  className="w-full rounded-lg border border-medical-border px-3 py-2 text-sm text-medical-text focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                >
+                  {LANGUAGES.map((lang) => (
+                    <option key={lang.value} value={lang.value}>{lang.label}</option>
+                  ))}
+                </select>
+                <p className="mt-1 text-[11px] text-medical-muted">
+                  {selectedLanguage === "multi"
+                    ? "Automatically detects any language — doctor and patient can speak different languages"
+                    : "Patient language is detected automatically — live translation appears when languages differ"}
+                </p>
+              </div>
 
               {/* Microphone test button */}
               <button
@@ -919,57 +1015,57 @@ export default function ConsultationRecordPage() {
             <AudioVisualizer audioLevel={audioLevel} isRecording={isRecording} isPaused={isPaused} duration={duration} />
           )}
 
-          {/* ── Main content grid ─────────────────────────────────────────── */}
-          <div className="grid gap-4 lg:grid-cols-5">
-            {/* Left column: video PiP (remote) + live transcript + notes */}
-            <div className="space-y-3 lg:col-span-3">
-
-              {/* Remote: consultation video panel (above transcript) */}
-              {consultationMode === "remote" && (
-                <div className="rounded-xl overflow-hidden border border-gray-700 bg-black shadow-lg">
-                  <div className="flex items-center justify-between px-3 py-2 bg-gray-800">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-300">
-                        Google Meet
-                      </span>
-                      {isMultichannel && (
-                        <span className="rounded-full bg-purple-500/20 px-2 py-0.5 text-[9px] font-medium text-purple-400">Stereo</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {streamingActive && (
-                        <span className="flex items-center gap-1 rounded-full bg-purple-500/20 px-2 py-0.5">
-                          <span className="h-1.5 w-1.5 rounded-full bg-purple-400 animate-pulse" />
-                          <span className="text-[9px] font-medium text-purple-300">Transcribing</span>
-                        </span>
-                      )}
-                      {isRecording && (
-                        <span className="flex items-center gap-1 rounded-full bg-red-500/20 px-2 py-0.5">
-                          <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
-                          <span className="text-[9px] font-semibold text-red-400">REC {formatDuration(duration)}</span>
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  {remoteVideoStream && remoteVideoStream.getVideoTracks().length > 0 ? (
-                    <video
-                      ref={pipVideoCallbackRef}
-                      autoPlay
-                      playsInline
-                      muted
-                      className="w-full bg-black"
-                      style={{ maxHeight: "260px", objectFit: "contain" }}
-                    />
-                  ) : (
-                    <div className="flex h-[160px] w-full flex-col items-center justify-center gap-2 bg-gray-900">
-                      <svg className="h-8 w-8 text-gray-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
-                      </svg>
-                      <p className="text-xs text-gray-500">Share your Meet tab when prompted to show video here</p>
-                    </div>
+          {/* ── Remote: sticky PiP above the grid (full width, centered) ── */}
+          {consultationMode === "remote" && (
+            <div className="sticky top-16 z-30 mx-auto w-full max-w-3xl rounded-xl overflow-hidden border border-gray-700 bg-black shadow-xl">
+              <div className="flex items-center justify-between px-3 py-1.5 bg-gray-800">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-300">
+                    Google Meet
+                  </span>
+                  {isMultichannel && (
+                    <span className="rounded-full bg-purple-500/20 px-2 py-0.5 text-[9px] font-medium text-purple-400">Stereo</span>
                   )}
                 </div>
+                <div className="flex items-center gap-2">
+                  {streamingActive && (
+                    <span className="flex items-center gap-1 rounded-full bg-purple-500/20 px-2 py-0.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-purple-400 animate-pulse" />
+                      <span className="text-[9px] font-medium text-purple-300">Transcribing</span>
+                    </span>
+                  )}
+                  {isRecording && (
+                    <span className="flex items-center gap-1 rounded-full bg-red-500/20 px-2 py-0.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+                      <span className="text-[9px] font-semibold text-red-400">REC {formatDuration(duration)}</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+              {remoteVideoStream && remoteVideoStream.getVideoTracks().length > 0 ? (
+                <video
+                  ref={pipVideoCallbackRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="mx-auto block w-full bg-black"
+                  style={{ height: "220px", objectFit: "contain" }}
+                />
+              ) : (
+                <div className="flex h-[120px] w-full flex-col items-center justify-center gap-2 bg-gray-900">
+                  <svg className="h-7 w-7 text-gray-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
+                  </svg>
+                  <p className="text-xs text-gray-500">Share your Meet tab when prompted to show video here</p>
+                </div>
               )}
+            </div>
+          )}
+
+          {/* ── Main content grid ─────────────────────────────────────────── */}
+          <div className="grid gap-4 lg:grid-cols-5">
+            {/* Left column: live transcript + notes */}
+            <div className="space-y-3 lg:col-span-3">
 
               {/* Live transcript */}
               <Card>
@@ -985,19 +1081,29 @@ export default function ConsultationRecordPage() {
                           Live
                         </span>
                       )}
+                      {detectedPatientLang && (selectedLanguage === "multi" ? detectedDoctorLang && detectedPatientLang !== detectedDoctorLang : detectedPatientLang !== selectedLanguage) && (
+                        <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m10.5 21 5.25-11.25L21 21m-9-3h7.5M3 5.621a48.474 48.474 0 0 1 6-.371m0 0c1.12 0 2.233.038 3.334.114M9 5.25V3m3.334 2.364C11.176 10.658 7.69 15.08 3 17.502m9.334-12.138c.896.061 1.785.147 2.666.257m-4.589 8.495a18.023 18.023 0 0 1-3.827-5.802" />
+                          </svg>
+                          Translating: {LANG_LABELS[detectedPatientLang] ?? detectedPatientLang.toUpperCase()}
+                        </span>
+                      )}
                     </div>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <span className="flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-600">
                         <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-                        {t("record.doctor")}
+                        {t("record.doctor")}{selectedLanguage === "multi"
+                          ? (detectedDoctorLang ? ` (${LANG_LABELS[detectedDoctorLang] ?? detectedDoctorLang.toUpperCase()})` : "")
+                          : ` (${LANG_LABELS[selectedLanguage] ?? selectedLanguage.toUpperCase()})`}
                       </span>
                       <span className="flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-medium text-green-600">
                         <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-                        {t("record.patientSpeaker")}
+                        {t("record.patientSpeaker")}{detectedPatientLang ? ` (${LANG_LABELS[detectedPatientLang] ?? detectedPatientLang.toUpperCase()})` : ""}
                       </span>
                     </div>
                   </div>
-                  {renderTranscriptBubbles(transcript, consultationMode === "remote" ? "max-h-[320px]" : "max-h-[480px]")}
+                  {renderTranscriptBubbles(transcript, "max-h-[480px]")}
                 </CardContent>
               </Card>
 
