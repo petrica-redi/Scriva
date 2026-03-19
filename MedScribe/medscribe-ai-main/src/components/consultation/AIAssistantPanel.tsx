@@ -244,8 +244,13 @@ export function AIAssistantPanel({
           </div>
         ) : error ? (
           <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            {error}
-            <button onClick={runAnalysis} className="ml-2 underline">Retry</button>
+            <p>{error}</p>
+            {(error.includes("API key") || error.includes("401") || error.includes("providers failed")) && (
+              <p className="mt-1.5 text-xs text-red-600">
+                Check your Vercel environment variables: ANTHROPIC_API_KEY, OPENAI_API_KEY, or GOOGLE_GEMINI_API_KEY. At least one valid key is required.
+              </p>
+            )}
+            <button onClick={runAnalysis} className="mt-1.5 underline">Retry</button>
           </div>
         ) : analysis ? (
           <div className="space-y-3">

@@ -65,6 +65,11 @@ export async function GET(request: NextRequest) {
       day: "2-digit", month: "long", year: "numeric",
     });
 
+    const doctorName = (user.user_metadata?.full_name as string) || user.email || "Clinician";
+    const doctorDisplay = doctorName.startsWith("Dr.") ? doctorName : `Dr. ${doctorName}`;
+    const doctorSpecialty = (user.user_metadata?.specialty as string) || "General Practice";
+    const doctorEmail = user.email || "";
+
     const medicationsHtml = prescription.medications
       .map(
         (med: Medication, i: number) => `
@@ -106,9 +111,9 @@ export async function GET(request: NextRequest) {
 </head>
 <body>
   <div class="header">
-    <div class="doctor-name">Dr. Diana Pirjol</div>
-    <div class="doctor-info">Medic Specialist · Cabinet Medical</div>
-    <div class="doctor-info">Contact: office@medscribe.ai</div>
+    <div class="doctor-name">${escapeHtml(doctorDisplay)}</div>
+    <div class="doctor-info">${escapeHtml(doctorSpecialty)}</div>
+    ${doctorEmail ? `<div class="doctor-info">Contact: ${escapeHtml(doctorEmail)}</div>` : ""}
   </div>
 
   <div class="patient-info">
@@ -131,7 +136,7 @@ export async function GET(request: NextRequest) {
   ${prescription.notes ? `<div class="notes"><strong>Additional Instructions:</strong><br/>${escapeHtml(prescription.notes)}</div>` : ""}
 
   <div class="signature">
-    <div class="signature-line">Dr. Diana Pirjol<br/>Signature & Stamp</div>
+    <div class="signature-line">${escapeHtml(doctorDisplay)}<br/>Signature &amp; Stamp</div>
     <div class="signature-line">Date: ${escapeHtml(date)}</div>
   </div>
 

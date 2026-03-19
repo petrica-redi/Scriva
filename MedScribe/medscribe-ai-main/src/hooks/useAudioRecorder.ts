@@ -60,6 +60,8 @@ interface UseAudioRecorderReturn {
   stopRecording: () => Promise<LiveTranscriptItem[]>;
   pauseRecording: () => void;
   resumeRecording: () => void;
+  /** Download the raw audio recorded so far (during or after recording) */
+  downloadCurrentAudio: () => void;
   error: string | null;
 }
 
@@ -222,8 +224,8 @@ export function useAudioRecorder({
     reconnectTimeoutRef.current = setTimeout(() => {
       if (intentionalCloseRef.current) return;
 
-      const wsUrl = `wss://api.deepgram.com/v1/listen?${wsParamsRef.current}`;
-      const ws = new WebSocket(wsUrl, ["token", dgKeyRef.current as string]);
+      const wsUrl = `wss://api.deepgram.com/v1/listen?${wsParamsRef.current}&token=${encodeURIComponent(dgKeyRef.current as string)}`;
+      const ws = new WebSocket(wsUrl);
       ws.binaryType = "arraybuffer";
 
       const useMultichannel = isMultichannelRef.current;
@@ -795,11 +797,11 @@ export function useAudioRecorder({
 
           pendingDualRef.current.clear();
 
-          const wsDoctor = new WebSocket(urlDoctor, ["token", dgKey]);
+          const wsDoctor = new WebSocket(`${urlDoctor}&token=${encodeURIComponent(dgKey)}`);
           wsDoctor.binaryType = "arraybuffer";
           attachDualMessage(wsDoctor, "doctor", language);
 
-          const wsPatient = new WebSocket(urlPatient, ["token", dgKey]);
+          const wsPatient = new WebSocket(`${urlPatient}&token=${encodeURIComponent(dgKey)}`);
           wsPatient.binaryType = "arraybuffer";
           attachDualMessage(wsPatient, "patient", patientLanguage!);
 
@@ -850,7 +852,7 @@ export function useAudioRecorder({
 
           try {
             wsConnected = await new Promise<boolean>((resolve) => {
-              const ws = new WebSocket(wsUrl, ["token", dgKey]);
+              const ws = new WebSocket(`${wsUrl}&token=${encodeURIComponent(dgKey)}`);
               ws.binaryType = "arraybuffer";
 
               const timeout = setTimeout(() => {
@@ -1193,6 +1195,20 @@ export function useAudioRecorder({
     }
   }, []);
 
+  // Download the raw audio blob accumulated so far
+  const downloadCurrentAudio = useCallback(() => {
+    if (chunksRef.current.length === 0) return;
+    const mimeType = mediaRecorderRef.current?.mimeType ?? "audio/webm";
+    const blob = new Blob(chunksRef.current, { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const ext = mimeType.includes("webm") ? "webm" : "ogg";
+    a.download = `recording-${new Date().toISOString().replace(/[:.]/g, "-")}.${ext}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
   return {
     isRecording,
     isPaused,
@@ -1211,6 +1227,7 @@ export function useAudioRecorder({
     stopRecording,
     pauseRecording,
     resumeRecording,
+    downloadCurrentAudio,
     error,
   };
 }

@@ -26,7 +26,7 @@ export async function GET(
 
     const { data: consultation, error } = await supabase
       .from("consultations")
-      .select("id, status, visit_type, metadata, created_at")
+      .select("id, status, visit_type, metadata, created_at, user_id")
       .eq("id", id)
       .single();
 
@@ -48,6 +48,16 @@ export async function GET(
       waitingStatus = "completed";
     }
 
+    // Fetch doctor's display name from their profile
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", consultation.user_id)
+      .single();
+
+    const rawName = profile?.full_name || "Your Doctor";
+    const doctorName = rawName.startsWith("Dr.") ? rawName : `Dr. ${rawName}`;
+
     return NextResponse.json({
       consultation_id: consultation.id,
       status: waitingStatus,
@@ -55,7 +65,7 @@ export async function GET(
       patient_name: metadata.patient_name || null,
       appointment_time: consultation.created_at,
       meet_link: waitingStatus === "in-progress" ? (metadata.meet_link || null) : null,
-      doctor_name: "Dr. Diana Pirjol",
+      doctor_name: doctorName,
     });
   } catch {
     return NextResponse.json(

@@ -81,7 +81,12 @@ async function callAnthropic(req: AICompletionRequest): Promise<{ text: string; 
 
   if (!response.ok) {
     const detail = await response.text();
-    throw new Error(`Anthropic request failed (${response.status}): ${detail.slice(0, 250)}`);
+    const isAuthError = response.status === 401 || response.status === 403;
+    throw new Error(
+      isAuthError
+        ? `Anthropic API key is invalid or expired (${response.status}). Check your ANTHROPIC_API_KEY in Vercel environment variables.`
+        : `Anthropic request failed (${response.status}): ${detail.slice(0, 250)}`
+    );
   }
 
   const data = (await response.json()) as { content?: Array<{ text?: string }>; model?: string };
@@ -120,7 +125,12 @@ async function callOpenAI(req: AICompletionRequest): Promise<{ text: string; mod
 
   if (!response.ok) {
     const detail = await response.text();
-    throw new Error(`OpenAI request failed (${response.status}): ${detail.slice(0, 250)}`);
+    const isAuthError = response.status === 401 || response.status === 403;
+    throw new Error(
+      isAuthError
+        ? `OpenAI API key is invalid or expired (${response.status}). Check your OPENAI_API_KEY in Vercel environment variables.`
+        : `OpenAI request failed (${response.status}): ${detail.slice(0, 250)}`
+    );
   }
 
   const data = (await response.json()) as { choices?: Array<{ message?: { content?: string } }>; model?: string };

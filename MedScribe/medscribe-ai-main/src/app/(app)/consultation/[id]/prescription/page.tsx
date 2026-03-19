@@ -49,8 +49,20 @@ export default function PrescriptionPage() {
 
   const [patientId, setPatientId] = useState<string | null>(null);
   const [showFollowUpPrompt, setShowFollowUpPrompt] = useState(false);
+  const [doctorDisplay, setDoctorDisplay] = useState("Your Doctor");
+  const [doctorSpecialty, setDoctorSpecialty] = useState("");
   const [transcriptText, setTranscriptText] = useState("");
   const [transcriptAvailable, setTranscriptAvailable] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      const name = (user.user_metadata?.full_name as string) || user.email || "Clinician";
+      setDoctorDisplay(name.startsWith("Dr.") ? name : `Dr. ${name}`);
+      setDoctorSpecialty((user.user_metadata?.specialty as string) || "");
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const loadConsultation = useCallback(async () => {
     const supabase = createClient();
@@ -398,8 +410,8 @@ export default function PrescriptionPage() {
         <Card>
           <CardContent className="pt-5 space-y-4">
             <div className="border-b-2 border-blue-600 pb-3">
-              <h2 className="text-xl font-bold text-blue-800">Dr. Diana Pirjol</h2>
-              <p className="text-xs text-gray-500">Medic Specialist · Cabinet Medical</p>
+              <h2 className="text-xl font-bold text-blue-800">{doctorDisplay}</h2>
+              {doctorSpecialty && <p className="text-xs text-gray-500">{doctorSpecialty}</p>}
             </div>
             <div className="flex gap-8 text-sm">
               <div><span className="text-xs text-gray-400 uppercase">Patient</span><p className="font-semibold">{patientName || "—"}</p></div>

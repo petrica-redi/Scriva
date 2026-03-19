@@ -107,6 +107,7 @@ export default function ConsultationRecordPage() {
     stopRecording,
     pauseRecording,
     resumeRecording,
+    downloadCurrentAudio,
     error: recordingError,
   // Language strategy for Deepgram:
   // - Same language: pass that language directly (best accuracy)
@@ -281,7 +282,19 @@ export default function ConsultationRecordPage() {
     localStorage.setItem("scriva-langs", JSON.stringify({ doctor: doctorLang, patient: patientLang }));
   }, [doctorLang, patientLang]);
 
-  // Keyboard shortcuts during recording (Space = pause/resume)
+  // Swap doctor/patient languages in one click
+  const swapLanguages = useCallback(() => {
+    const d = doctorLang;
+    const p = patientLang;
+    setDoctorLang(p);
+    setPatientLang(d);
+  }, [doctorLang, patientLang]);
+
+  // ── Editable transcript state — click a line to correct it ──────────
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [editText, setEditText] = useState("");
+
+  // Keyboard shortcuts during recording (Space = pause/resume, Alt+L = swap languages)
   useEffect(() => {
     if (!isRecording) return;
     const handler = (e: KeyboardEvent) => {
@@ -296,14 +309,20 @@ export default function ConsultationRecordPage() {
         e.preventDefault();
         isPaused ? resumeRecording() : pauseRecording();
       }
+      // Alt+L = swap doctor/patient languages
+      if (e.altKey && e.key.toLowerCase() === "l") {
+        e.preventDefault();
+        swapLanguages();
+      }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [isRecording, isPaused, pauseRecording, resumeRecording]);
 
-  // ── Live translation for multilingual conversations ─────────────────
+  // ── Live translation for multilingual conversations (debounced) ─────
   const translatingRef = useRef<Set<string>>(new Set());
   const [translations, setTranslations] = useState<Record<string, string>>({});
+  const translationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const makeTranslationKey = useCallback(
     (item: LiveTranscriptItem) =>
@@ -311,10 +330,9 @@ export default function ConsultationRecordPage() {
     []
   );
 
-  useEffect(() => {
-    if (!isRecording || !isMultilingual) return;
+  const doTranslation = useCallback(() => {
+    if (!isMultilingual) return;
 
-    // Collect untranslated final segments, grouped by direction
     const doctorToPatient: Array<{ key: string; text: string }> = [];
     const patientToDoctor: Array<{ key: string; text: string }> = [];
 
@@ -340,7 +358,6 @@ export default function ConsultationRecordPage() {
       for (const s of segments) translatingRef.current.add(s.key);
 
       if (segments.length === 1) {
-        // Single segment — use simple endpoint
         const { key, text } = segments[0];
         fetch("/api/translate", {
           method: "POST",
@@ -355,7 +372,6 @@ export default function ConsultationRecordPage() {
           .catch(() => {})
           .finally(() => translatingRef.current.delete(key));
       } else {
-        // Multiple segments — use batch endpoint
         fetch("/api/translate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -375,7 +391,21 @@ export default function ConsultationRecordPage() {
 
     sendBatch(doctorToPatient, doctorLang, patientLang);
     sendBatch(patientToDoctor, patientLang, doctorLang);
-  }, [transcript, isRecording, isMultilingual, doctorLang, patientLang, translations, makeTranslationKey]);
+  }, [transcript, isMultilingual, doctorLang, patientLang, translations, makeTranslationKey]);
+
+  // Debounce translation calls — fire every 3 seconds max instead of on every transcript change
+  useEffect(() => {
+    if (!isRecording || !isMultilingual) return;
+
+    if (translationTimerRef.current) clearTimeout(translationTimerRef.current);
+    translationTimerRef.current = setTimeout(() => {
+      doTranslation();
+    }, 3000);
+
+    return () => {
+      if (translationTimerRef.current) clearTimeout(translationTimerRef.current);
+    };
+  }, [transcript, isRecording, isMultilingual, doTranslation]);
 
   const handleMicTest = useCallback(async () => {
     if (micTestState !== "idle") return;
@@ -643,7 +673,47 @@ export default function ConsultationRecordPage() {
                       <span className="text-[10px] text-amber-500">~{Math.round(item.confidence * 100)}%</span>
                     )}
                   </div>
-                  <p className="leading-relaxed">{item.text}</p>
+                  {/* Click-to-edit transcript text — only when not recording live */}
+                  {editingIdx === idx ? (
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            // Commit the edit
+                            const updated = [...transcript];
+                            updated[idx] = { ...updated[idx], text: editText };
+                            // We can't setTranscript directly (it's from the hook),
+                            // but for post-recording review we update displayTranscript
+                            item.text = editText;
+                            setEditingIdx(null);
+                          } else if (e.key === "Escape") {
+                            setEditingIdx(null);
+                          }
+                        }}
+                        onBlur={() => {
+                          item.text = editText;
+                          setEditingIdx(null);
+                        }}
+                        autoFocus
+                        className="flex-1 rounded border border-gray-300 bg-white px-2 py-1 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                      />
+                      <span className="text-[9px] text-gray-400 whitespace-nowrap">Enter to save</span>
+                    </div>
+                  ) : (
+                    <p
+                      className="leading-relaxed cursor-pointer hover:bg-white/50 rounded px-1 -mx-1 transition-colors"
+                      title="Click to edit"
+                      onClick={() => {
+                        setEditingIdx(idx);
+                        setEditText(item.text);
+                      }}
+                    >
+                      {item.text}
+                    </p>
+                  )}
                   {showTranslation && (
                     <div className={`mt-2 rounded-lg px-3 py-2 ${
                       isDoctor ? "bg-blue-100/60" : "bg-green-100/60"
@@ -1028,22 +1098,58 @@ export default function ConsultationRecordPage() {
             </div>
 
             <div className="flex items-center gap-2">
-              {/* STT streaming status pill */}
-              <div className={`hidden sm:flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ${
+              {/* Connection status — color-coded */}
+              <div className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ${
                 streamingActive
-                  ? "bg-purple-100 text-purple-700"
+                  ? "bg-green-100 text-green-700"
                   : streamingStatus.includes("batch") || streamingStatus.includes("locally")
                   ? "bg-amber-100 text-amber-700"
-                  : "bg-green-100 text-green-700"
-              }`}>
-                <div className={`h-1.5 w-1.5 rounded-full ${
-                  streamingActive ? "bg-purple-500 animate-pulse" : "bg-current"
+                  : connectionStatus === "connecting"
+                  ? "bg-blue-100 text-blue-700"
+                  : "bg-red-100 text-red-700"
+              }`}
+                title={streamingStatus || connectionStatus}
+              >
+                <div className={`h-2 w-2 rounded-full ${
+                  streamingActive
+                    ? "bg-green-500 animate-pulse"
+                    : streamingStatus.includes("batch") || streamingStatus.includes("locally")
+                    ? "bg-amber-500"
+                    : connectionStatus === "connecting"
+                    ? "bg-blue-500 animate-pulse"
+                    : "bg-red-500"
                 }`} />
                 {streamingActive
-                  ? t("record.streamingLive")
+                  ? "Live"
                   : streamingStatus.includes("batch") || streamingStatus.includes("locally")
-                  ? "Batch mode"
+                  ? "Batch (10s)"
+                  : connectionStatus === "connecting"
+                  ? "Connecting…"
                   : t("record.connected")}
+              </div>
+
+              {/* Active language badge + swap button */}
+              <div className="hidden sm:flex items-center gap-1">
+                <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+                  {LANG_LABELS[doctorLang] ?? doctorLang.toUpperCase()}
+                </span>
+                {isMultilingual && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={swapLanguages}
+                      title="Swap languages (Alt+L)"
+                      className="rounded-full p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                    >
+                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                      </svg>
+                    </button>
+                    <span className="rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-700">
+                      {LANG_LABELS[patientLang] ?? patientLang.toUpperCase()}
+                    </span>
+                  </>
+                )}
               </div>
 
               {/* AI Tools toggle */}
@@ -1277,6 +1383,18 @@ export default function ConsultationRecordPage() {
             >
               {isPaused ? t("record.resume") : t("record.pause")}
             </Button>
+            {/* Save raw audio */}
+            <Button
+              onClick={downloadCurrentAudio}
+              variant="outline"
+              size="md"
+              className="h-12 lg:h-auto px-3"
+              title="Download raw audio"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+            </Button>
             <Button
               onClick={handleEndRecording}
               disabled={isTranscribing}
@@ -1300,6 +1418,12 @@ export default function ConsultationRecordPage() {
             <p className="hidden text-center text-[11px] text-medical-muted lg:block">
               <kbd className="rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 font-mono text-[10px]">Space</kbd>
               {" "}pause / resume
+              {isMultilingual && (
+                <span className="ml-3">
+                  <kbd className="rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 font-mono text-[10px]">Alt+L</kbd>
+                  {" "}swap languages
+                </span>
+              )}
             </p>
           </div>
 
