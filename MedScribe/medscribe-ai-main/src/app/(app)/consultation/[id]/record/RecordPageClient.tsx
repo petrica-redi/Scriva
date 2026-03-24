@@ -319,13 +319,12 @@ export default function ConsultationRecordPage() {
     return () => window.removeEventListener("keydown", handler);
   }, [isRecording, isPaused, pauseRecording, resumeRecording, swapLanguages]);
 
-  // ── Live translation for multilingual conversations (debounced) ─────
+  // ── Live translation for multilingual conversations ─────────────────
   const translatingRef = useRef<Set<string>>(new Set());
   const [translations, setTranslations] = useState<Record<string, string>>({});
   const translationsRef = useRef<Record<string, string>>({});
-  const translationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevFinalCountRef = useRef(0);
 
-  // Keep the ref in sync so the callback can read it without re-creating
   useEffect(() => {
     translationsRef.current = translations;
   }, [translations]);
@@ -336,18 +335,21 @@ export default function ConsultationRecordPage() {
     []
   );
 
-  const doTranslation = useCallback(() => {
-    if (!isMultilingual) return;
+  // Fire translation immediately when new final segments appear
+  useEffect(() => {
+    if (!isRecording || !isMultilingual) return;
+
+    const finals = transcript.filter((t) => t.isFinal && t.text.trim());
+    if (finals.length <= prevFinalCountRef.current) return;
+    prevFinalCountRef.current = finals.length;
 
     const existing = translationsRef.current;
     const doctorToPatient: Array<{ key: string; text: string }> = [];
     const patientToDoctor: Array<{ key: string; text: string }> = [];
 
-    for (const item of transcript) {
-      if (!item.isFinal || !item.text.trim()) continue;
+    for (const item of finals) {
       const key = makeTranslationKey(item);
       if (translatingRef.current.has(key) || existing[key]) continue;
-
       if (item.speaker === 0) {
         doctorToPatient.push({ key, text: item.text });
       } else {
@@ -355,13 +357,12 @@ export default function ConsultationRecordPage() {
       }
     }
 
-    const sendBatch = (
+    const sendTranslation = (
       segments: Array<{ key: string; text: string }>,
       fromLang: string,
       toLang: string
     ) => {
       if (segments.length === 0) return;
-
       for (const s of segments) translatingRef.current.add(s.key);
 
       if (segments.length === 1) {
@@ -396,23 +397,9 @@ export default function ConsultationRecordPage() {
       }
     };
 
-    sendBatch(doctorToPatient, doctorLang, patientLang);
-    sendBatch(patientToDoctor, patientLang, doctorLang);
-  }, [transcript, isMultilingual, doctorLang, patientLang, makeTranslationKey]);
-
-  // Debounce translation calls — fire ~2s after the last transcript change
-  useEffect(() => {
-    if (!isRecording || !isMultilingual) return;
-
-    if (translationTimerRef.current) clearTimeout(translationTimerRef.current);
-    translationTimerRef.current = setTimeout(() => {
-      doTranslation();
-    }, 2000);
-
-    return () => {
-      if (translationTimerRef.current) clearTimeout(translationTimerRef.current);
-    };
-  }, [transcript, isRecording, isMultilingual, doTranslation]);
+    sendTranslation(doctorToPatient, doctorLang, patientLang);
+    sendTranslation(patientToDoctor, patientLang, doctorLang);
+  }, [transcript, isRecording, isMultilingual, doctorLang, patientLang, makeTranslationKey]);
 
   const handleMicTest = useCallback(async () => {
     if (micTestState !== "idle") return;

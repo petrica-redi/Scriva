@@ -93,8 +93,10 @@ export async function POST(request: Request) {
       const result = await generateWithFallback({
         systemPrompt: `You are a medical interpreter. Translate each numbered line from ${langName(fromLang)} to ${langName(toLang)}. Keep the [number] prefix on each line. Return ONLY the translations, one per line, nothing else.`,
         userPrompt: combined,
-        maxTokens: 2048,
-        temperature: 0.1,
+        maxTokens: 1024,
+        temperature: 0,
+        preferredProvider: "openai",
+        modelOverride: "gpt-4o-mini",
         userId: user.id,
       });
 
@@ -136,8 +138,10 @@ export async function POST(request: Request) {
     const result = await generateWithFallback({
       systemPrompt: `You are a medical interpreter. Translate the following from ${langName(fromLang)} to ${langName(toLang)}. Return ONLY the translation, nothing else — no quotes, no explanation, no preamble.`,
       userPrompt: text,
-      maxTokens: 512,
-      temperature: 0.1,
+      maxTokens: 256,
+      temperature: 0,
+      preferredProvider: "openai",
+      modelOverride: "gpt-4o-mini",
       userId: user.id,
     });
 

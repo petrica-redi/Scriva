@@ -8,6 +8,8 @@ export interface AICompletionRequest {
   maxTokens?: number;
   temperature?: number;
   preferredProvider?: AIProvider | "auto";
+  /** Override the default model for a provider (e.g. "gpt-4o-mini" for fast tasks). */
+  modelOverride?: string;
   /** User ID for rate limiting. If omitted, rate limiting is skipped. */
   userId?: string;
 }
@@ -62,7 +64,7 @@ async function callAnthropic(req: AICompletionRequest): Promise<{ text: string; 
     throw new Error("Anthropic provider is not configured");
   }
 
-  const model = process.env.ANTHROPIC_MODEL || DEFAULT_ANTHROPIC_MODEL;
+  const model = req.modelOverride || process.env.ANTHROPIC_MODEL || DEFAULT_ANTHROPIC_MODEL;
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -105,7 +107,7 @@ async function callOpenAI(req: AICompletionRequest): Promise<{ text: string; mod
     throw new Error("OpenAI provider is not configured");
   }
 
-  const model = process.env.OPENAI_MODEL || DEFAULT_OPENAI_MODEL;
+  const model = req.modelOverride || process.env.OPENAI_MODEL || DEFAULT_OPENAI_MODEL;
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -149,7 +151,7 @@ async function callGemini(req: AICompletionRequest): Promise<{ text: string; mod
     throw new Error("Gemini provider is not configured");
   }
 
-  const model = process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
+  const model = req.modelOverride || process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
     {

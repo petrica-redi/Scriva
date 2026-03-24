@@ -632,8 +632,8 @@ export function useAudioRecorder({
           smart_format: "true",
           punctuate: "true",
           interim_results: "true",
-          endpointing: "300",
-          utterance_end_ms: "1000",
+          endpointing: "200",
+          utterance_end_ms: "500",
           ...(useMultichannel
             ? { multichannel: "true", channels: "2", encoding: "linear16", sample_rate: String(sampleRate) }
             : { diarize: "true" }),
@@ -759,27 +759,25 @@ export function useAudioRecorder({
                 if (entry.doctor && entry.patient) {
                   settleDual(bucket);
                 } else {
-                  // Otherwise wait up to 600ms for the other side, then settle anyway
-                  setTimeout(() => settleDual(bucket), 600);
+                  // Otherwise wait up to 300ms for the other side, then settle anyway
+                  setTimeout(() => settleDual(bucket), 300);
                 }
               } else {
-                // Interim: emit the most recent non-final result for live preview
-                // Always use the doctor-side for interim display
-                if (side === "doctor") {
-                  const item: LiveTranscriptItem = {
-                    speaker: 0,
-                    text: alt.transcript,
-                    timestamp: data.start ?? 0,
-                    isFinal: false,
-                    confidence: alt.confidence ?? 0,
-                    detectedLanguage: lang,
-                  };
-                  setTranscript((prev) => {
-                    const last = prev[prev.length - 1];
-                    const lastIsInterim = last && !last.isFinal;
-                    return lastIsInterim ? [...prev.slice(0, -1), item] : [...prev, item];
-                  });
-                }
+                // Interim: show live preview from whichever side fires
+                const speakerIdx = side === "doctor" ? 0 : 1;
+                const item: LiveTranscriptItem = {
+                  speaker: speakerIdx,
+                  text: alt.transcript,
+                  timestamp: data.start ?? 0,
+                  isFinal: false,
+                  confidence: alt.confidence ?? 0,
+                  detectedLanguage: lang,
+                };
+                setTranscript((prev) => {
+                  const last = prev[prev.length - 1];
+                  const lastIsInterim = last && !last.isFinal;
+                  return lastIsInterim ? [...prev.slice(0, -1), item] : [...prev, item];
+                });
               }
             }
           } catch { /* ignore parse errors */ }
@@ -942,7 +940,7 @@ export function useAudioRecorder({
         }
       };
 
-      const timeslice = wsConnected ? 250 : 1000;
+      const timeslice = wsConnected ? 100 : 1000;
       mediaRecorder.start(timeslice);
 
       setIsRecording(true);
