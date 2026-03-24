@@ -124,6 +124,8 @@ export function useAudioRecorder({
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const intentionalCloseRef = useRef(false);
   const dgKeyRef = useRef<string | null>(null);
+  /** "bearer" when using a temporary JWT, "token" when using a raw API key */
+  const dgAuthTypeRef = useRef<"bearer" | "token">("bearer");
   const wsParamsRef = useRef<string>("");
   const MAX_RECONNECT_ATTEMPTS = 5;
 
@@ -224,8 +226,8 @@ export function useAudioRecorder({
     reconnectTimeoutRef.current = setTimeout(() => {
       if (intentionalCloseRef.current) return;
 
-      const wsUrl = `wss://api.deepgram.com/v1/listen?${wsParamsRef.current}&token=${encodeURIComponent(dgKeyRef.current as string)}`;
-      const ws = new WebSocket(wsUrl);
+      const wsUrl = `wss://api.deepgram.com/v1/listen?${wsParamsRef.current}`;
+      const ws = new WebSocket(wsUrl, [dgAuthTypeRef.current, dgKeyRef.current as string]);
       ws.binaryType = "arraybuffer";
 
       const useMultichannel = isMultichannelRef.current;
@@ -596,6 +598,7 @@ export function useAudioRecorder({
           if (keyRes.ok && keyData.streaming_available && keyData.key) {
             dgKey = keyData.key.trim();
             dgKeyRef.current = dgKey;
+            dgAuthTypeRef.current = keyData.auth_type === "token" ? "token" : "bearer";
             setStreamingStatus("key obtained");
           } else {
             setStreamingStatus(
@@ -797,11 +800,12 @@ export function useAudioRecorder({
 
           pendingDualRef.current.clear();
 
-          const wsDoctor = new WebSocket(`${urlDoctor}&token=${encodeURIComponent(dgKey)}`);
+          const wsProtocol: [string, string] = [dgAuthTypeRef.current, dgKey];
+          const wsDoctor = new WebSocket(urlDoctor, wsProtocol);
           wsDoctor.binaryType = "arraybuffer";
           attachDualMessage(wsDoctor, "doctor", language);
 
-          const wsPatient = new WebSocket(`${urlPatient}&token=${encodeURIComponent(dgKey)}`);
+          const wsPatient = new WebSocket(urlPatient, wsProtocol);
           wsPatient.binaryType = "arraybuffer";
           attachDualMessage(wsPatient, "patient", patientLanguage!);
 
@@ -852,7 +856,7 @@ export function useAudioRecorder({
 
           try {
             wsConnected = await new Promise<boolean>((resolve) => {
-              const ws = new WebSocket(`${wsUrl}&token=${encodeURIComponent(dgKey)}`);
+              const ws = new WebSocket(wsUrl, [dgAuthTypeRef.current, dgKey]);
               ws.binaryType = "arraybuffer";
 
               const timeout = setTimeout(() => {
@@ -976,6 +980,7 @@ export function useAudioRecorder({
   }, [
     mode,
     language,
+    patientLanguage,
     streaming,
     cleanup,
     startLevelMonitoring,

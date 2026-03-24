@@ -317,12 +317,18 @@ export default function ConsultationRecordPage() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [isRecording, isPaused, pauseRecording, resumeRecording]);
+  }, [isRecording, isPaused, pauseRecording, resumeRecording, swapLanguages]);
 
   // ── Live translation for multilingual conversations (debounced) ─────
   const translatingRef = useRef<Set<string>>(new Set());
   const [translations, setTranslations] = useState<Record<string, string>>({});
+  const translationsRef = useRef<Record<string, string>>({});
   const translationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Keep the ref in sync so the callback can read it without re-creating
+  useEffect(() => {
+    translationsRef.current = translations;
+  }, [translations]);
 
   const makeTranslationKey = useCallback(
     (item: LiveTranscriptItem) =>
@@ -333,13 +339,14 @@ export default function ConsultationRecordPage() {
   const doTranslation = useCallback(() => {
     if (!isMultilingual) return;
 
+    const existing = translationsRef.current;
     const doctorToPatient: Array<{ key: string; text: string }> = [];
     const patientToDoctor: Array<{ key: string; text: string }> = [];
 
     for (const item of transcript) {
       if (!item.isFinal || !item.text.trim()) continue;
       const key = makeTranslationKey(item);
-      if (translatingRef.current.has(key) || translations[key]) continue;
+      if (translatingRef.current.has(key) || existing[key]) continue;
 
       if (item.speaker === 0) {
         doctorToPatient.push({ key, text: item.text });
@@ -391,16 +398,16 @@ export default function ConsultationRecordPage() {
 
     sendBatch(doctorToPatient, doctorLang, patientLang);
     sendBatch(patientToDoctor, patientLang, doctorLang);
-  }, [transcript, isMultilingual, doctorLang, patientLang, translations, makeTranslationKey]);
+  }, [transcript, isMultilingual, doctorLang, patientLang, makeTranslationKey]);
 
-  // Debounce translation calls — fire every 3 seconds max instead of on every transcript change
+  // Debounce translation calls — fire ~2s after the last transcript change
   useEffect(() => {
     if (!isRecording || !isMultilingual) return;
 
     if (translationTimerRef.current) clearTimeout(translationTimerRef.current);
     translationTimerRef.current = setTimeout(() => {
       doTranslation();
-    }, 3000);
+    }, 2000);
 
     return () => {
       if (translationTimerRef.current) clearTimeout(translationTimerRef.current);
