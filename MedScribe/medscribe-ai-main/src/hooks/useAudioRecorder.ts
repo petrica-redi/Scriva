@@ -633,7 +633,7 @@ export function useAudioRecorder({
           punctuate: "true",
           interim_results: "true",
           endpointing: "200",
-          utterance_end_ms: "500",
+          utterance_end_ms: "1000",
           ...(useMultichannel
             ? { multichannel: "true", channels: "2", encoding: "linear16", sample_rate: String(sampleRate) }
             : { diarize: "true" }),
